@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FIST OF DOOM: BRUTAL BRAWLER</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥊</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Three.js + Postprocessing + Tween.js for ultra-smooth dynamic combat -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <div id="game-container">
+    <!-- Top Bar with Instant Mouse Release & Status -->
+    <header id="top-bar">
+      <button id="esc-unlock-btn" class="glow-btn" title="Click or press ESC to release mouse">
+        <span class="icon">🔓</span> <span class="btn-text">ESC: RELEASE MOUSE / PAUSE</span>
+      </button>
+      <div id="status-badges">
+        <span id="mouse-status-tag" class="tag tag-green">MOUSE: UNLOCKED</span>
+        <span id="fps-counter" class="tag tag-dim">60 FPS</span>
+      </div>
+    </header>
+
+    <!-- Crosshair & Dynamic Hit Markers -->
+    <div id="crosshair-wrapper">
+      <div id="crosshair"></div>
+      <div id="crosshair-dot"></div>
+      <div id="hit-marker"></div>
+    </div>
+
+    <!-- Glory Kill / Execution Prompt -->
+    <div id="glory-kill-prompt">
+      <span class="blink-text">⚡ STAGGERED! [LEFT CLICK / E] EXECUTE! ⚡</span>
+    </div>
+
+    <!-- Screen Flash FX -->
+    <div id="damage-flash"></div>
+    <div id="berserk-overlay"></div>
+    <div id="slam-flash"></div>
+
+    <!-- Floating Combat Text & Combo Overlay -->
+    <div id="combat-banner">
+      <div id="combo-title">COMBO</div>
+      <div id="combo-count">x0</div>
+      <div id="rage-meter-container">
+        <div class="rage-label">BERSERK RAGE</div>
+        <div class="rage-bar-bg"><div id="rage-bar-fill"></div></div>
+      </div>
+    </div>
+    <div id="announcement"></div>
+
+    <!-- Enhanced Modern/Retro Hybrid HUD -->
+    <footer id="retro-hud">
+      <!-- Health Stat -->
+      <div class="hud-stat-box health-box">
+        <div class="hud-stat-header">
+          <span class="hud-icon">❤️</span>
+          <span class="hud-label">VITALITY</span>
+        </div>
+        <div class="hud-value-container">
+          <span id="hud-health" class="hud-number">100</span><span class="hud-unit">%</span>
+        </div>
+        <div class="hud-bar-bg"><div id="hud-health-bar" class="hud-bar-fill health-bar"></div></div>
+      </div>
+
+      <!-- Armor Stat -->
+      <div class="hud-stat-box armor-box">
+        <div class="hud-stat-header">
+          <span class="hud-icon">🛡️</span>
+          <span class="hud-label">SHIELD</span>
+        </div>
+        <div class="hud-value-container">
+          <span id="hud-armor" class="hud-number">50</span><span class="hud-unit">%</span>
+        </div>
+        <div class="hud-bar-bg"><div id="hud-armor-bar" class="hud-bar-fill armor-bar"></div></div>
+      </div>
+
+      <!-- Dynamic Animated Fighter Face -->
+      <div id="hud-face-frame">
+        <canvas id="hud-face-canvas" width="72" height="72"></canvas>
+      </div>
+
+      <!-- Active Weapon / Attack Status -->
+      <div class="hud-stat-box attack-box">
+        <div class="hud-stat-header">
+          <span class="hud-icon">⚡</span>
+          <span class="hud-label">ACTIVE MELEE ATTACK</span>
+        </div>
+        <div id="hud-attack-name" class="hud-weapon-name">BARE KNUCKLES</div>
+        <div id="hud-attack-desc" class="hud-weapon-sub">RAPID JABS [L-CLICK / F]</div>
+      </div>
+
+      <!-- Attack Slots 1-4 -->
+      <div class="hud-stat-box arsenal-box">
+        <span class="hud-label">ARSENAL [KEYS 1 - 4]</span>
+        <div class="attack-slots">
+          <div id="slot-1" class="slot active" data-slot="1">
+            <span class="slot-num">1</span>
+            <span class="slot-name">JAB</span>
+          </div>
+          <div id="slot-2" class="slot locked" data-slot="2">
+            <span class="slot-num">2</span>
+            <span class="slot-name">HOOK</span>
+          </div>
+          <div id="slot-3" class="slot locked" data-slot="3">
+            <span class="slot-num">3</span>
+            <span class="slot-name">KICK</span>
+          </div>
+          <div id="slot-4" class="slot locked" data-slot="4">
+            <span class="slot-num">4</span>
+            <span class="slot-name">SLAM 💥</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Score & Kills -->
+      <div class="hud-stat-box score-box">
+        <div class="stat-row"><span>FIGHTERS KO'D:</span> <span id="hud-kills" class="stat-highlight red">0</span></div>
+        <div class="stat-row"><span>CRATES SMASHED:</span> <span id="hud-boxes" class="stat-highlight cyan">0/8</span></div>
+        <div class="stat-row"><span>SCORE:</span> <span id="hud-score" class="stat-highlight gold">0</span></div>
+      </div>
+    </footer>
+
+    <!-- Modern CRT / Vignette / Bloom Overlay -->
+    <div id="vignette-overlay"></div>
+    <div id="crt-overlay"></div>
+
+    <!-- Start / Pause / Game Over Menu Screen -->
+    <div id="menu-overlay">
+      <div class="menu-modal">
+        <div class="brand-header">
+          <span class="brand-badge">BRUTAL FIRST-PERSON ACTION</span>
+          <h1 id="menu-title" class="hero-title">FIST OF DOOM</h1>
+          <p id="menu-subtitle" class="hero-desc">NO GUNS. ONLY BRUTAL BONE-CRUSHING MELEE &amp; EXPLOSIVE SLAMS.</p>
+        </div>
+
+        <div class="menu-content-grid">
+          <div class="menu-card">
+            <h3>🕹️ COMBAT CONTROLS</h3>
+            <ul>
+              <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> &mdash; Move &amp; Strafe</li>
+              <li><kbd>MOUSE</kbd> or <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> &mdash; Look &amp; Turn</li>
+              <li><kbd>LEFT CLICK</kbd> or <kbd>F</kbd> &mdash; Primary Attack</li>
+              <li><kbd>RIGHT CLICK</kbd> or <kbd>E</kbd> &mdash; Mighty Boot Kick</li>
+              <li><kbd>SPACEBAR</kbd> &mdash; Jump</li>
+              <li><kbd>SHIFT</kbd> &mdash; Rush / Sprint</li>
+              <li><kbd>SPACE</kbd> + <kbd>ATTACK</kbd> &mdash; <b>💥 METEOR JUMP SLAM (Strongest Attack!)</b></li>
+              <li><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> &mdash; Switch Unlocked Attacks</li>
+              <li><kbd>ESC</kbd> or <kbd>P</kbd> &mdash; <b>Instant Release Mouse / Pause</b></li>
+            </ul>
+          </div>
+
+          <div class="menu-card">
+            <h3>📦 SUPPLY CRATE WEAPON UPGRADES</h3>
+            <p>Smash wooden supply crates scattered across the arena to unlock powerful attacks &amp; supplies:</p>
+            <div class="crate-items-list">
+              <div class="crate-item">
+                <span class="item-badge gold">🥊 Brass Knuckles [2]</span>
+                <span class="item-desc">Heavy thunder hook that staggers rival fighters and crushes ribs</span>
+              </div>
+              <div class="crate-item">
+                <span class="item-badge cyan">🥾 Combat Boots [3]</span>
+                <span class="item-desc">Mighty boot kick that sends enemies flying into walls</span>
+              </div>
+              <div class="crate-item">
+                <span class="item-badge purple">⚡ Meteor Slam Gauntlet [4]</span>
+                <span class="item-desc">Airborne ground-pound shockwave with massive radial obliteration</span>
+              </div>
+              <div class="crate-item">
+                <span class="item-badge green">💉 Berserk Medkits &amp; Armor</span>
+                <span class="item-desc">Vitality recovery and explosive blood rage</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="menu-actions">
+          <button id="start-mouse-btn" class="action-btn primary-btn">
+            ENTER ARENA &mdash; MOUSE LOOK MODE
+          </button>
+          <button id="start-free-btn" class="action-btn secondary-btn">
+            PLAY IN FREE MOUSE MODE (NEVER LOCKS CURSOR, USE ARROWS TO AIM)
+          </button>
+        </div>
+
+        <div class="menu-footer">
+          <span>💡 Mouse safety: Pressing <b>ESC</b> or clicking the top button always releases your cursor instantly.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
