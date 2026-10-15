@@ -255,6 +255,25 @@ class EnhancedRetroAudio {
 
     this.musicTimer = setInterval(tick, (beat / 2) * 1000);
   }
+
+  playPeaceChime() {
+    if (!this.ctx || this.isMuted) return;
+    try {
+      const t = this.ctx.currentTime;
+      [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t + i * 0.08);
+        gain.gain.setValueAtTime(0.2, t + i * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.45);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t + i * 0.08);
+        osc.stop(t + i * 0.08 + 0.48);
+      });
+    } catch (err) {}
+  }
 }
 
 const audio = new EnhancedRetroAudio();
@@ -342,17 +361,18 @@ const state = {
   freeMouseMode: false,
   isPointerLocked: false,
   isDead: false,
-  gloryTarget: null
+  gloryTarget: null,
+  wasInsidePeace: false
 };
 
 // ============================================================================
-// THREE.JS SETUP & HIGH-FIDELITY 3D ARENA
+// THREE.JS SETUP & 3D TORONTO OPEN-WORLD ARENA
 // ============================================================================
 const container = document.getElementById('game-container');
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x0a0c12, 0.038);
 
-const camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.1, 120);
+// Far clip increased to 2500m to render CN Tower (553m) and downtown skyline
+const camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.1, 2500);
 camera.position.set(0, 1.7, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -362,6 +382,32 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.insertBefore(renderer.domElement, container.firstChild);
 
+// Build Toronto City from real OpenStreetMap data with CN Tower Peace Sanctuary
+const city = (typeof window.buildTorontoCity === 'function') ? window.buildTorontoCity(scene) : null;
+
+const player = {
+  pos: camera.position,
+  velocity: new THREE.Vector3(),
+  yaw: 0,
+  pitch: 0,
+  isGrounded: true,
+  bobTimer: 0,
+  speed: 7.0,
+  sprintSpeed: 11.5,
+  jumpStrength: 9.0
+};
+
+// Spawn player on Front St facing CN Tower if Toronto City is loaded
+if (city && city.start) {
+  player.pos.set(city.start.x, 1.7, city.start.z);
+  player.yaw = city.startYaw;
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = city.startYaw;
+}
+
+// Colliders array (for fallback or supplemental obstacles)
+const colliders = [];
+
 // Texture Generators
 function createProceduralTexture(type) {
   const canvas = document.createElement('canvas');
@@ -370,67 +416,26 @@ function createProceduralTexture(type) {
   const ctx = canvas.getContext('2d');
 
   if (type === 'wall') {
-    // Sci-Fi Industrial Panel with bevels & hazard stripes
     ctx.fillStyle = '#1c202a';
     ctx.fillRect(0, 0, 256, 256);
     ctx.strokeStyle = '#2d3345';
     ctx.lineWidth = 6;
     ctx.strokeRect(4, 4, 248, 248);
-
-    ctx.fillStyle = '#282f40';
-    ctx.fillRect(16, 16, 224, 100);
-    ctx.fillRect(16, 136, 224, 104);
-
-    // Hazard stripe
-    for (let i = 16; i < 240; i += 24) {
-      ctx.fillStyle = '#ffaa00';
-      ctx.beginPath();
-      ctx.moveTo(i, 16);
-      ctx.lineTo(i + 12, 16);
-      ctx.lineTo(i - 4, 32);
-      ctx.lineTo(i - 16, 32);
-      ctx.fill();
-    }
-
-    // Rivets
-    ctx.fillStyle = '#64748b';
-    [24, 232].forEach(x => {
-      [24, 110, 144, 232].forEach(y => {
-        ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fill();
-      });
-    });
   } else if (type === 'floor') {
-    // Metal diamond plate
     ctx.fillStyle = '#111318';
     ctx.fillRect(0, 0, 256, 256);
-    ctx.strokeStyle = '#222632';
-    ctx.lineWidth = 2;
-    for (let x = 0; x < 256; x += 32) {
-      for (let y = 0; y < 256; y += 32) {
-        ctx.strokeRect(x, y, 32, 32);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-        ctx.fillRect(x + 4, y + 4, 24, 24);
-      }
-    }
   } else if (type === 'crate') {
-    // Military supply crate
     ctx.fillStyle = '#8b5a2b';
     ctx.fillRect(0, 0, 256, 256);
     ctx.fillStyle = '#5c3818';
     ctx.fillRect(12, 12, 232, 232);
-
     ctx.strokeStyle = '#3d2510';
     ctx.lineWidth = 14;
     ctx.strokeRect(8, 8, 240, 240);
     ctx.beginPath();
-    ctx.moveTo(8, 8);
-    ctx.lineTo(248, 248);
-    ctx.moveTo(248, 8);
-    ctx.lineTo(8, 248);
+    ctx.moveTo(8, 8); ctx.lineTo(248, 248);
+    ctx.moveTo(248, 8); ctx.lineTo(8, 248);
     ctx.stroke();
-
     ctx.fillStyle = '#ffea00';
     ctx.font = 'bold 36px monospace';
     ctx.textAlign = 'center';
@@ -443,102 +448,44 @@ function createProceduralTexture(type) {
   return texture;
 }
 
-const wallTex = createProceduralTexture('wall');
-wallTex.wrapS = THREE.RepeatWrapping;
-wallTex.wrapT = THREE.RepeatWrapping;
-
-const floorTex = createProceduralTexture('floor');
-floorTex.wrapS = THREE.RepeatWrapping;
-floorTex.wrapT = THREE.RepeatWrapping;
-floorTex.repeat.set(16, 16);
-
 const crateTex = createProceduralTexture('crate');
 
-// Environment Lighting
-const ambLight = new THREE.AmbientLight(0x2a2f3d, 1.4);
-scene.add(ambLight);
+if (city) {
+  // Atmospheric Toronto Night Skyline Lighting & Fog
+  scene.fog = new THREE.FogExp2(0x0a0c12, 0.0022);
 
-const mainLight = new THREE.PointLight(0xff4422, 2.8, 45);
-mainLight.position.set(0, 6, 0);
-mainLight.castShadow = true;
-scene.add(mainLight);
+  const ambLight = new THREE.AmbientLight(0x424c5e, 1.8);
+  scene.add(ambLight);
 
-// Floor and Ceiling
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(90, 90),
-  new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.7, metalness: 0.3 })
-);
-floor.rotation.x = -Math.PI / 2;
-floor.receiveShadow = true;
-scene.add(floor);
+  const moonLight = new THREE.DirectionalLight(0xa5c4e8, 1.25);
+  moonLight.position.set(150, 350, 180);
+  scene.add(moonLight);
+} else {
+  // Fallback Indoor Enclosed Arena if map data failed to load
+  scene.fog = new THREE.FogExp2(0x0a0c12, 0.038);
+  const ambLight = new THREE.AmbientLight(0x2a2f3d, 1.4);
+  scene.add(ambLight);
 
-const ceil = new THREE.Mesh(
-  new THREE.PlaneGeometry(90, 90),
-  new THREE.MeshStandardMaterial({ color: 0x0f1118, roughness: 0.9 })
-);
-ceil.position.y = 6.2;
-ceil.rotation.x = Math.PI / 2;
-scene.add(ceil);
+  const mainLight = new THREE.PointLight(0xff4422, 2.8, 45);
+  mainLight.position.set(0, 6, 0);
+  scene.add(mainLight);
 
-// Level Architecture & Collision Walls
-const colliders = [];
-const wallMat = new THREE.MeshStandardMaterial({
-  map: wallTex,
-  roughness: 0.65,
-  metalness: 0.2
-});
+  const floorTex = createProceduralTexture('floor');
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.7 }));
+  floor.rotation.x = -Math.PI / 2;
+  scene.add(floor);
 
-function addWall(x, z, width, depth, height = 6.2, angle = 0) {
-  const geo = new THREE.BoxGeometry(width, height, depth);
-  const wall = new THREE.Mesh(geo, wallMat);
-  wall.position.set(x, height / 2, z);
-  wall.rotation.y = angle;
-  wall.castShadow = true;
-  wall.receiveShadow = true;
-  scene.add(wall);
-
-  colliders.push({
-    box: new THREE.Box3().setFromObject(wall),
-    mesh: wall
-  });
+  const wallTex = createProceduralTexture('wall');
+  const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.65 });
+  function addWall(x, z, width, depth, height = 6.2) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), wallMat);
+    wall.position.set(x, height / 2, z);
+    scene.add(wall);
+    colliders.push({ box: new THREE.Box3().setFromObject(wall), mesh: wall });
+  }
+  addWall(0, -40, 80, 2.5); addWall(0, 40, 80, 2.5);
+  addWall(-40, 0, 2.5, 80); addWall(40, 0, 2.5, 80);
 }
-
-// Perimeter
-addWall(0, -40, 80, 2.5);
-addWall(0, 40, 80, 2.5);
-addWall(-40, 0, 2.5, 80);
-addWall(40, 0, 2.5, 80);
-
-// Inner Arena Columns & Tactical Bunker Partitions
-addWall(-14, -14, 7, 7);
-addWall(14, -14, 7, 7);
-addWall(-14, 14, 7, 7);
-addWall(14, 14, 7, 7);
-
-addWall(-24, 0, 4, 20);
-addWall(24, 0, 4, 20);
-addWall(0, -25, 20, 4);
-addWall(0, 25, 20, 4);
-
-// Neon Light Pillars
-const neonPositions = [
-  [-14, 3, -14, 0xff2244], [14, 3, -14, 0x00f0ff],
-  [-14, 3, 14, 0x00f0ff], [14, 3, 14, 0xff2244],
-  [0, 3, -25, 0xffaa00], [0, 3, 25, 0xffaa00]
-];
-
-neonPositions.forEach(([nx, ny, nz, color]) => {
-  const pLight = new THREE.PointLight(color, 2.2, 18);
-  pLight.position.set(nx, ny, nz);
-  scene.add(pLight);
-
-  const beacon = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.2, 0.2, 5.8, 8),
-    new THREE.MeshBasicMaterial({ color: color })
-  );
-  beacon.position.set(nx, 2.9, nz);
-  scene.add(beacon);
-});
 
 // ============================================================================
 // 3D FIRST-PERSON ARMS & WEAPON VIEWMODEL (Attached to Camera!)
@@ -644,7 +591,38 @@ const crateLocations = [
 state.totalBoxes = crateLocations.length;
 
 function spawnCrates() {
-  crateLocations.forEach((loc) => {
+  crates.forEach(c => {
+    if (c.mesh) scene.remove(c.mesh);
+  });
+  crates.length = 0;
+
+  let spots = [];
+  if (city) {
+    const torontoCrateTargets = [
+      { x: city.start.x - 14, z: city.start.z - 4, loot: 'HOOK', desc: 'BRASS KNUCKLES! UNLOCKED THUNDER HOOK [2]' },
+      { x: city.start.x - 45, z: city.start.z - 12, loot: 'KICK', desc: 'COMBAT BOOTS! UNLOCKED MIGHTY KICK [3 / E]' },
+      { x: -160, z: -55, loot: 'SLAM', desc: 'METEOR GAUNTLET! UNLOCKED JUMP SLAM [4 / JUMP+ATTACK]' },
+      { x: -430, z: 240, loot: 'HEALTH', desc: 'SUPER BERSERK STIMPACK! (+50 HP)' },
+      { x: -220, z: -70, loot: 'ARMOR', desc: 'SECURITY VEST! (+50 SHIELD)' },
+      { x: -140, z: 120, loot: 'SLAM', desc: 'METEOR ENERGY RECHARGED! (+150 SCORE)' },
+      { x: -370, z: 280, loot: 'HEALTH', desc: 'BERSERK STIMPACK! (+50 HP)' },
+      { x: 40, z: 130, loot: 'KICK', desc: 'REINFORCED STEEL BOOTS!' }
+    ];
+
+    torontoCrateTargets.forEach(target => {
+      const spot = city.findOpenSpot(target.x, target.z, 0, 30, 1.6);
+      if (!city.isInsidePeaceZone(spot.x, spot.z)) {
+        spots.push({ x: spot.x, z: spot.z, loot: target.loot, desc: target.desc });
+      }
+    });
+  } else {
+    spots = crateLocations;
+  }
+
+  state.totalBoxes = spots.length;
+  const hudBoxesEl = document.getElementById('hud-boxes');
+  if (hudBoxesEl) hudBoxesEl.innerText = `${state.boxesSmashed}/${state.totalBoxes}`;
+  spots.forEach((loc) => {
     const crate = new THREE.Mesh(crateGeo, crateMat);
     crate.position.set(loc.x, 0.9, loc.z);
     crate.castShadow = true;
@@ -1166,19 +1144,63 @@ function populateEnemies() {
   });
   enemies.length = 0;
 
-  const spawns = [
-    [-8, -18, 0],   // Bruiser Tyson
-    [8, -18, 1],    // Striker Damian
-    [-20, 16, 2],   // Cyber Rex
-    [20, 16, 3],    // Iron Kai
-    [-26, -10, 0],  // Bruiser Tyson
-    [26, -10, 1],   // Striker Damian
-    [0, 28, 2],     // Cyber Rex
-    [-18, -28, 3],  // Iron Kai
-    [18, -28, 0],   // Bruiser Tyson
-    [0, -16, 1]     // Striker Damian
-  ];
-  spawns.forEach(([x, z, idx]) => spawnEnemy(x, z, idx));
+  if (city) {
+    // Street patrol spawn targets across Downtown Toronto (strictly outside Peace Zone)
+    const torontoStreetTargets = [
+      { x: city.start.x + 40, z: city.start.z - 10, idx: 0 },
+      { x: city.start.x - 40, z: city.start.z + 5, idx: 1 },
+      { x: city.start.x - 70, z: city.start.z - 15, idx: 2 },
+      { x: -140, z: -40, idx: 3 },
+      { x: -210, z: -60, idx: 0 },
+      { x: -80, z: 80, idx: 1 },
+      { x: -150, z: 120, idx: 2 },
+      { x: -380, z: 120, idx: 3 },
+      { x: -440, z: 230, idx: 0 },
+      { x: -360, z: 290, idx: 1 },
+      { x: -180, z: 220, idx: 2 },
+      { x: 30, z: 140, idx: 3 },
+      { x: 100, z: -60, idx: 0 },
+      { x: -10, z: -120, idx: 1 }
+    ];
+
+    torontoStreetTargets.forEach(target => {
+      let spot = city.findOpenSpot(target.x, target.z, 0, 35, 2.0);
+      const playerX = player.pos.x;
+      const playerZ = player.pos.z;
+      let fromPlayer = Math.hypot(spot.x - playerX, spot.z - playerZ);
+      let fromStart = Math.hypot(spot.x - city.start.x, spot.z - city.start.z);
+
+      // If within 25m breathing room of player or spawn start, retry with minimum radius
+      if (fromPlayer < 25 || fromStart < 25) {
+        spot = city.findOpenSpot(target.x, target.z, 25, 45, 2.0);
+        fromPlayer = Math.hypot(spot.x - playerX, spot.z - playerZ);
+        fromStart = Math.hypot(spot.x - city.start.x, spot.z - city.start.z);
+      }
+
+      const fromPeace = Math.hypot(spot.x - city.peaceZone.x, spot.z - city.peaceZone.z);
+      // Ensure completely outside the Peace Sanctuary + safety buffer, with breathing room from player
+      if (!city.isInsidePeaceZone(spot.x, spot.z) &&
+          fromPeace >= city.peaceZone.radius + 35 &&
+          fromPlayer >= 25 &&
+          fromStart >= 25) {
+        spawnEnemy(spot.x, spot.z, target.idx);
+      }
+    });
+  } else {
+    const spawns = [
+      [-8, -18, 0],   // Bruiser Tyson
+      [8, -18, 1],    // Striker Damian
+      [-20, 16, 2],   // Cyber Rex
+      [20, 16, 3],    // Iron Kai
+      [-26, -10, 0],  // Bruiser Tyson
+      [26, -10, 1],   // Striker Damian
+      [0, 28, 2],     // Cyber Rex
+      [-18, -28, 3],  // Iron Kai
+      [18, -28, 0],   // Bruiser Tyson
+      [0, -16, 1]     // Striker Damian
+    ];
+    spawns.forEach(([x, z, idx]) => spawnEnemy(x, z, idx));
+  }
 }
 populateEnemies();
 
@@ -1187,18 +1209,6 @@ populateEnemies();
 // ============================================================================
 const keys = {};
 let mouseSensitivity = 0.0024;
-
-const player = {
-  pos: camera.position,
-  velocity: new THREE.Vector3(),
-  yaw: 0,
-  pitch: 0,
-  isGrounded: true,
-  bobTimer: 0,
-  speed: 7.0,
-  sprintSpeed: 11.5,
-  jumpStrength: 9.0
-};
 
 // Pointer Lock Change Listener
 document.addEventListener('pointerlockchange', () => {
@@ -1211,11 +1221,11 @@ document.addEventListener('pointerlockchange', () => {
   } else {
     tag.innerText = 'MOUSE: UNLOCKED';
     tag.className = 'tag tag-dim';
-    
-    // If the player un-locked pointer while in game, open the Pause menu cleanly
-    if (state.inGame && !state.freeMouseMode && !state.isDead && !state.isPaused) {
-      pauseGame();
-    }
+  }
+
+  // When pointer lock is lost in mouse-look mode (e.g. user pressed Esc), pause the game
+  if (!state.isPointerLocked && state.inGame && !state.freeMouseMode && !state.isDead && !state.isPaused) {
+    pauseGame();
   }
 });
 
@@ -1237,34 +1247,31 @@ document.addEventListener('mousemove', (e) => {
   }
 });
 
-// Keyboard
+// Keyboard - use e.code exclusively to prevent Shift/caps desync
 window.addEventListener('keydown', (e) => {
   keys[e.code] = true;
 
-  if (e.code === 'KeyF') {
-    triggerAttack();
+  if (e.code === 'KeyF') triggerAttack();
+  if (e.code === 'KeyE' && state.unlocked[ATTACKS.KICK.id]) triggerQuickKick();
+
+  if (e.code.startsWith('Digit')) {
+    const n = parseInt(e.code.slice(5), 10);
+    if (n >= 1 && n <= 4) selectAttackSlot(n);
   }
 
-  if (e.code === 'KeyE') {
-    // Quick Mighty Boot
-    if (state.unlocked[ATTACKS.KICK.id]) triggerQuickKick();
-  }
-
-  // Attack slots 1 - 4
-  if (['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
-    const slotNum = parseInt(e.code.replace('Digit', ''));
-    selectAttackSlot(slotNum);
-  }
-
-  // ESC or P: Instant Pause & Mouse Release
   if (e.code === 'Escape' || e.code === 'KeyP') {
     e.preventDefault();
     togglePause();
   }
+  if (e.code === 'Space') e.preventDefault(); // stop page scroll
 });
 
 window.addEventListener('keyup', (e) => {
   keys[e.code] = false;
+});
+
+window.addEventListener('blur', () => {
+  for (const k in keys) keys[k] = false;
 });
 
 window.addEventListener('contextmenu', (e) => {
@@ -1327,6 +1334,13 @@ document.getElementById('esc-unlock-btn').addEventListener('click', () => {
 function triggerAttack() {
   if (state.attackTimer > 0 || state.isDead || state.isPaused) return;
 
+  // Peace Sanctuary: No fighting allowed
+  if (city && city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
+    showAnnouncement("🕊️ PEACE SANCTUARY: NO COMBAT PERMITTED");
+    audio.playPeaceChime?.();
+    return;
+  }
+
   // Check Glory Kill Execution on nearby staggered fighter
   if (state.gloryTarget) {
     executeGloryKill(state.gloryTarget);
@@ -1355,6 +1369,14 @@ function triggerAttack() {
 
 function triggerQuickKick() {
   if (state.attackTimer > 0 || state.isDead || state.isPaused) return;
+
+  // Peace Sanctuary: No fighting allowed
+  if (city && city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
+    showAnnouncement("🕊️ PEACE SANCTUARY: NO COMBAT PERMITTED");
+    audio.playPeaceChime?.();
+    return;
+  }
+
   const atk = ATTACKS.KICK;
   state.attackTimer = atk.cooldown;
   state.isAttacking = true;
@@ -1369,6 +1391,13 @@ function triggerQuickKick() {
 }
 
 function executeMeteorSlam() {
+  // Peace Sanctuary: No fighting allowed
+  if (city && city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
+    showAnnouncement("🕊️ PEACE SANCTUARY: NO COMBAT PERMITTED");
+    audio.playPeaceChime?.();
+    return;
+  }
+
   const atk = ATTACKS.SLAM;
   state.attackTimer = atk.cooldown;
   state.isAttacking = true;
@@ -1776,6 +1805,39 @@ function showAnnouncement(text) {
   setTimeout(() => ann.classList.remove('show'), 2200);
 }
 
+// Peace Sanctuary Banner Controller
+let peaceBannerTimer = null;
+function triggerPeaceZoneBanner(insidePeace) {
+  const banner = document.getElementById('peace-zone-banner');
+  if (!banner) return;
+
+  clearTimeout(peaceBannerTimer);
+  banner.classList.remove('hidden');
+
+  const title = banner.querySelector('.peace-banner-title');
+  const sub = banner.querySelector('.peace-banner-sub');
+  const icon = banner.querySelector('.peace-banner-icon');
+
+  if (insidePeace) {
+    banner.classList.remove('combat-alert');
+    if (title) title.innerText = 'CN TOWER PEACE SANCTUARY';
+    if (sub) sub.innerText = 'NO COMBAT PERMITTED • SAFE HAVEN • VITALITY REGENERATING';
+    if (icon) icon.innerText = '🕊️';
+    showAnnouncement('🕊️ ENTERED CN TOWER PEACE SANCTUARY');
+    audio.playPeaceChime?.();
+  } else {
+    banner.classList.add('combat-alert');
+    if (title) title.innerText = 'EXITING PEACE SANCTUARY';
+    if (sub) sub.innerText = 'COMBAT ZONE ACTIVE • WATCH YOUR BACK!';
+    if (icon) icon.innerText = '⚠️';
+    showAnnouncement('⚔️ ENTERING TORONTO COMBAT ZONE');
+  }
+
+  peaceBannerTimer = setTimeout(() => {
+    banner.classList.add('hidden');
+  }, 3800);
+}
+
 function registerCombo() {
   state.comboCount++;
   state.comboTimer = 2.2;
@@ -1817,6 +1879,52 @@ function animate(now) {
     updateCombatTimers(dt);
   }
 
+  // City animation & dynamic lighting
+  if (city) {
+    city.update(dt, player.pos);
+  }
+
+  // Draw Toronto GPS Minimap & Sanctuary Radar
+  const minimapCanvas = document.getElementById('minimap-canvas');
+  if (city && minimapCanvas) {
+    const ctx = minimapCanvas.getContext('2d');
+    const dots = [];
+    enemies.forEach(e => {
+      if (!e.isDead && !e.isKnockedOut) {
+        dots.push({
+          x: e.rig.root.position.x,
+          z: e.rig.root.position.z,
+          c: e.isStaggered ? '#ffea00' : '#ff3344',
+          r: e.isStaggered ? 4 : 3
+        });
+      }
+    });
+    crates.forEach(c => {
+      if (!c.destroyed) {
+        dots.push({
+          x: c.mesh.position.x,
+          z: c.mesh.position.z,
+          c: '#f59e0b',
+          r: 2.5
+        });
+      }
+    });
+    city.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
+
+    // Distance to CN Tower
+    const towerDist = Math.round(Math.hypot(player.pos.x - city.landmarks.cnTower[0], player.pos.z - city.landmarks.cnTower[1]));
+    const towerDistEl = document.getElementById('tower-distance');
+    if (towerDistEl) {
+      if (city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
+        towerDistEl.innerText = 'CN TOWER SANCTUARY (INSIDE)';
+        towerDistEl.style.color = '#34d399';
+      } else {
+        towerDistEl.innerText = `CN TOWER: ${towerDist}m`;
+        towerDistEl.style.color = '#38bdf8';
+      }
+    }
+  }
+
   // Camera Shake
   if (state.screenShake > 0) {
     camera.position.x += (Math.random() - 0.5) * state.screenShake * 0.02;
@@ -1832,11 +1940,11 @@ function animate(now) {
 }
 
 function updatePlayer(dt) {
-  // Arrow Key Turning (smooth 60fps keyboard rotation)
-  if (keys['ArrowLeft']) player.yaw += 2.6 * dt;
+  // Turning: ArrowLeft / ArrowRight or Q (E is reserved for kick)
+  if (keys['ArrowLeft'] || keys['KeyQ']) player.yaw += 2.6 * dt;
   if (keys['ArrowRight']) player.yaw -= 2.6 * dt;
-  if (keys['ArrowUp']) player.pitch = Math.min(Math.PI / 2.3, player.pitch + 2.0 * dt);
-  if (keys['ArrowDown']) player.pitch = Math.max(-Math.PI / 2.3, player.pitch - 2.0 * dt);
+  if (keys['PageUp']) player.pitch = Math.min(Math.PI / 2.3, player.pitch + 2.0 * dt);
+  if (keys['PageDown']) player.pitch = Math.max(-Math.PI / 2.3, player.pitch - 2.0 * dt);
 
   camera.rotation.order = 'YXZ';
   camera.rotation.y = player.yaw;
@@ -1848,13 +1956,13 @@ function updatePlayer(dt) {
   if (keys['KeyD']) rollTarget = -0.025;
   camera.rotation.z += (rollTarget - camera.rotation.z) * 0.1;
 
-  // Movement input
+  // Movement input: Support W/S/A/D and Arrow keys by e.code
   const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
   const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
   const moveDir = new THREE.Vector3();
 
-  if (keys['KeyW']) moveDir.add(forward);
-  if (keys['KeyS']) moveDir.sub(forward);
+  if (keys['KeyW'] || keys['ArrowUp']) moveDir.add(forward);
+  if (keys['KeyS'] || keys['ArrowDown']) moveDir.sub(forward);
   if (keys['KeyD']) moveDir.add(right);
   if (keys['KeyA']) moveDir.sub(right);
 
@@ -1894,17 +2002,52 @@ function updatePlayer(dt) {
   } else {
     player.bobTimer *= 0.8;
   }
+
+  // --- Peace Sanctuary Aura & Transition Check ---
+  const insidePeace = city ? city.isInsidePeaceZone(player.pos.x, player.pos.z) : false;
+
+  if (insidePeace !== state.wasInsidePeace) {
+    state.wasInsidePeace = insidePeace;
+    triggerPeaceZoneBanner(insidePeace);
+  }
+
+  if (insidePeace) {
+    // Regenerate Vitality & Shield continuously
+    if (state.health < 100) {
+      state.health = Math.min(100, state.health + 8.0 * dt);
+      updateHUDHealth();
+    }
+    if (state.armor < 50) {
+      state.armor = Math.min(50, state.armor + 5.0 * dt);
+      updateHUDHealth();
+    }
+    const statusPill = document.getElementById('peace-zone-status');
+    if (statusPill) {
+      statusPill.className = 'peace-status-pill safe';
+      statusPill.innerText = '🕊️ PEACE SANCTUARY';
+    }
+  } else {
+    const statusPill = document.getElementById('peace-zone-status');
+    if (statusPill) {
+      statusPill.className = 'peace-status-pill danger';
+      statusPill.innerText = '⚔️ COMBAT ZONE';
+    }
+  }
 }
 
 function canMoveTo(x, z) {
-  if (Math.abs(x) > 38 || Math.abs(z) > 38) return false;
+  if (city) {
+    if (!city.canMoveTo(x, z, 0.6)) return false;
+  } else {
+    if (Math.abs(x) > 38 || Math.abs(z) > 38) return false;
 
-  const pRadius = 0.6;
-  for (let i = 0; i < colliders.length; i++) {
-    const box = colliders[i].box;
-    if (x + pRadius > box.min.x && x - pRadius < box.max.x &&
-        z + pRadius > box.min.z && z - pRadius < box.max.z) {
-      return false;
+    const pRadius = 0.6;
+    for (let i = 0; i < colliders.length; i++) {
+      const box = colliders[i].box;
+      if (x + pRadius > box.min.x && x - pRadius < box.max.x &&
+          z + pRadius > box.min.z && z - pRadius < box.max.z) {
+        return false;
+      }
     }
   }
 
@@ -1922,16 +2065,15 @@ function canMoveTo(x, z) {
 function updateEnemies(dt) {
   let nearestStaggered = null;
   let minDist = 4.0;
+  const playerInPeace = city ? city.isInsidePeaceZone(player.pos.x, player.pos.z) : false;
 
   enemies.forEach(enemy => {
-    // 1. Knockout knockdown animation: realistic fall backward onto mat
+    // 1. Knockout knockdown animation
     if (enemy.isKnockedOut) {
       if (enemy.koProgress < 1.0) {
         enemy.koProgress = Math.min(1.0, enemy.koProgress + dt * 3.2);
-        // Tilt root backward onto the canvas
         enemy.rig.root.rotation.x = -Math.PI / 2 * enemy.koProgress;
         enemy.rig.root.position.y = 0.22 * (1 - enemy.koProgress) + 0.12 * enemy.koProgress;
-        // Limbs splay
         enemy.rig.leftLegPivot.rotation.x = 0.35 * enemy.koProgress;
         enemy.rig.rightLegPivot.rotation.x = 0.45 * enemy.koProgress;
         enemy.rig.leftArmPivot.rotation.x = 0.5 * enemy.koProgress;
@@ -1948,9 +2090,29 @@ function updateEnemies(dt) {
     enemy.vx *= 0.86;
     enemy.vz *= 0.86;
 
-    // Keep within arena bounds
-    enemy.rig.root.position.x = Math.max(-36, Math.min(36, enemy.rig.root.position.x));
-    enemy.rig.root.position.z = Math.max(-36, Math.min(36, enemy.rig.root.position.z));
+    // Keep within world bounds
+    if (city && city.bounds) {
+      enemy.rig.root.position.x = Math.max(city.bounds.minX + 5, Math.min(city.bounds.maxX - 5, enemy.rig.root.position.x));
+      enemy.rig.root.position.z = Math.max(city.bounds.minZ + 5, Math.min(city.bounds.maxZ - 5, enemy.rig.root.position.z));
+    } else {
+      enemy.rig.root.position.x = Math.max(-36, Math.min(36, enemy.rig.root.position.x));
+      enemy.rig.root.position.z = Math.max(-36, Math.min(36, enemy.rig.root.position.z));
+    }
+
+    // Peace Sanctuary Repulsion: push enemy away so bad guys NEVER enter the sanctuary!
+    if (city && city.peaceZone) {
+      const edx = enemy.rig.root.position.x - city.peaceZone.x;
+      const edz = enemy.rig.root.position.z - city.peaceZone.z;
+      const edist = Math.hypot(edx, edz);
+      const minSafeDist = city.peaceZone.radius + 3.0;
+      if (edist < minSafeDist && edist > 0.05) {
+        const push = (minSafeDist - edist);
+        enemy.rig.root.position.x += (edx / edist) * push;
+        enemy.rig.root.position.z += (edz / edist) * push;
+        enemy.vx += (edx / edist) * 6.0;
+        enemy.vz += (edz / edist) * 6.0;
+      }
+    }
 
     // Rotate whole body to face the player (only Y yaw, perfectly upright!)
     const targetAngle = Math.atan2(player.pos.x - enemy.rig.root.position.x, player.pos.z - enemy.rig.root.position.z);
@@ -1973,11 +2135,9 @@ function updateEnemies(dt) {
         enemy.isStaggered = false;
         restoreEnemyTint(enemy);
       } else {
-        // Flash golden
         const flash = Math.sin(Date.now() * 0.02) > 0;
         setEnemyTint(enemy, flash ? 0xffea00 : 0xef4444);
       }
-      // Dazed groggy posture: concussed sway
       enemy.rig.torsoPivot.rotation.x = 0.3;
       enemy.rig.headPivot.rotation.z = Math.sin(Date.now() * 0.007) * 0.25;
       enemy.rig.leftArmPivot.rotation.x = -0.3;
@@ -1993,9 +2153,9 @@ function updateEnemies(dt) {
       minDist = distToPlayer;
     }
 
-    // AI Chasing, Footwork & Punch Attacks
+    // AI Chasing, Footwork & Punch Attacks (Enemies CANNOT pursue into or attack inside Peace Sanctuary)
     if (!enemy.isStaggered) {
-      const isMoving = distToPlayer > 2.0 && distToPlayer < 45;
+      const isMoving = !playerInPeace && distToPlayer > 2.0 && distToPlayer < 55;
 
       if (isMoving) {
         const dir = player.pos.clone().sub(enemy.rig.root.position).normalize();
@@ -2010,11 +2170,10 @@ function updateEnemies(dt) {
         enemy.rig.rightLegPivot.rotation.x = -legSwing;
         enemy.rig.rightCalfPivot.rotation.x = Math.max(0, legSwing * 0.6);
 
-        // Body bobbing and shoulder movement
         enemy.rig.torsoPivot.position.y = 0.98 + Math.abs(Math.sin(enemy.walkPhase * 2)) * 0.04;
         enemy.rig.torsoPivot.rotation.y = Math.sin(enemy.walkPhase) * 0.12;
       } else {
-        // Standing guard: Reset legs, boxer bounce
+        // Boxer bounce / guard
         enemy.rig.leftLegPivot.rotation.x = 0.1;
         enemy.rig.leftCalfPivot.rotation.x = 0;
         enemy.rig.rightLegPivot.rotation.x = -0.15;
@@ -2024,31 +2183,27 @@ function updateEnemies(dt) {
 
       // Punch Attack / Boxer Guard Animation
       if (enemy.isPunching) {
-        enemy.attackProg += dt * 3.2; // ~0.3s punch duration
+        enemy.attackProg += dt * 3.2;
         const punchReach = Math.sin(enemy.attackProg * Math.PI);
 
         if (enemy.punchArm === 'right') {
-          // Right cross / hook
           enemy.rig.rightArmPivot.rotation.x = -1.3 - punchReach * 0.65;
           enemy.rig.rightForearmPivot.rotation.x = -0.2 - punchReach * 0.75;
           enemy.rig.torsoPivot.rotation.y = -punchReach * 0.35;
-          // Guard with left
           enemy.rig.leftArmPivot.rotation.x = -1.2;
           enemy.rig.leftForearmPivot.rotation.x = -0.8;
         } else {
-          // Left jab
           enemy.rig.leftArmPivot.rotation.x = -1.3 - punchReach * 0.65;
           enemy.rig.leftForearmPivot.rotation.x = -0.2 - punchReach * 0.75;
           enemy.rig.torsoPivot.rotation.y = punchReach * 0.35;
-          // Guard with right
           enemy.rig.rightArmPivot.rotation.x = -1.2;
           enemy.rig.rightForearmPivot.rotation.x = -0.8;
         }
 
-        // Deal damage at peak extension of the punch
+        // Deal damage at peak extension (strictly blocked if player is in Peace Sanctuary)
         if (enemy.attackProg >= 0.5 && !enemy.punchHasDealtDamage) {
           enemy.punchHasDealtDamage = true;
-          if (distToPlayer <= 2.4) {
+          if (distToPlayer <= 2.4 && !playerInPeace) {
             damagePlayer(enemy.damage);
             audio.playImpact('punch');
           }
@@ -2059,15 +2214,15 @@ function updateEnemies(dt) {
           enemy.attackProg = 0;
         }
       } else {
-        // High boxer guard stance! Hands protecting chin
+        // Guard stance
         const sway = Math.sin(Date.now() * 0.004) * 0.08;
         enemy.rig.leftArmPivot.rotation.set(-1.15 + sway, 0.3, 0.15);
         enemy.rig.leftForearmPivot.rotation.set(-0.85, 0, 0);
         enemy.rig.rightArmPivot.rotation.set(-1.25 - sway, -0.3, -0.15);
         enemy.rig.rightForearmPivot.rotation.set(-0.85, 0, 0);
 
-        // Within attack range -> trigger a punch
-        if (distToPlayer <= 2.2) {
+        // Within attack range -> trigger a punch (strictly blocked if player is in Peace Sanctuary)
+        if (distToPlayer <= 2.2 && !playerInPeace) {
           enemy.attackTimer -= dt;
           if (enemy.attackTimer <= 0) {
             enemy.attackTimer = enemy.attackCooldown + Math.random() * 0.4;
@@ -2237,7 +2392,16 @@ function resetGame() {
   state.health = 100;
   state.armor = 50;
   state.isDead = false;
-  player.pos.set(0, 1.7, 0);
+  if (city && city.start) {
+    player.pos.set(city.start.x, 1.7, city.start.z);
+    player.yaw = city.startYaw;
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = city.startYaw;
+  } else {
+    player.pos.set(0, 1.7, 0);
+  }
+  populateEnemies();
+  spawnCrates();
   updateHUDHealth();
 }
 

@@ -21,6 +21,29 @@
         <span id="fps-counter" class="tag tag-dim">60 FPS</span>
       </div>
     </header>
+ 
+    <!-- Toronto GPS Minimap & Sanctuary Radar -->
+    <div id="minimap-container">
+      <div id="minimap-header">
+        <span id="minimap-location">FRONT ST / UNION</span>
+        <span id="peace-zone-status" class="peace-status-pill danger">⚔️ COMBAT ZONE</span>
+      </div>
+      <canvas id="minimap-canvas" width="160" height="160"></canvas>
+      <div id="minimap-footer">
+        <span id="tower-distance">CN TOWER: ~600m</span>
+      </div>
+    </div>
+
+    <!-- Peace Zone Notification Banner -->
+    <div id="peace-zone-banner" class="hidden">
+      <div class="peace-banner-content">
+        <span class="peace-banner-icon">🕊️</span>
+        <div class="peace-banner-text">
+          <div class="peace-banner-title">CN TOWER PEACE SANCTUARY</div>
+          <div class="peace-banner-sub">NO COMBAT PERMITTED • SAFE HAVEN • VITALITY REGENERATING</div>
+        </div>
+      </div>
+    </div>
 
     <!-- Crosshair & Dynamic Hit Markers -->
     <div id="crosshair-wrapper">
@@ -131,8 +154,8 @@
       <div class="menu-modal">
         <div class="brand-header">
           <span class="brand-badge">BRUTAL FIRST-PERSON ACTION</span>
-          <h1 id="menu-title" class="hero-title">FIST OF DOOM</h1>
-          <p id="menu-subtitle" class="hero-desc">NO GUNS. ONLY BRUTAL BONE-CRUSHING MELEE &amp; EXPLOSIVE SLAMS.</p>
+          <h1 id="menu-title" class="hero-title">FIST OF DOOM: TORONTO</h1>
+          <p id="menu-subtitle" class="hero-desc">DOWNTOWN TORONTO STREET ARENA • VISIT THE CN TOWER PEACE SANCTUARY TO REST SAFELY</p>
         </div>
 
         <div class="menu-content-grid">
@@ -152,24 +175,20 @@
           </div>
 
           <div class="menu-card">
-            <h3>📦 SUPPLY CRATE WEAPON UPGRADES</h3>
-            <p>Smash wooden supply crates scattered across the arena to unlock powerful attacks &amp; supplies:</p>
+            <h3>🕊️ CN TOWER PEACE SANCTUARY</h3>
+            <p>Need a breather? Head to the <b>CN Tower Plaza</b> marked on your GPS radar:</p>
             <div class="crate-items-list">
               <div class="crate-item">
-                <span class="item-badge gold">🥊 Brass Knuckles [2]</span>
-                <span class="item-desc">Heavy thunder hook that staggers rival fighters and crushes ribs</span>
+                <span class="item-badge green">☮️ Strict Peace Zone</span>
+                <span class="item-desc">No fighting is permitted! Bad guys cannot enter or harm you inside.</span>
               </div>
               <div class="crate-item">
-                <span class="item-badge cyan">🥾 Combat Boots [3]</span>
-                <span class="item-desc">Mighty boot kick that sends enemies flying into walls</span>
+                <span class="item-badge cyan">❤️ Vitality &amp; Shield Regen</span>
+                <span class="item-desc">Bask in the emerald sanctuary aura to regenerate your health and armor.</span>
               </div>
               <div class="crate-item">
-                <span class="item-badge purple">⚡ Meteor Slam Gauntlet [4]</span>
-                <span class="item-desc">Airborne ground-pound shockwave with massive radial obliteration</span>
-              </div>
-              <div class="crate-item">
-                <span class="item-badge green">💉 Berserk Medkits &amp; Armor</span>
-                <span class="item-desc">Vitality recovery and explosive blood rage</span>
+                <span class="item-badge gold">📦 Streets of Toronto</span>
+                <span class="item-desc">Smash supply crates on Front St, Union Station &amp; Rogers Centre for upgrades!</span>
               </div>
             </div>
           </div>
@@ -177,7 +196,7 @@
 
         <div class="menu-actions">
           <button id="start-mouse-btn" class="action-btn primary-btn">
-            ENTER ARENA &mdash; MOUSE LOOK MODE
+            ENTER TORONTO ARENA &mdash; MOUSE LOOK MODE
           </button>
           <button id="start-free-btn" class="action-btn secondary-btn">
             PLAY IN FREE MOUSE MODE (NEVER LOCKS CURSOR, USE ARROWS TO AIM)
@@ -191,6 +210,8 @@
     </div>
   </div>
 
+  <script src="toronto_map.js"></script>
+  <script src="city.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
