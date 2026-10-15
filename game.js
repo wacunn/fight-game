@@ -318,65 +318,103 @@ class EnhancedRetroAudio {
     this.stopOCanada();
     this.isOCanada = true;
 
-    // Full "O Canada" National Anthem melody, chords & rhythm (Heroic Arena Rock Synth!)
+    // "O Canada" National Anthem in E♭ Major (Key signature: B♭, E♭, A♭)
+    // Heroic Arena Rock Synth arrangement matching exact vocal/band score
     const O_CANADA_MELODY = [
-      // "O Canada! Our home and native land!"
-      { note: 60, len: 1.5, bass: 36, chord: 48 },
-      { note: 64, len: 1.0, bass: 36, chord: 52 },
-      { note: 64, len: 0.5, bass: 36, chord: 52 },
-      { note: 67, len: 2.5, bass: 36, chord: 55 },
-      { note: 62, len: 1.0, bass: 43, chord: 50 },
-      { note: 64, len: 0.5, bass: 43, chord: 52 },
-      { note: 65, len: 0.5, bass: 43, chord: 53 },
-      { note: 67, len: 1.0, bass: 43, chord: 55 },
-      { note: 69, len: 1.0, bass: 43, chord: 57 },
-      { note: 62, len: 2.0, bass: 38, chord: 50 },
+      // 1. "O Canada! Our home and native land!"
+      // E♭ – G – G – B♭ | C – F – G – A♭ – B♭
+      { note: 63, len: 1.5, bass: 39, chord: 51 }, // Eb4 ("O")
+      { note: 67, len: 1.0, bass: 39, chord: 55 }, // G4  ("Ca-")
+      { note: 67, len: 0.5, bass: 39, chord: 55 }, // G4  ("-na-")
+      { note: 70, len: 2.0, bass: 39, chord: 58 }, // Bb4 ("-da!")
+      { note: 60, len: 1.0, bass: 41, chord: 48 }, // C4  ("Our")
+      { note: 65, len: 0.75, bass: 41, chord: 53 }, // F4  ("home")
+      { note: 67, len: 0.25, bass: 41, chord: 55 }, // G4  ("and")
+      { note: 68, len: 0.5, bass: 44, chord: 56 }, // Ab4 ("na-")
+      { note: 70, len: 2.0, bass: 46, chord: 58 }, // Bb4 ("tive land!")
 
-      // "True patriot love in all of us command."
-      { note: 64, len: 1.0, bass: 40, chord: 52 },
-      { note: 65, len: 0.5, bass: 40, chord: 53 },
-      { note: 67, len: 0.5, bass: 40, chord: 55 },
-      { note: 69, len: 1.5, bass: 45, chord: 57 },
-      { note: 69, len: 0.5, bass: 45, chord: 57 },
-      { note: 71, len: 1.0, bass: 47, chord: 59 },
-      { note: 72, len: 1.0, bass: 48, chord: 60 },
-      { note: 71, len: 0.5, bass: 47, chord: 59 },
-      { note: 69, len: 0.5, bass: 45, chord: 57 },
-      { note: 67, len: 2.5, bass: 43, chord: 55 },
+      // 2. "True patriot love in all of us command."
+      // C – D – E♭ – F – G – F – E♭ – D
+      { note: 60, len: 1.0, bass: 36, chord: 48 }, // C4  ("True")
+      { note: 62, len: 0.5, bass: 36, chord: 50 }, // D4  ("pa-")
+      { note: 63, len: 0.5, bass: 36, chord: 51 }, // Eb4 ("-triot")
+      { note: 65, len: 1.0, bass: 41, chord: 53 }, // F4  ("love")
+      { note: 67, len: 1.0, bass: 39, chord: 55 }, // G4  ("in")
+      { note: 65, len: 0.5, bass: 46, chord: 53 }, // F4  ("all")
+      { note: 63, len: 0.5, bass: 46, chord: 51 }, // Eb4 ("of us")
+      { note: 62, len: 2.0, bass: 46, chord: 50 }, // D4  ("command.")
 
-      // "With glowing hearts we see thee rise,"
-      { note: 67, len: 1.0, bass: 43, chord: 55 },
-      { note: 67, len: 0.5, bass: 43, chord: 55 },
-      { note: 72, len: 0.5, bass: 48, chord: 60 },
-      { note: 72, len: 1.5, bass: 48, chord: 60 },
-      { note: 71, len: 0.5, bass: 47, chord: 59 },
-      { note: 69, len: 1.0, bass: 45, chord: 57 },
-      { note: 67, len: 1.0, bass: 43, chord: 55 },
-      { note: 65, len: 1.0, bass: 41, chord: 53 },
+      // 3. "With glowing hearts we see thee rise,"
+      // G – F – E♭ – D – C – D – E♭ – F
+      { note: 67, len: 1.0, bass: 39, chord: 55 }, // G4  ("With")
+      { note: 65, len: 0.5, bass: 39, chord: 53 }, // F4  ("glow-")
+      { note: 63, len: 0.5, bass: 39, chord: 51 }, // Eb4 ("-ing")
+      { note: 62, len: 1.0, bass: 46, chord: 50 }, // D4  ("hearts")
+      { note: 60, len: 0.5, bass: 36, chord: 48 }, // C4  ("we")
+      { note: 62, len: 0.5, bass: 36, chord: 50 }, // D4  ("see")
+      { note: 63, len: 1.0, bass: 39, chord: 51 }, // Eb4 ("thee")
+      { note: 65, len: 2.0, bass: 46, chord: 53 }, // F4  ("rise,")
 
-      // "The True North strong and free!"
-      { note: 65, len: 0.5, bass: 41, chord: 53 },
-      { note: 64, len: 0.5, bass: 40, chord: 52 },
-      { note: 62, len: 1.0, bass: 38, chord: 50 },
-      { note: 64, len: 1.0, bass: 40, chord: 52 },
-      { note: 65, len: 1.0, bass: 41, chord: 53 },
-      { note: 67, len: 2.0, bass: 43, chord: 55 },
+      // 4. "The True North strong and free!"
+      // B♭ – B♭ – C – D – E♭ – F
+      { note: 58, len: 1.0, bass: 46, chord: 58 }, // Bb3 ("The")
+      { note: 58, len: 0.5, bass: 46, chord: 58 }, // Bb3 ("True")
+      { note: 60, len: 0.5, bass: 44, chord: 48 }, // C4  ("North")
+      { note: 62, len: 1.0, bass: 46, chord: 50 }, // D4  ("strong")
+      { note: 63, len: 1.0, bass: 39, chord: 51 }, // Eb4 ("and")
+      { note: 65, len: 2.0, bass: 46, chord: 53 }, // F4  ("free!")
 
-      // "From far and wide, O Canada, we stand on guard for thee."
-      { note: 67, len: 1.0, bass: 43, chord: 55 },
-      { note: 67, len: 0.5, bass: 43, chord: 55 },
-      { note: 72, len: 0.5, bass: 48, chord: 60 },
-      { note: 72, len: 1.5, bass: 48, chord: 60 },
-      { note: 71, len: 0.5, bass: 47, chord: 59 },
-      { note: 69, len: 1.0, bass: 45, chord: 57 },
-      { note: 67, len: 1.0, bass: 43, chord: 55 },
-      { note: 69, len: 1.5, bass: 45, chord: 57 },
-      { note: 69, len: 0.5, bass: 45, chord: 57 },
-      { note: 71, len: 1.0, bass: 47, chord: 59 },
-      { note: 72, len: 1.0, bass: 48, chord: 60 },
-      { note: 74, len: 1.5, bass: 43, chord: 55 },
-      { note: 71, len: 0.5, bass: 43, chord: 55 },
-      { note: 72, len: 3.0, bass: 48, chord: 60 }
+      // 5. "From far and wide, O Canada,"
+      // G – G – F – E♭ – F – G – A♭ – B♭
+      { note: 67, len: 1.0, bass: 39, chord: 55 }, // G4  ("From")
+      { note: 67, len: 0.5, bass: 39, chord: 55 }, // G4  ("far")
+      { note: 65, len: 0.5, bass: 39, chord: 53 }, // F4  ("and")
+      { note: 63, len: 1.0, bass: 39, chord: 51 }, // Eb4 ("wide,")
+      { note: 65, len: 0.5, bass: 46, chord: 53 }, // F4  ("O")
+      { note: 67, len: 0.5, bass: 39, chord: 55 }, // G4  ("Ca-")
+      { note: 68, len: 1.0, bass: 44, chord: 56 }, // Ab4 ("-na-")
+      { note: 70, len: 1.5, bass: 46, chord: 58 }, // Bb4 ("-da,")
+
+      // 6. "We stand on guard for thee."
+      // C – C – B♭ – A♭ – B♭
+      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  ("We")
+      { note: 72, len: 0.5, bass: 44, chord: 60 }, // C5  ("stand")
+      { note: 70, len: 0.5, bass: 39, chord: 58 }, // Bb4 ("on")
+      { note: 68, len: 1.0, bass: 44, chord: 56 }, // Ab4 ("guard")
+      { note: 70, len: 2.0, bass: 46, chord: 58 }, // Bb4 ("for thee.")
+
+      // 7. "God keep our land glorious and free!"
+      // E♭ – E♭ – D – C – B♭ – C – D – E♭
+      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 ("God")
+      { note: 75, len: 0.5, bass: 39, chord: 63 }, // Eb5 ("keep")
+      { note: 74, len: 0.5, bass: 39, chord: 62 }, // D5  ("our")
+      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  ("land")
+      { note: 70, len: 1.0, bass: 39, chord: 58 }, // Bb4 ("glo-")
+      { note: 72, len: 0.5, bass: 44, chord: 60 }, // C5  ("-rious")
+      { note: 74, len: 0.5, bass: 46, chord: 62 }, // D5  ("and")
+      { note: 75, len: 2.0, bass: 39, chord: 63 }, // Eb5 ("free!")
+
+      // 8. "O Canada, we stand on guard for thee."
+      // F – G – A♭ – F – E♭ – D – E♭ – F
+      { note: 65, len: 1.0, bass: 41, chord: 53 }, // F4  ("O")
+      { note: 67, len: 0.5, bass: 39, chord: 55 }, // G4  ("Ca-")
+      { note: 68, len: 0.5, bass: 44, chord: 56 }, // Ab4 ("-na-")
+      { note: 65, len: 1.0, bass: 41, chord: 53 }, // F4  ("-da,")
+      { note: 63, len: 1.0, bass: 39, chord: 51 }, // Eb4 ("we")
+      { note: 62, len: 0.5, bass: 46, chord: 50 }, // D4  ("stand")
+      { note: 63, len: 0.5, bass: 39, chord: 51 }, // Eb4 ("on")
+      { note: 65, len: 2.0, bass: 46, chord: 53 }, // F4  ("guard for thee.")
+
+      // 9. "O Canada, we stand on guard for thee."
+      // G – A♭ – B♭ – C – F – G – F – E♭
+      { note: 67, len: 1.0, bass: 39, chord: 55 }, // G4  ("O")
+      { note: 68, len: 0.5, bass: 44, chord: 56 }, // Ab4 ("Ca-")
+      { note: 70, len: 0.5, bass: 46, chord: 58 }, // Bb4 ("-na-")
+      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  ("-da,")
+      { note: 65, len: 1.0, bass: 46, chord: 53 }, // F4  ("we")
+      { note: 67, len: 1.0, bass: 39, chord: 55 }, // G4  ("stand")
+      { note: 65, len: 0.75, bass: 46, chord: 53 }, // F4  ("on guard")
+      { note: 63, len: 3.0, bass: 39, chord: 51 }  // Eb4 ("for thee!")
     ];
 
     const beatDur = 60 / 116;
