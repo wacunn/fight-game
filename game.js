@@ -8,6 +8,8 @@ class EnhancedRetroAudio {
     this.ctx = null;
     this.isMuted = false;
     this.musicTimer = null;
+    this.isOCanada = false;
+    this.oCanadaTimer = null;
   }
 
   init() {
@@ -108,6 +110,53 @@ class EnhancedRetroAudio {
     noise.start(t);
   }
 
+  playHockeySlapshot() {
+    if (!this.ctx || this.isMuted) return;
+    const t = this.ctx.currentTime;
+
+    // 1. Sharp composite wood crack
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(950, t);
+    osc.frequency.exponentialRampToValueAtTime(70, t + 0.08);
+    gain.gain.setValueAtTime(0.65, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.09);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.1);
+
+    // 2. High-impact noise slap (puck / slapshot impact)
+    const bufSize = Math.floor(this.ctx.sampleRate * 0.15);
+    const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.02));
+    }
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buf;
+    const nGain = this.ctx.createGain();
+    nGain.gain.setValueAtTime(0.55, t);
+    nGain.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
+    noise.connect(nGain);
+    nGain.connect(this.ctx.destination);
+    noise.start(t);
+
+    // 3. Deep bass reverberation
+    const subOsc = this.ctx.createOscillator();
+    const subGain = this.ctx.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(120, t);
+    subOsc.frequency.exponentialRampToValueAtTime(32, t + 0.28);
+    subGain.gain.setValueAtTime(0.85, t);
+    subGain.gain.exponentialRampToValueAtTime(0.01, t + 0.28);
+    subOsc.connect(subGain);
+    subGain.connect(this.ctx.destination);
+    subOsc.start(t);
+    subOsc.stop(t + 0.3);
+  }
+
   playCrateSmash() {
     if (!this.ctx || this.isMuted) return;
     const t = this.ctx.currentTime;
@@ -185,7 +234,7 @@ class EnhancedRetroAudio {
   }
 
   startMusic() {
-    if (this.musicTimer || !this.ctx) return;
+    if (this.musicTimer || !this.ctx || this.isOCanada) return;
     // Heavy Industrial Bass & Kick/Snare pattern (DOOM style)
     const tempo = 132;
     const beat = 60 / tempo;
@@ -193,7 +242,7 @@ class EnhancedRetroAudio {
     let step = 0;
 
     const tick = () => {
-      if (!this.ctx || this.ctx.state !== 'running') return;
+      if (!this.ctx || this.ctx.state !== 'running' || this.isOCanada) return;
       const t = this.ctx.currentTime;
 
       // Heavy Kick on beat 0, 2
@@ -212,7 +261,7 @@ class EnhancedRetroAudio {
 
       // Snare on beat 2, 6
       if (step % 8 === 4) {
-        const sBuf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.1, this.ctx.sampleRate);
+        const sBuf = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.1), this.ctx.sampleRate);
         const sData = sBuf.getChannelData(0);
         for (let i = 0; i < sData.length; i++) sData[i] = (Math.random() * 2 - 1) * Math.exp(-i / 800);
         const sNoise = this.ctx.createBufferSource();
@@ -254,6 +303,175 @@ class EnhancedRetroAudio {
     };
 
     this.musicTimer = setInterval(tick, (beat / 2) * 1000);
+  }
+
+  stopMusic() {
+    if (this.musicTimer) {
+      clearInterval(this.musicTimer);
+      this.musicTimer = null;
+    }
+  }
+
+  startOCanada() {
+    if (!this.ctx || this.isMuted) return;
+    this.stopMusic();
+    this.stopOCanada();
+    this.isOCanada = true;
+
+    // Full "O Canada" National Anthem melody, chords & rhythm (Heroic Arena Rock Synth!)
+    const O_CANADA_MELODY = [
+      // "O Canada! Our home and native land!"
+      { note: 60, len: 1.5, bass: 36, chord: 48 },
+      { note: 64, len: 1.0, bass: 36, chord: 52 },
+      { note: 64, len: 0.5, bass: 36, chord: 52 },
+      { note: 67, len: 2.5, bass: 36, chord: 55 },
+      { note: 62, len: 1.0, bass: 43, chord: 50 },
+      { note: 64, len: 0.5, bass: 43, chord: 52 },
+      { note: 65, len: 0.5, bass: 43, chord: 53 },
+      { note: 67, len: 1.0, bass: 43, chord: 55 },
+      { note: 69, len: 1.0, bass: 43, chord: 57 },
+      { note: 62, len: 2.0, bass: 38, chord: 50 },
+
+      // "True patriot love in all of us command."
+      { note: 64, len: 1.0, bass: 40, chord: 52 },
+      { note: 65, len: 0.5, bass: 40, chord: 53 },
+      { note: 67, len: 0.5, bass: 40, chord: 55 },
+      { note: 69, len: 1.5, bass: 45, chord: 57 },
+      { note: 69, len: 0.5, bass: 45, chord: 57 },
+      { note: 71, len: 1.0, bass: 47, chord: 59 },
+      { note: 72, len: 1.0, bass: 48, chord: 60 },
+      { note: 71, len: 0.5, bass: 47, chord: 59 },
+      { note: 69, len: 0.5, bass: 45, chord: 57 },
+      { note: 67, len: 2.5, bass: 43, chord: 55 },
+
+      // "With glowing hearts we see thee rise,"
+      { note: 67, len: 1.0, bass: 43, chord: 55 },
+      { note: 67, len: 0.5, bass: 43, chord: 55 },
+      { note: 72, len: 0.5, bass: 48, chord: 60 },
+      { note: 72, len: 1.5, bass: 48, chord: 60 },
+      { note: 71, len: 0.5, bass: 47, chord: 59 },
+      { note: 69, len: 1.0, bass: 45, chord: 57 },
+      { note: 67, len: 1.0, bass: 43, chord: 55 },
+      { note: 65, len: 1.0, bass: 41, chord: 53 },
+
+      // "The True North strong and free!"
+      { note: 65, len: 0.5, bass: 41, chord: 53 },
+      { note: 64, len: 0.5, bass: 40, chord: 52 },
+      { note: 62, len: 1.0, bass: 38, chord: 50 },
+      { note: 64, len: 1.0, bass: 40, chord: 52 },
+      { note: 65, len: 1.0, bass: 41, chord: 53 },
+      { note: 67, len: 2.0, bass: 43, chord: 55 },
+
+      // "From far and wide, O Canada, we stand on guard for thee."
+      { note: 67, len: 1.0, bass: 43, chord: 55 },
+      { note: 67, len: 0.5, bass: 43, chord: 55 },
+      { note: 72, len: 0.5, bass: 48, chord: 60 },
+      { note: 72, len: 1.5, bass: 48, chord: 60 },
+      { note: 71, len: 0.5, bass: 47, chord: 59 },
+      { note: 69, len: 1.0, bass: 45, chord: 57 },
+      { note: 67, len: 1.0, bass: 43, chord: 55 },
+      { note: 69, len: 1.5, bass: 45, chord: 57 },
+      { note: 69, len: 0.5, bass: 45, chord: 57 },
+      { note: 71, len: 1.0, bass: 47, chord: 59 },
+      { note: 72, len: 1.0, bass: 48, chord: 60 },
+      { note: 74, len: 1.5, bass: 43, chord: 55 },
+      { note: 71, len: 0.5, bass: 43, chord: 55 },
+      { note: 72, len: 3.0, bass: 48, chord: 60 }
+    ];
+
+    const beatDur = 60 / 116;
+    let idx = 0;
+
+    const playStep = () => {
+      if (!this.isOCanada || !this.ctx || this.ctx.state !== 'running') return;
+      const cur = O_CANADA_MELODY[idx % O_CANADA_MELODY.length];
+      const dur = cur.len * beatDur;
+      const t = this.ctx.currentTime;
+
+      // Heroic dual-oscillator lead with fat chorus
+      const o1 = this.ctx.createOscillator();
+      const o2 = this.ctx.createOscillator();
+      const filt = this.ctx.createBiquadFilter();
+      const g = this.ctx.createGain();
+
+      const f = 440 * Math.pow(2, (cur.note - 69) / 12);
+      o1.type = 'sawtooth';
+      o1.frequency.setValueAtTime(f, t);
+
+      o2.type = 'square';
+      o2.frequency.setValueAtTime(f * 1.004, t);
+
+      filt.type = 'lowpass';
+      filt.frequency.setValueAtTime(1700, t);
+      filt.frequency.exponentialRampToValueAtTime(750, t + dur * 0.88);
+
+      g.gain.setValueAtTime(0.2, t);
+      g.gain.setValueAtTime(0.18, t + dur * 0.75);
+      g.gain.exponentialRampToValueAtTime(0.005, t + dur * 0.95);
+
+      o1.connect(filt);
+      o2.connect(filt);
+      filt.connect(g);
+      g.connect(this.ctx.destination);
+
+      o1.start(t);
+      o2.start(t);
+      o1.stop(t + dur);
+      o2.stop(t + dur);
+
+      // Harmony chord
+      if (cur.chord) {
+        const co = this.ctx.createOscillator();
+        const cg = this.ctx.createGain();
+        co.type = 'sawtooth';
+        co.frequency.setValueAtTime(440 * Math.pow(2, (cur.chord - 69) / 12), t);
+        cg.gain.setValueAtTime(0.08, t);
+        cg.gain.exponentialRampToValueAtTime(0.005, t + dur * 0.9);
+        co.connect(cg);
+        cg.connect(this.ctx.destination);
+        co.start(t);
+        co.stop(t + dur);
+      }
+
+      // Heavy bass note
+      if (cur.bass) {
+        const bo = this.ctx.createOscillator();
+        const bg = this.ctx.createGain();
+        bo.type = 'triangle';
+        bo.frequency.setValueAtTime(440 * Math.pow(2, (cur.bass - 69) / 12), t);
+        bg.gain.setValueAtTime(0.22, t);
+        bg.gain.exponentialRampToValueAtTime(0.01, t + dur * 0.85);
+        bo.connect(bg);
+        bg.connect(this.ctx.destination);
+        bo.start(t);
+        bo.stop(t + dur);
+      }
+
+      // Stadium rock kick drum
+      const ko = this.ctx.createOscillator();
+      const kg = this.ctx.createGain();
+      ko.frequency.setValueAtTime(140, t);
+      ko.frequency.exponentialRampToValueAtTime(36, t + 0.12);
+      kg.gain.setValueAtTime(0.28, t);
+      kg.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
+      ko.connect(kg);
+      kg.connect(this.ctx.destination);
+      ko.start(t);
+      ko.stop(t + 0.13);
+
+      idx++;
+      this.oCanadaTimer = setTimeout(playStep, dur * 1000);
+    };
+
+    playStep();
+  }
+
+  stopOCanada() {
+    this.isOCanada = false;
+    if (this.oCanadaTimer) {
+      clearTimeout(this.oCanadaTimer);
+      this.oCanadaTimer = null;
+    }
   }
 
   playPeaceChime() {
@@ -328,6 +546,69 @@ const ATTACKS = {
   }
 };
 
+// ============================================================================
+// DIFFICULTY CONFIGURATIONS
+// ============================================================================
+const DIFFICULTY_CONFIGS = {
+  easy: {
+    key: 'easy',
+    name: 'EASY',
+    sub: 'TOURIST',
+    tagClass: 'tag-green',
+    targetEnemies: 14,
+    hpMult: 0.7,
+    speedMult: 0.85,
+    damageMult: 0.65,
+    attackCooldownMult: 1.4,
+    aggroDist: 24,
+    spawnInterval: 5.5,
+    maxAlive: 14
+  },
+  medium: {
+    key: 'medium',
+    name: 'MEDIUM',
+    sub: 'BRAWLER',
+    tagClass: 'tag-cyan',
+    targetEnemies: 30,
+    hpMult: 1.0,
+    speedMult: 1.0,
+    damageMult: 1.0,
+    attackCooldownMult: 1.0,
+    aggroDist: 35,
+    spawnInterval: 3.5,
+    maxAlive: 30
+  },
+  hard: {
+    key: 'hard',
+    name: 'HARD',
+    sub: 'BRUTAL',
+    tagClass: 'tag-yellow',
+    targetEnemies: 52,
+    hpMult: 1.35,
+    speedMult: 1.15,
+    damageMult: 1.4,
+    attackCooldownMult: 0.8,
+    aggroDist: 48,
+    spawnInterval: 2.2,
+    maxAlive: 52
+  },
+  impossible: {
+    key: 'impossible',
+    name: 'IMPOSSIBLE',
+    sub: 'TORONTO MAYHEM',
+    tagClass: 'tag-red',
+    targetEnemies: 88,
+    hpMult: 1.75,
+    speedMult: 1.35,
+    damageMult: 1.9,
+    attackCooldownMult: 0.6,
+    aggroDist: 65,
+    spawnInterval: 1.2,
+    maxAlive: 88
+  }
+};
+const DIFFICULTY_ORDER = ['easy', 'medium', 'hard', 'impossible'];
+
 const state = {
   health: 100,
   maxHealth: 100,
@@ -337,6 +618,8 @@ const state = {
   kills: 0,
   boxesSmashed: 0,
   totalBoxes: 8,
+  difficulty: 'medium',
+  spawnTimer: 0,
   activeAttack: ATTACKS.JAB,
   unlocked: {
     [ATTACKS.JAB.id]: true,
@@ -570,6 +853,127 @@ bootGroup.position.set(0, -1.2, -0.5);
 bootGroup.visible = false;
 armsRig.add(bootGroup);
 
+// Canadian Hockey Stick for Berserk Rage Mode
+function buildHockeyStickMesh() {
+  const stickGroup = new THREE.Group();
+
+  const shaftMat = new THREE.MeshStandardMaterial({
+    color: 0xd4a373, // Maple wood shaft
+    roughness: 0.45,
+    metalness: 0.1
+  });
+  const redMat = new THREE.MeshStandardMaterial({
+    color: 0xd90429, // Team Canada Crimson Red
+    roughness: 0.35,
+    metalness: 0.2
+  });
+  const whiteTapeMat = new THREE.MeshStandardMaterial({
+    color: 0xf8f9fa, // White hockey tape
+    roughness: 0.85,
+    metalness: 0.05
+  });
+  const blackBladeMat = new THREE.MeshStandardMaterial({
+    color: 0x18181b, // Black cloth tape on blade
+    roughness: 0.9,
+    metalness: 0.05
+  });
+  const gloveMat = new THREE.MeshStandardMaterial({
+    color: 0xb91c1c, // Red Canadian Hockey Glove
+    roughness: 0.55,
+    metalness: 0.2
+  });
+  const gloveCuffMat = new THREE.MeshStandardMaterial({
+    color: 0x1e293b,
+    roughness: 0.6,
+    metalness: 0.1
+  });
+
+  // Long composite/maple shaft
+  const shaftGeo = new THREE.BoxGeometry(0.042, 1.35, 0.026);
+  const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+  shaft.position.set(0, 0.18, 0);
+  stickGroup.add(shaft);
+
+  // Red & White decorative bands on upper shaft
+  const stripeGeo = new THREE.BoxGeometry(0.045, 0.12, 0.029);
+  const stripe1 = new THREE.Mesh(stripeGeo, redMat);
+  stripe1.position.set(0, 0.42, 0);
+  stickGroup.add(stripe1);
+
+  const stripe2 = new THREE.Mesh(stripeGeo, whiteTapeMat);
+  stripe2.position.set(0, 0.28, 0);
+  stickGroup.add(stripe2);
+
+  const stripe3 = new THREE.Mesh(stripeGeo, redMat);
+  stripe3.position.set(0, 0.14, 0);
+  stickGroup.add(stripe3);
+
+  // Butt-end thick grip tape at top
+  const buttEndGeo = new THREE.BoxGeometry(0.048, 0.24, 0.034);
+  const buttEnd = new THREE.Mesh(buttEndGeo, whiteTapeMat);
+  buttEnd.position.set(0, 0.74, 0);
+  stickGroup.add(buttEnd);
+
+  // Curved Blade at bottom (slanted at ~60° heel)
+  const heelGeo = new THREE.BoxGeometry(0.04, 0.12, 0.06);
+  const heel = new THREE.Mesh(heelGeo, shaftMat);
+  heel.position.set(0, -0.48, 0.03);
+  heel.rotation.x = 0.42;
+  stickGroup.add(heel);
+
+  // Main Blade Body (taped in hockey friction tape)
+  const bladeGeo = new THREE.BoxGeometry(0.018, 0.085, 0.36);
+  const blade = new THREE.Mesh(bladeGeo, blackBladeMat);
+  blade.position.set(0, -0.53, 0.21);
+  blade.rotation.y = -0.14; // Left-curve shooter hook
+  stickGroup.add(blade);
+
+  // Curved Blade Toe (rounded end)
+  const toeGeo = new THREE.CylinderGeometry(0.042, 0.042, 0.018, 10);
+  const toe = new THREE.Mesh(toeGeo, blackBladeMat);
+  toe.rotation.z = Math.PI / 2;
+  toe.position.set(0.022, -0.53, 0.39);
+  stickGroup.add(toe);
+
+  // White tape criss-cross stripes on blade
+  for (let b = -0.06; b <= 0.14; b += 0.07) {
+    const tapeBand = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.088, 0.026), whiteTapeMat);
+    tapeBand.position.set(0, -0.53, 0.20 + b);
+    tapeBand.rotation.y = -0.14;
+    stickGroup.add(tapeBand);
+  }
+
+  // Two Canadian Hockey Gloves gripping the stick
+  // Lower hand (Right hand, mid-shaft)
+  const lowerHand = new THREE.Group();
+  const lhFist = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.16), gloveMat);
+  const lhCuff = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.16, 0.14), gloveCuffMat);
+  lhCuff.position.set(0.02, 0.10, 0);
+  lowerHand.add(lhFist);
+  lowerHand.add(lhCuff);
+  lowerHand.position.set(0, 0.02, 0);
+  stickGroup.add(lowerHand);
+
+  // Upper hand (Left hand, top of shaft)
+  const upperHand = new THREE.Group();
+  const uhFist = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.16), gloveMat);
+  const uhCuff = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.16, 0.14), gloveCuffMat);
+  uhCuff.position.set(-0.02, 0.10, 0);
+  upperHand.add(uhFist);
+  upperHand.add(uhCuff);
+  upperHand.position.set(0, 0.60, 0);
+  stickGroup.add(upperHand);
+
+  stickGroup.position.set(0.24, -0.32, -0.42);
+  stickGroup.rotation.set(-0.25, -0.45, 0.35);
+  stickGroup.visible = false;
+
+  return stickGroup;
+}
+
+const hockeyStick = buildHockeyStickMesh();
+armsRig.add(hockeyStick);
+
 // ============================================================================
 // SUPPLY CRATES & EXPLOSIVE BARRELS
 // ============================================================================
@@ -598,22 +1002,27 @@ function spawnCrates() {
 
   let spots = [];
   if (city) {
+    const pzX = (city.peaceZone ? city.peaceZone.x : city.start.x);
+    const pzZ = (city.peaceZone ? city.peaceZone.z : city.start.z);
+    const pzR = (city.peaceZone ? city.peaceZone.radius : 55);
+
     const torontoCrateTargets = [
-      { x: city.start.x - 14, z: city.start.z - 4, loot: 'HOOK', desc: 'BRASS KNUCKLES! UNLOCKED THUNDER HOOK [2]' },
-      { x: city.start.x - 45, z: city.start.z - 12, loot: 'KICK', desc: 'COMBAT BOOTS! UNLOCKED MIGHTY KICK [3 / E]' },
-      { x: -160, z: -55, loot: 'SLAM', desc: 'METEOR GAUNTLET! UNLOCKED JUMP SLAM [4 / JUMP+ATTACK]' },
-      { x: -430, z: 240, loot: 'HEALTH', desc: 'SUPER BERSERK STIMPACK! (+50 HP)' },
-      { x: -220, z: -70, loot: 'ARMOR', desc: 'SECURITY VEST! (+50 SHIELD)' },
-      { x: -140, z: 120, loot: 'SLAM', desc: 'METEOR ENERGY RECHARGED! (+150 SCORE)' },
-      { x: -370, z: 280, loot: 'HEALTH', desc: 'BERSERK STIMPACK! (+50 HP)' },
+      { x: pzX + (pzR + 15), z: pzZ + 5, loot: 'HOOK', desc: 'BRASS KNUCKLES! UNLOCKED THUNDER HOOK [2]' },
+      { x: pzX - (pzR + 15), z: pzZ - 5, loot: 'KICK', desc: 'COMBAT BOOTS! UNLOCKED MIGHTY KICK [3 / E]' },
+      { x: pzX + 10, z: pzZ + (pzR + 18), loot: 'SLAM', desc: 'METEOR GAUNTLET! UNLOCKED JUMP SLAM [4 / JUMP+ATTACK]' },
+      { x: pzX - 10, z: pzZ - (pzR + 18), loot: 'HEALTH', desc: 'SUPER BERSERK STIMPACK! (+50 HP)' },
+      { x: -160, z: -55, loot: 'ARMOR', desc: 'SECURITY VEST! (+50 SHIELD)' },
+      { x: -220, z: -70, loot: 'SLAM', desc: 'METEOR ENERGY RECHARGED! (+150 SCORE)' },
+      { x: -140, z: 120, loot: 'HEALTH', desc: 'BERSERK STIMPACK! (+50 HP)' },
       { x: 40, z: 130, loot: 'KICK', desc: 'REINFORCED STEEL BOOTS!' }
     ];
 
     torontoCrateTargets.forEach(target => {
-      const spot = city.findOpenSpot(target.x, target.z, 0, 30, 1.6);
-      if (!city.isInsidePeaceZone(spot.x, spot.z)) {
-        spots.push({ x: spot.x, z: spot.z, loot: target.loot, desc: target.desc });
+      let spot = city.findOpenSpot(target.x, target.z, 0, 20, 1.6);
+      if (city.isInsidePeaceZone(spot.x, spot.z)) {
+        spot = city.findOpenSpot(target.x, target.z, 25, 45, 1.6);
       }
+      spots.push({ x: spot.x, z: spot.z, loot: target.loot, desc: target.desc });
     });
   } else {
     spots = crateLocations;
@@ -1110,18 +1519,23 @@ function create3DHumanFighter(x, z, archetypeIndex) {
 function spawnEnemy(x, z, archIdx = 0) {
   const fighterRig = create3DHumanFighter(x, z, archIdx);
   const arch = fighterRig.arch;
+  const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
+
+  const maxHp = Math.round(arch.hp * cfg.hpMult);
+  fighterRig.updateNameplate(maxHp, maxHp, false);
 
   enemies.push({
     rig: fighterRig,
     sprite: fighterRig.root, // alias for position compatibility
     name: arch.name,
-    hp: arch.hp,
-    maxHp: arch.hp,
-    speed: arch.speed,
-    damage: arch.damage,
-    attackCooldown: 1.1,
+    hp: maxHp,
+    maxHp: maxHp,
+    speed: arch.speed * cfg.speedMult,
+    damage: Math.round(arch.damage * cfg.damageMult),
+    attackCooldown: 1.1 / cfg.attackCooldownMult,
     attackTimer: 0.5 + Math.random() * 0.5,
     attackProg: 0,
+    aggroDist: cfg.aggroDist,
     isPunching: false,
     punchArm: 'right',
     punchHasDealtDamage: false,
@@ -1137,6 +1551,51 @@ function spawnEnemy(x, z, archIdx = 0) {
   });
 }
 
+// Street patrol targets distributed across Downtown Toronto sectors
+const ALL_TORONTO_STREET_TARGETS = [
+  // Sector 1: Bremner Blvd & CN Tower Perimeter (South)
+  { x: -360, z: 290, idx: 0 }, { x: -310, z: 285, idx: 1 }, { x: -410, z: 290, idx: 2 },
+  { x: -260, z: 290, idx: 3 }, { x: -210, z: 285, idx: 0 }, { x: -460, z: 290, idx: 1 },
+  // Sector 2: Front St Corridor (North of CN Tower)
+  { x: -360, z: 120, idx: 2 }, { x: -310, z: 110, idx: 3 }, { x: -420, z: 120, idx: 0 },
+  { x: -470, z: 115, idx: 1 }, { x: -260, z: 110, idx: 2 }, { x: -210, z: 115, idx: 3 },
+  // Sector 3: Simcoe, Wellington & Metro Hall
+  { x: -210, z: -60, idx: 0 }, { x: -160, z: -60, idx: 1 }, { x: -240, z: -100, idx: 2 },
+  { x: -180, z: -120, idx: 3 }, { x: -280, z: -70, idx: 0 }, { x: -330, z: -60, idx: 1 },
+  // Sector 4: Entertainment District & King St West
+  { x: -140, z: -40, idx: 2 }, { x: -150, z: 120, idx: 3 }, { x: -220, z: -160, idx: 0 },
+  { x: -280, z: -160, idx: 1 }, { x: -340, z: -170, idx: 2 }, { x: -400, z: -170, idx: 3 },
+  { x: -450, z: -180, idx: 0 }, { x: -500, z: -180, idx: 1 },
+  // Sector 5: Rogers Centre Plaza & Blue Jays Way
+  { x: -440, z: 230, idx: 2 }, { x: -460, z: 180, idx: 3 }, { x: -500, z: 240, idx: 0 },
+  { x: -520, z: 300, idx: 1 }, { x: -480, z: 340, idx: 2 }, { x: -540, z: 360, idx: 3 },
+  // Sector 6: Roundhouse Park & Steam Whistle
+  { x: -220, z: 320, idx: 0 }, { x: -260, z: 340, idx: 1 }, { x: -180, z: 330, idx: 2 },
+  { x: -200, z: 360, idx: 3 }, { x: -240, z: 380, idx: 0 }, { x: -160, z: 370, idx: 1 },
+  // Sector 7: Financial District (Bay & King, Wellington, TD Centre)
+  { x: -80, z: 80, idx: 2 }, { x: 30, z: 140, idx: 3 }, { x: 100, z: -60, idx: 0 },
+  { x: -10, z: -120, idx: 1 }, { x: 50, z: -70, idx: 2 }, { x: 120, z: -110, idx: 3 },
+  { x: 180, z: -90, idx: 0 }, { x: 230, z: -130, idx: 1 }, { x: 160, z: -170, idx: 2 },
+  { x: 220, z: -210, idx: 3 }, { x: 280, z: -180, idx: 0 }, { x: 320, z: -140, idx: 1 },
+  // Sector 8: Union Station & Scotiabank Arena
+  { x: -100, z: -20, idx: 2 }, { x: -50, z: -20, idx: 3 }, { x: 20, z: -30, idx: 0 },
+  { x: 80, z: -20, idx: 1 }, { x: 140, z: -30, idx: 2 }, { x: 200, z: -40, idx: 3 },
+  { x: 260, z: 40, idx: 0 }, { x: 240, z: 90, idx: 1 }, { x: 200, z: 120, idx: 2 },
+  // Sector 9: Harbourfront / Queens Quay Promenade
+  { x: -320, z: 420, idx: 3 }, { x: -240, z: 430, idx: 0 }, { x: -160, z: 440, idx: 1 },
+  { x: -80, z: 450, idx: 2 }, { x: 0, z: 460, idx: 3 }, { x: 100, z: 460, idx: 0 },
+  { x: 200, z: 450, idx: 1 }, { x: 280, z: 440, idx: 2 }, { x: 340, z: 430, idx: 3 },
+  // Sector 10: University Ave & Roy Thomson Hall
+  { x: -120, z: -180, idx: 0 }, { x: -70, z: -190, idx: 1 }, { x: -30, z: -220, idx: 2 },
+  { x: 20, z: -240, idx: 3 }, { x: 60, z: -280, idx: 0 }, { x: -40, z: -270, idx: 1 },
+  // Sector 11: Spadina & CityPlace Corridor
+  { x: -580, z: 200, idx: 2 }, { x: -620, z: 260, idx: 3 }, { x: -660, z: 320, idx: 0 },
+  { x: -640, z: 380, idx: 1 }, { x: -600, z: 440, idx: 2 }, { x: -680, z: 450, idx: 3 },
+  // Sector 12: York St & Lakeshore Boulevard
+  { x: -120, z: 220, idx: 0 }, { x: -60, z: 230, idx: 1 }, { x: 0, z: 230, idx: 2 },
+  { x: 60, z: 240, idx: 3 }, { x: 120, z: 250, idx: 0 }, { x: 180, z: 260, idx: 1 }
+];
+
 function populateEnemies() {
   // Clear any existing enemies
   enemies.forEach(e => {
@@ -1144,33 +1603,20 @@ function populateEnemies() {
   });
   enemies.length = 0;
 
-  if (city) {
-    // Street patrol spawn targets across Downtown Toronto (strictly outside Peace Zone)
-    const torontoStreetTargets = [
-      { x: city.start.x + 40, z: city.start.z - 10, idx: 0 },
-      { x: city.start.x - 40, z: city.start.z + 5, idx: 1 },
-      { x: city.start.x - 70, z: city.start.z - 15, idx: 2 },
-      { x: -140, z: -40, idx: 3 },
-      { x: -210, z: -60, idx: 0 },
-      { x: -80, z: 80, idx: 1 },
-      { x: -150, z: 120, idx: 2 },
-      { x: -380, z: 120, idx: 3 },
-      { x: -440, z: 230, idx: 0 },
-      { x: -360, z: 290, idx: 1 },
-      { x: -180, z: 220, idx: 2 },
-      { x: 30, z: 140, idx: 3 },
-      { x: 100, z: -60, idx: 0 },
-      { x: -10, z: -120, idx: 1 }
-    ];
+  const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
 
-    torontoStreetTargets.forEach(target => {
-      let spot = city.findOpenSpot(target.x, target.z, 0, 35, 2.0);
+  if (city) {
+    const targets = ALL_TORONTO_STREET_TARGETS;
+    let spawnedCount = 0;
+
+    for (let i = 0; i < targets.length && spawnedCount < cfg.targetEnemies; i++) {
+      const target = targets[i];
+      let spot = city.findOpenSpot(target.x, target.z, 0, 30, 2.0);
       const playerX = player.pos.x;
       const playerZ = player.pos.z;
       let fromPlayer = Math.hypot(spot.x - playerX, spot.z - playerZ);
       let fromStart = Math.hypot(spot.x - city.start.x, spot.z - city.start.z);
 
-      // If within 25m breathing room of player or spawn start, retry with minimum radius
       if (fromPlayer < 25 || fromStart < 25) {
         spot = city.findOpenSpot(target.x, target.z, 25, 45, 2.0);
         fromPlayer = Math.hypot(spot.x - playerX, spot.z - playerZ);
@@ -1178,30 +1624,120 @@ function populateEnemies() {
       }
 
       const fromPeace = Math.hypot(spot.x - city.peaceZone.x, spot.z - city.peaceZone.z);
-      // Ensure completely outside the Peace Sanctuary + safety buffer, with breathing room from player
       if (!city.isInsidePeaceZone(spot.x, spot.z) &&
-          fromPeace >= city.peaceZone.radius + 35 &&
+          fromPeace >= city.peaceZone.radius + 20 &&
           fromPlayer >= 25 &&
           fromStart >= 25) {
         spawnEnemy(spot.x, spot.z, target.idx);
+        spawnedCount++;
       }
-    });
+    }
+
+    // If still need more to satisfy target count (e.g. Impossible 88)
+    while (spawnedCount < cfg.targetEnemies) {
+      spawnSingleReinforcement();
+      spawnedCount++;
+    }
   } else {
     const spawns = [
-      [-8, -18, 0],   // Bruiser Tyson
-      [8, -18, 1],    // Striker Damian
-      [-20, 16, 2],   // Cyber Rex
-      [20, 16, 3],    // Iron Kai
-      [-26, -10, 0],  // Bruiser Tyson
-      [26, -10, 1],   // Striker Damian
-      [0, 28, 2],     // Cyber Rex
-      [-18, -28, 3],  // Iron Kai
-      [18, -28, 0],   // Bruiser Tyson
-      [0, -16, 1]     // Striker Damian
+      [-8, -18, 0], [8, -18, 1], [-20, 16, 2], [20, 16, 3],
+      [-26, -10, 0], [26, -10, 1], [0, 28, 2], [-18, -28, 3]
     ];
-    spawns.forEach(([x, z, idx]) => spawnEnemy(x, z, idx));
+    spawns.slice(0, cfg.targetEnemies).forEach(([x, z, idx]) => spawnEnemy(x, z, idx));
   }
 }
+
+function spawnSingleReinforcement() {
+  if (!city) return;
+  const pX = player.pos.x;
+  const pZ = player.pos.z;
+  const angle = Math.random() * Math.PI * 2;
+  const dist = 35 + Math.random() * 65;
+  const tx = pX + Math.cos(angle) * dist;
+  const tz = pZ + Math.sin(angle) * dist;
+
+  const spot = city.findOpenSpot(tx, tz, 5, 25, 2.0);
+  const fromPeace = Math.hypot(spot.x - city.peaceZone.x, spot.z - city.peaceZone.z);
+  const fromPlayer = Math.hypot(spot.x - pX, spot.z - pZ);
+
+  if (!city.isInsidePeaceZone(spot.x, spot.z) && fromPeace >= city.peaceZone.radius + 15 && fromPlayer >= 25) {
+    const archIdx = Math.floor(Math.random() * 4);
+    spawnEnemy(spot.x, spot.z, archIdx);
+  }
+}
+
+function spawnAdditionalEnemies(count) {
+  if (!city) return;
+  for (let i = 0; i < count; i++) {
+    spawnSingleReinforcement();
+  }
+}
+
+function setDifficulty(diffKey, announce = true) {
+  if (!DIFFICULTY_CONFIGS[diffKey]) return;
+  state.difficulty = diffKey;
+  const cfg = DIFFICULTY_CONFIGS[diffKey];
+
+  // Update in-game HUD badge
+  const diffBadge = document.getElementById('diff-badge');
+  if (diffBadge) {
+    diffBadge.innerText = `DIFF: ${cfg.name}`;
+    diffBadge.className = `tag ${cfg.tagClass}`;
+  }
+
+  // Update menu start modal buttons
+  document.querySelectorAll('.diff-btn').forEach(btn => {
+    if (btn.getAttribute('data-diff') === diffKey) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  // Adjust existing live enemies to new multipliers
+  enemies.forEach(enemy => {
+    if (enemy.isDead || enemy.isKnockedOut) return;
+    enemy.speed = enemy.rig.arch.speed * cfg.speedMult;
+    enemy.damage = Math.round(enemy.rig.arch.damage * cfg.damageMult);
+    enemy.attackCooldown = (1.1 / cfg.attackCooldownMult);
+    enemy.aggroDist = cfg.aggroDist;
+  });
+
+  // Scale active enemy population
+  const aliveEnemies = enemies.filter(e => !e.isDead);
+  if (aliveEnemies.length < cfg.targetEnemies) {
+    spawnAdditionalEnemies(cfg.targetEnemies - aliveEnemies.length);
+  } else if (aliveEnemies.length > cfg.targetEnemies) {
+    const excess = aliveEnemies.length - cfg.targetEnemies;
+    const sorted = aliveEnemies.slice().sort((a, b) => {
+      const da = a.rig.root.position.distanceTo(player.pos);
+      const db = b.rig.root.position.distanceTo(player.pos);
+      return db - da; // remove furthest first
+    });
+    for (let i = 0; i < excess; i++) {
+      const e = sorted[i];
+      if (e.rig && e.rig.root) scene.remove(e.rig.root);
+      const idx = enemies.indexOf(e);
+      if (idx !== -1) enemies.splice(idx, 1);
+    }
+  }
+
+  if (announce) {
+    showAnnouncement(`⚡ DIFFICULTY SET: ${cfg.name} (${cfg.targetEnemies} FOES) ⚡`);
+    audio.playImpact('heavy');
+  }
+}
+
+function cycleDifficulty(dir) {
+  const curIdx = DIFFICULTY_ORDER.indexOf(state.difficulty || 'medium');
+  let nextIdx = curIdx + dir;
+  if (nextIdx < 0) nextIdx = 0;
+  if (nextIdx >= DIFFICULTY_ORDER.length) nextIdx = DIFFICULTY_ORDER.length - 1;
+  if (nextIdx !== curIdx) {
+    setDifficulty(DIFFICULTY_ORDER[nextIdx], true);
+  }
+}
+
 populateEnemies();
 
 // ============================================================================
@@ -1251,10 +1787,32 @@ document.addEventListener('mousemove', (e) => {
 window.addEventListener('keydown', (e) => {
   keys[e.code] = true;
 
+  // Cheat code: [Shift] + 1 (or '!') triggers Canadian Berserker Mode with full timeout
+  if (e.key === '!' || (e.shiftKey && (e.code === 'Digit1' || e.key === '1'))) {
+    e.preventDefault();
+    state.rage = 100;
+    updateRageBar();
+    activateBerserkMode();
+    showAnnouncement("🍁 CHEAT ACTIVATED: CANADIAN BERSERK MODE! 🍁");
+    return;
+  }
+
+  // Difficulty Hotkeys: [ (BracketLeft) decrease, ] (BracketRight) increase
+  if (e.code === 'BracketLeft') {
+    e.preventDefault();
+    cycleDifficulty(-1);
+    return;
+  }
+  if (e.code === 'BracketRight') {
+    e.preventDefault();
+    cycleDifficulty(1);
+    return;
+  }
+
   if (e.code === 'KeyF') triggerAttack();
   if (e.code === 'KeyE' && state.unlocked[ATTACKS.KICK.id]) triggerQuickKick();
 
-  if (e.code.startsWith('Digit')) {
+  if (e.code.startsWith('Digit') && !e.shiftKey) {
     const n = parseInt(e.code.slice(5), 10);
     if (n >= 1 && n <= 4) selectAttackSlot(n);
   }
@@ -1491,7 +2049,8 @@ function checkMeleeHits(atk) {
       camera.getWorldDirection(forward);
       if (dirToEnemy.dot(forward) > 0.55) {
         const dmg = state.isBerserk ? atk.damage * 3 : atk.damage;
-        hitEnemy(enemy, dmg, atk.knockback, atk.type);
+        const kb = state.isBerserk ? atk.knockback * 2.2 : atk.knockback;
+        hitEnemy(enemy, dmg, kb, atk.type);
         hitSomething = true;
       }
     }
@@ -1499,8 +2058,12 @@ function checkMeleeHits(atk) {
 
   if (hitSomething) {
     showHitMarker();
-    triggerScreenShake(atk.knockback * 0.7);
-    audio.playImpact(atk.type);
+    triggerScreenShake(state.isBerserk ? atk.knockback * 1.5 : atk.knockback * 0.7);
+    if (state.isBerserk) {
+      audio.playHockeySlapshot();
+    } else {
+      audio.playImpact(atk.type);
+    }
     registerCombo();
   }
 }
@@ -1620,10 +2183,13 @@ function killEnemy(enemy, isGlory = false) {
 
 function activateBerserkMode() {
   state.isBerserk = true;
-  state.berserkTimer = 9.0;
-  showAnnouncement("🩸 BERSERK RAGE ACTIVATED! 3X MELEE DAMAGE! 🩸");
+  state.berserkTimer = 16.0;
+  showAnnouncement("🍁 CANADIAN BERSERK RAGE! HOCKEY STICK READY! 🍁");
   audio.playBerserkRage();
-  document.getElementById('berserk-overlay').style.opacity = '1';
+  audio.stopMusic();
+  audio.startOCanada();
+  const bOverlay = document.getElementById('berserk-overlay');
+  if (bOverlay) bOverlay.style.opacity = '1';
 }
 
 function updateRageBar() {
@@ -1694,6 +2260,53 @@ function updateArmsRig(dt) {
 
   const prog = state.attackProgress;
   const anim = state.currentAnimType;
+
+  // Canadian Hockey Stick Wielding in Berserk Mode
+  if (state.isBerserk) {
+    rightArm.visible = false;
+    leftArm.visible = false;
+
+    if (state.isAttacking && anim === 'kick') {
+      bootGroup.visible = true;
+      if (typeof hockeyStick !== 'undefined') hockeyStick.visible = false;
+      const reach = Math.sin(prog * Math.PI);
+      bootGroup.position.set(0, -0.25 - (1 - reach) * 0.8, -0.6 - reach * 0.7);
+      bootGroup.rotation.x = 0.3 - reach * 0.4;
+    } else {
+      bootGroup.visible = false;
+      if (typeof hockeyStick !== 'undefined') {
+        hockeyStick.visible = true;
+
+        if (state.isAttacking) {
+          // Dynamic Hockey Slapshot Swing!
+          if (prog < 0.28) {
+            // Windup: pull back and up to the right
+            const w = prog / 0.28;
+            hockeyStick.position.set(0.24 + w * 0.18, -0.32 + w * 0.25, -0.42 + w * 0.12);
+            hockeyStick.rotation.set(-0.25 - w * 0.5, -0.45 - w * 0.35, 0.35 + w * 0.65);
+          } else {
+            // Explosive downswing and follow-through across screen to bottom-left
+            const s = (prog - 0.28) / 0.72;
+            const curve = Math.sin(s * Math.PI * 0.5);
+            hockeyStick.position.set(
+              0.42 - curve * 0.88,
+              -0.07 - curve * 0.35,
+              -0.30 - Math.sin(s * Math.PI) * 0.42
+            );
+            hockeyStick.rotation.set(-0.75 + s * 1.35, -0.8 + s * 1.45, 1.0 - s * 2.2);
+          }
+        } else {
+          // Ready Idle Hockey Stance
+          hockeyStick.position.set(0.24 + swayX, -0.32 + swayY, -0.42);
+          hockeyStick.rotation.set(-0.25, -0.45, 0.35);
+        }
+      }
+    }
+    return;
+  }
+
+  // Not in Berserk: ensure hockey stick is hidden
+  if (typeof hockeyStick !== 'undefined') hockeyStick.visible = false;
 
   if (state.isAttacking) {
     if (anim === 'kick') {
@@ -2155,7 +2768,8 @@ function updateEnemies(dt) {
 
     // AI Chasing, Footwork & Punch Attacks (Enemies CANNOT pursue into or attack inside Peace Sanctuary)
     if (!enemy.isStaggered) {
-      const isMoving = !playerInPeace && distToPlayer > 2.0 && distToPlayer < 55;
+      const aggroLimit = enemy.aggroDist || 45;
+      const isMoving = !playerInPeace && distToPlayer > 2.0 && distToPlayer < aggroLimit;
 
       if (isMoving) {
         const dir = player.pos.clone().sub(enemy.rig.root.position).normalize();
@@ -2360,10 +2974,27 @@ function updateCombatTimers(dt) {
     state.berserkTimer -= dt;
     if (state.berserkTimer <= 0) {
       state.isBerserk = false;
+      state.berserkTimer = 0;
       state.rage = 0;
       updateRageBar();
-      document.getElementById('berserk-overlay').style.opacity = '0';
+      const bOverlay = document.getElementById('berserk-overlay');
+      if (bOverlay) bOverlay.style.opacity = '0';
       showAnnouncement("BERSERK RAGE ENDED");
+      audio.stopOCanada();
+      audio.startMusic();
+    }
+  }
+
+  // Dynamic reinforcement spawn rate based on difficulty
+  if (state.inGame && !state.isPaused && !state.isDead && city) {
+    state.spawnTimer = (state.spawnTimer || 0) + dt;
+    const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
+    if (state.spawnTimer >= cfg.spawnInterval) {
+      state.spawnTimer = 0;
+      const aliveCount = enemies.filter(e => !e.isDead).length;
+      if (aliveCount < cfg.targetEnemies) {
+        spawnSingleReinforcement();
+      }
     }
   }
 
@@ -2392,6 +3023,13 @@ function resetGame() {
   state.health = 100;
   state.armor = 50;
   state.isDead = false;
+  if (state.isBerserk) {
+    state.isBerserk = false;
+    state.berserkTimer = 0;
+    audio.stopOCanada();
+    const bOverlay = document.getElementById('berserk-overlay');
+    if (bOverlay) bOverlay.style.opacity = '0';
+  }
   if (city && city.start) {
     player.pos.set(city.start.x, 1.7, city.start.z);
     player.yaw = city.startYaw;
@@ -2409,6 +3047,35 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Difficulty Selection Event Listeners
+const prevDiffBtn = document.getElementById('diff-prev-btn');
+if (prevDiffBtn) {
+  prevDiffBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    cycleDifficulty(-1);
+  });
+}
+const nextDiffBtn = document.getElementById('diff-next-btn');
+if (nextDiffBtn) {
+  nextDiffBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    cycleDifficulty(1);
+  });
+}
+const diffBadgeEl = document.getElementById('diff-badge');
+if (diffBadgeEl) {
+  diffBadgeEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    cycleDifficulty(1);
+  });
+}
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const diff = btn.getAttribute('data-diff');
+    if (diff) setDifficulty(diff, false);
+  });
 });
 
 // Init HUD & Start Loop

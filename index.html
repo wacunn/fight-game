@@ -17,6 +17,11 @@
         <span class="icon">🔓</span> <span class="btn-text">ESC: RELEASE MOUSE / PAUSE</span>
       </button>
       <div id="status-badges">
+        <div class="diff-control-group" title="Difficulty level (use [ and ] keys to change anytime)">
+          <button id="diff-prev-btn" class="diff-step-btn" type="button" title="Decrease difficulty [ [ key ]">◀</button>
+          <span id="diff-badge" class="tag tag-cyan">DIFF: MEDIUM</span>
+          <button id="diff-next-btn" class="diff-step-btn" type="button" title="Increase difficulty [ ] key ]">▶</button>
+        </div>
         <span id="mouse-status-tag" class="tag tag-green">MOUSE: UNLOCKED</span>
         <span id="fps-counter" class="tag tag-dim">60 FPS</span>
       </div>
@@ -25,12 +30,12 @@
     <!-- Toronto GPS Minimap & Sanctuary Radar -->
     <div id="minimap-container">
       <div id="minimap-header">
-        <span id="minimap-location">FRONT ST / UNION</span>
-        <span id="peace-zone-status" class="peace-status-pill danger">⚔️ COMBAT ZONE</span>
+        <span id="minimap-location">CN TOWER PLAZA</span>
+        <span id="peace-zone-status" class="peace-status-pill safe">🕊️ PEACE SANCTUARY</span>
       </div>
       <canvas id="minimap-canvas" width="160" height="160"></canvas>
       <div id="minimap-footer">
-        <span id="tower-distance">CN TOWER: ~600m</span>
+        <span id="tower-distance" style="color:#34d399;">CN TOWER SANCTUARY (INSIDE)</span>
       </div>
     </div>
 
@@ -59,7 +64,12 @@
 
     <!-- Screen Flash FX -->
     <div id="damage-flash"></div>
-    <div id="berserk-overlay"></div>
+    <div id="berserk-overlay">
+      <div class="berserk-canadian-header">
+        <span class="berserk-maple">🍁</span> CANADIAN BERSERK: HOCKEY STICK RAGE <span class="berserk-maple">🍁</span>
+        <div class="berserk-anthem-sub">♫ O CANADA ♫ &bull; 3X SLAPSHOT DAMAGE &bull; RELENTLESS POWER</div>
+      </div>
+    </div>
     <div id="slam-flash"></div>
 
     <!-- Floating Combat Text & Combo Overlay -->
@@ -191,6 +201,32 @@
                 <span class="item-desc">Smash supply crates on Front St, Union Station &amp; Rogers Centre for upgrades!</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Difficulty Selection -->
+        <div class="difficulty-section">
+          <div class="difficulty-title">
+            <span>SELECT ARENA DIFFICULTY</span>
+            <span style="font-size: 10px; color: #64748b; font-weight: normal;">CHANGE ANYTIME IN-GAME WITH ◀ ▶ OR [ / ] KEYS</span>
+          </div>
+          <div class="difficulty-buttons">
+            <button class="diff-btn" data-diff="easy" type="button">
+              <span class="diff-badge green">🟢 EASY</span>
+              <span class="diff-sub">TOURIST (14 FOES)</span>
+            </button>
+            <button class="diff-btn active" data-diff="medium" type="button">
+              <span class="diff-badge cyan">🔵 MEDIUM</span>
+              <span class="diff-sub">BRAWLER (30 FOES)</span>
+            </button>
+            <button class="diff-btn" data-diff="hard" type="button">
+              <span class="diff-badge gold">🟡 HARD</span>
+              <span class="diff-sub">BRUTAL (52 FOES)</span>
+            </button>
+            <button class="diff-btn" data-diff="impossible" type="button">
+              <span class="diff-badge red">🔴 IMPOSSIBLE</span>
+              <span class="diff-sub">MAYHEM (88 FOES)</span>
+            </button>
           </div>
         </div>
 

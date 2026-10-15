@@ -109,8 +109,62 @@ canvas {
   text-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
 }
 
+.tag-cyan {
+  border-color: #38bdf8;
+  color: #38bdf8;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+}
+
+.tag-yellow {
+  border-color: #f59e0b;
+  color: #fbbf24;
+  text-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+}
+
+.tag-red {
+  border-color: #ef4444;
+  color: #f87171;
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  animation: redPulse 1.2s infinite alternate;
+}
+
+@keyframes redPulse {
+  from { box-shadow: 0 0 4px rgba(239, 68, 68, 0.3); }
+  to { box-shadow: 0 0 12px rgba(239, 68, 68, 0.8); }
+}
+
 .tag-dim {
   color: #888;
+}
+
+/* In-game difficulty step controls */
+.diff-control-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.diff-step-btn {
+  background: rgba(15, 17, 22, 0.9);
+  border: 1px solid #334155;
+  color: #94a3b8;
+  border-radius: 4px;
+  width: 24px;
+  height: 25px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.diff-step-btn:hover {
+  background: #1e293b;
+  color: #fff;
+  border-color: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
 }
 
 /* Crosshair & Dynamic Hit Markers */
@@ -959,4 +1013,144 @@ kbd {
     box-shadow: 0 0 45px rgba(16, 185, 129, 0.75), inset 0 0 28px rgba(52, 211, 153, 0.35);
   }
 }
+
+/* ==========================================================================
+   DIFFICULTY LEVEL SELECTOR (MENU MODAL)
+   ========================================================================== */
+.difficulty-section {
+  margin: 0 0 22px 0;
+  background: rgba(14, 18, 25, 0.85);
+  border: 1px solid #283347;
+  border-radius: 8px;
+  padding: 14px 18px;
+}
+
+.difficulty-title {
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #94a3b8;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.difficulty-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.diff-btn {
+  background: #10141d;
+  border: 1px solid #232d3f;
+  border-radius: 6px;
+  padding: 10px 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.diff-btn:hover {
+  background: #1c2436;
+  border-color: #3b4d6b;
+  transform: translateY(-2px);
+}
+
+.diff-btn.active {
+  border-width: 2px;
+}
+
+.diff-btn[data-diff="easy"].active {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.18);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.45);
+}
+
+.diff-btn[data-diff="medium"].active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.18);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.45);
+}
+
+.diff-btn[data-diff="hard"].active {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.18);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.45);
+}
+
+.diff-btn[data-diff="impossible"].active {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.25);
+  box-shadow: 0 0 22px rgba(239, 68, 68, 0.65);
+}
+
+.diff-badge {
+  font-family: 'Teko', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.diff-sub {
+  font-family: 'Chakra Petch', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+}
+
+/* ==========================================================================
+   CANADIAN BERSERK: HOCKEY STICK RAGE OVERLAY
+   ========================================================================== */
+#berserk-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 100px;
+  background: radial-gradient(circle, rgba(220, 38, 38, 0.15) 30%, rgba(130, 0, 0, 0.65) 100%);
+  border: 4px solid rgba(239, 68, 68, 0.5);
+  box-shadow: inset 0 0 60px rgba(239, 68, 68, 0.7);
+}
+
+.berserk-canadian-header {
+  font-family: 'Teko', sans-serif;
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 0 20px rgba(239, 68, 68, 1), 0 0 40px rgba(255, 255, 255, 0.8);
+  animation: mapleThump 0.5s infinite alternate ease-in-out;
+  user-select: none;
+}
+
+.berserk-maple {
+  color: #ef4444;
+  filter: drop-shadow(0 0 10px #ff0000);
+}
+
+.berserk-anthem-sub {
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fef08a;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.8);
+  margin-top: -6px;
+}
+
+@keyframes mapleThump {
+  from { transform: scale(0.98); }
+  to { transform: scale(1.03); }
+}
+
 

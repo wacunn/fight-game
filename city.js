@@ -1074,14 +1074,11 @@
       ctx.restore();
     }
 
-    // Player start: on Front St in front of Union Station, facing the CN Tower
-    let start;
-    if (unionPoly) {
-      start = findOpenSpot(unionPoly.cx, unionPoly.cz - 70, 0, 30, 2.5);
-    } else {
-      start = findOpenSpot(LM.unionStation[0], LM.unionStation[1] - 60, 0, 30, 2.5);
-    }
-    const toTower = [LM.cnTower[0] - start.x, LM.cnTower[1] - start.z];
+    // Player start: at the CN Tower Plaza inside the Peace Sanctuary
+    const towerX = LM.cnTower[0];
+    const towerZ = LM.cnTower[1];
+    const start = findOpenSpot(towerX + 22, towerZ - 18, 0, 10, 2.0);
+    const toTower = [towerX - start.x, towerZ - start.z];
     const startYaw = Math.atan2(-toTower[0], -toTower[1]);
 
     function isInsidePeaceZone(x, z) {
