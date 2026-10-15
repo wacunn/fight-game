@@ -318,106 +318,130 @@ class EnhancedRetroAudio {
     this.stopOCanada();
     this.isOCanada = true;
 
-    // "O Canada" National Anthem in E♭ Major (Key signature: B♭, E♭, A♭)
-    // Heroic Arena Rock Synth arrangement matching exact vocal/band score
+    // "O Canada" National Anthem in E♭ Major (+3 semitones from C Major)
+    // 4/4 Time, 88 BPM Marching Cadence
+    // Measure-by-Measure Timing Grid matching official vocal/band score:
     const O_CANADA_MELODY = [
-      // 1. "O Canada! Our home and native land!"
-      // E♭ – G – G – B♭ | C – F – G – A♭ – B♭
-      { note: 63, len: 1.5, bass: 39, chord: 51 }, // Eb4 ("O")
-      { note: 67, len: 1.0, bass: 39, chord: 55 }, // G4  ("Ca-")
-      { note: 67, len: 0.5, bass: 39, chord: 55 }, // G4  ("-na-")
-      { note: 70, len: 2.0, bass: 39, chord: 58 }, // Bb4 ("-da!")
-      { note: 60, len: 1.0, bass: 41, chord: 48 }, // C4  ("Our")
-      { note: 65, len: 0.75, bass: 41, chord: 53 }, // F4  ("home")
-      { note: 67, len: 0.25, bass: 41, chord: 55 }, // G4  ("and")
-      { note: 68, len: 0.5, bass: 44, chord: 56 }, // Ab4 ("na-")
-      { note: 70, len: 2.0, bass: 46, chord: 58 }, // Bb4 ("tive land!")
+      // Bar 1: 1.5, 0.5, 1.5, 0.5 (4.0 beats) - "O Canada!"
+      { note: 63, len: 1.5, bass: 39, chord: 51 }, // Eb4 (C4 + 3) Dotted Quarter (720 ticks)
+      { note: 67, len: 0.5, bass: 39, chord: 55 }, // G4  (E4 + 3) Eighth (240 ticks)
+      { note: 67, len: 1.5, bass: 39, chord: 55 }, // G4  (E4 + 3) Dotted Quarter (720 ticks)
+      { note: 70, len: 0.5, bass: 39, chord: 58 }, // Bb4 (G4 + 3) Eighth (240 ticks)
 
-      // 2. "True patriot love in all of us command."
-      // C – D – E♭ – F – G – F – E♭ – D
-      { note: 60, len: 1.0, bass: 36, chord: 48 }, // C4  ("True")
-      { note: 62, len: 0.5, bass: 36, chord: 50 }, // D4  ("pa-")
-      { note: 63, len: 0.5, bass: 36, chord: 51 }, // Eb4 ("-triot")
-      { note: 65, len: 1.0, bass: 41, chord: 53 }, // F4  ("love")
-      { note: 67, len: 1.0, bass: 39, chord: 55 }, // G4  ("in")
-      { note: 65, len: 0.5, bass: 46, chord: 53 }, // F4  ("all")
-      { note: 63, len: 0.5, bass: 46, chord: 51 }, // Eb4 ("of us")
-      { note: 62, len: 2.0, bass: 46, chord: 50 }, // D4  ("command.")
+      // Bar 2: 1.0, 1.0, 0.5, 0.5, 1.0 (4.0 beats) - "Our home and native land!"
+      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
+      { note: 65, len: 1.0, bass: 41, chord: 53 }, // F4  (D4 + 3) Quarter (480 ticks)
+      { note: 67, len: 0.5, bass: 41, chord: 55 }, // G4  (E4 + 3) Eighth (240 ticks)
+      { note: 68, len: 0.5, bass: 44, chord: 56 }, // Ab4 (F4 + 3) Eighth (240 ticks)
+      { note: 70, len: 1.0, bass: 46, chord: 58 }, // Bb4 (G4 + 3) Quarter (480 ticks)
 
-      // 3. "With glowing hearts we see thee rise,"
-      // G – F – E♭ – D – C – D – E♭ – F
-      { note: 67, len: 1.0, bass: 39, chord: 55 }, // G4  ("With")
-      { note: 65, len: 0.5, bass: 39, chord: 53 }, // F4  ("glow-")
-      { note: 63, len: 0.5, bass: 39, chord: 51 }, // Eb4 ("-ing")
-      { note: 62, len: 1.0, bass: 46, chord: 50 }, // D4  ("hearts")
-      { note: 60, len: 0.5, bass: 36, chord: 48 }, // C4  ("we")
-      { note: 62, len: 0.5, bass: 36, chord: 50 }, // D4  ("see")
-      { note: 63, len: 1.0, bass: 39, chord: 51 }, // Eb4 ("thee")
-      { note: 65, len: 2.0, bass: 46, chord: 53 }, // F4  ("rise,")
+      // Bar 3: 1.5, 0.5, 1.0, 1.0 (4.0 beats) - "True patriot love"
+      { note: 72, len: 1.5, bass: 44, chord: 60 }, // C5  (A4 + 3) Dotted Quarter (720 ticks)
+      { note: 74, len: 0.5, bass: 46, chord: 62 }, // D5  (B4 + 3) Eighth (240 ticks)
+      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Quarter (480 ticks)
+      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
 
-      // 4. "The True North strong and free!"
-      // B♭ – B♭ – C – D – E♭ – F
-      { note: 58, len: 1.0, bass: 46, chord: 58 }, // Bb3 ("The")
-      { note: 58, len: 0.5, bass: 46, chord: 58 }, // Bb3 ("True")
-      { note: 60, len: 0.5, bass: 44, chord: 48 }, // C4  ("North")
-      { note: 62, len: 1.0, bass: 46, chord: 50 }, // D4  ("strong")
-      { note: 63, len: 1.0, bass: 39, chord: 51 }, // Eb4 ("and")
-      { note: 65, len: 2.0, bass: 46, chord: 53 }, // F4  ("free!")
+      // Bar 4: 1.0, 1.0, 2.0 (4.0 beats) - "in all of us command."
+      { note: 79, len: 1.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Quarter (480 ticks)
+      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
+      { note: 75, len: 2.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Half Note tied/held (960 ticks)
 
-      // 5. "From far and wide, O Canada,"
-      // G – G – F – E♭ – F – G – A♭ – B♭
-      { note: 67, len: 1.0, bass: 39, chord: 55 }, // G4  ("From")
-      { note: 67, len: 0.5, bass: 39, chord: 55 }, // G4  ("far")
-      { note: 65, len: 0.5, bass: 39, chord: 53 }, // F4  ("and")
-      { note: 63, len: 1.0, bass: 39, chord: 51 }, // Eb4 ("wide,")
-      { note: 65, len: 0.5, bass: 46, chord: 53 }, // F4  ("O")
-      { note: 67, len: 0.5, bass: 39, chord: 55 }, // G4  ("Ca-")
-      { note: 68, len: 1.0, bass: 44, chord: 56 }, // Ab4 ("-na-")
-      { note: 70, len: 1.5, bass: 46, chord: 58 }, // Bb4 ("-da,")
+      // Bar 5: 4.0 (4.0 beats) - Held whole note resolution!
+      { note: 74, len: 4.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Whole Note (1920 ticks)
 
-      // 6. "We stand on guard for thee."
-      // C – C – B♭ – A♭ – B♭
-      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  ("We")
-      { note: 72, len: 0.5, bass: 44, chord: 60 }, // C5  ("stand")
-      { note: 70, len: 0.5, bass: 39, chord: 58 }, // Bb4 ("on")
-      { note: 68, len: 1.0, bass: 44, chord: 56 }, // Ab4 ("guard")
-      { note: 70, len: 2.0, bass: 46, chord: 58 }, // Bb4 ("for thee.")
+      // Bar 6: 1.5, 0.5, 1.0, 1.0 (4.0 beats) - "With glowing hearts"
+      { note: 79, len: 1.5, bass: 39, chord: 67 }, // G5  (E5 + 3) Dotted Quarter (720 ticks)
+      { note: 77, len: 0.5, bass: 39, chord: 65 }, // F5  (D5 + 3) Eighth (240 ticks)
+      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Quarter (480 ticks)
+      { note: 74, len: 1.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Quarter (480 ticks)
 
-      // 7. "God keep our land glorious and free!"
-      // E♭ – E♭ – D – C – B♭ – C – D – E♭
-      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 ("God")
-      { note: 75, len: 0.5, bass: 39, chord: 63 }, // Eb5 ("keep")
-      { note: 74, len: 0.5, bass: 39, chord: 62 }, // D5  ("our")
-      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  ("land")
-      { note: 70, len: 1.0, bass: 39, chord: 58 }, // Bb4 ("glo-")
-      { note: 72, len: 0.5, bass: 44, chord: 60 }, // C5  ("-rious")
-      { note: 74, len: 0.5, bass: 46, chord: 62 }, // D5  ("and")
-      { note: 75, len: 2.0, bass: 39, chord: 63 }, // Eb5 ("free!")
+      // Bar 7: 1.0, 1.0, 1.0, 1.0 (4.0 beats) - "we see thee rise,"
+      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
+      { note: 74, len: 1.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Quarter (480 ticks)
+      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Quarter (480 ticks)
+      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
 
-      // 8. "O Canada, we stand on guard for thee."
-      // F – G – A♭ – F – E♭ – D – E♭ – F
-      { note: 65, len: 1.0, bass: 41, chord: 53 }, // F4  ("O")
-      { note: 67, len: 0.5, bass: 39, chord: 55 }, // G4  ("Ca-")
-      { note: 68, len: 0.5, bass: 44, chord: 56 }, // Ab4 ("-na-")
-      { note: 65, len: 1.0, bass: 41, chord: 53 }, // F4  ("-da,")
-      { note: 63, len: 1.0, bass: 39, chord: 51 }, // Eb4 ("we")
-      { note: 62, len: 0.5, bass: 46, chord: 50 }, // D4  ("stand")
-      { note: 63, len: 0.5, bass: 39, chord: 51 }, // Eb4 ("on")
-      { note: 65, len: 2.0, bass: 46, chord: 53 }, // F4  ("guard for thee.")
+      // Bar 8: 2.0, 1.0, 1.0 (4.0 beats) - "The True North"
+      { note: 70, len: 2.0, bass: 39, chord: 58 }, // Bb4 (G4 + 3) Half Note (960 ticks)
+      { note: 70, len: 1.0, bass: 39, chord: 58 }, // Bb4 (G4 + 3) Quarter (480 ticks)
+      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
 
-      // 9. "O Canada, we stand on guard for thee."
-      // G – A♭ – B♭ – C – F – G – F – E♭
-      { note: 67, len: 1.0, bass: 39, chord: 55 }, // G4  ("O")
-      { note: 68, len: 0.5, bass: 44, chord: 56 }, // Ab4 ("Ca-")
-      { note: 70, len: 0.5, bass: 46, chord: 58 }, // Bb4 ("-na-")
-      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  ("-da,")
-      { note: 65, len: 1.0, bass: 46, chord: 53 }, // F4  ("we")
-      { note: 67, len: 1.0, bass: 39, chord: 55 }, // G4  ("stand")
-      { note: 65, len: 0.75, bass: 46, chord: 53 }, // F4  ("on guard")
-      { note: 63, len: 3.0, bass: 39, chord: 51 }  // Eb4 ("for thee!")
+      // Bar 9: 1.0, 1.0, 2.0 (4.0 beats) - "strong and free!"
+      { note: 74, len: 1.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Quarter (480 ticks)
+      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Quarter (480 ticks)
+      { note: 77, len: 2.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Half Note held (960 ticks)
+
+      // Bar 10: 4.0 (4.0 beats) - Soaring whole note hold!
+      { note: 79, len: 4.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Whole Note (1920 ticks)
+
+      // Bar 11: 1.5, 0.5, 1.0, 1.0 (4.0 beats) - "From far and wide,"
+      { note: 79, len: 1.5, bass: 39, chord: 67 }, // G5  (E5 + 3) Dotted Quarter (720 ticks)
+      { note: 79, len: 0.5, bass: 39, chord: 67 }, // G5  (E5 + 3) Eighth (240 ticks)
+      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
+      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Quarter (480 ticks)
+
+      // Bar 12: 1.0, 1.0, 1.0, 1.0 (4.0 beats) - "O Canada,"
+      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
+      { note: 79, len: 1.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Quarter (480 ticks)
+      { note: 80, len: 1.0, bass: 44, chord: 68 }, // Ab5 (F5 + 3) Quarter (480 ticks)
+      { note: 82, len: 1.0, bass: 46, chord: 70 }, // Bb5 (G5 + 3) Quarter (480 ticks)
+
+      // Bar 13: 2.0, 1.0, 1.0 (4.0 beats) - "we stand on guard"
+      { note: 72, len: 2.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Half Note (960 ticks)
+      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
+      { note: 74, len: 1.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Quarter (480 ticks)
+
+      // Bar 14: 4.0 (4.0 beats) - "for thee." Whole Note
+      { note: 75, len: 4.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Whole Note (1920 ticks)
+
+      // Bar 15: 1.5, 0.5, 1.0, 1.0 (4.0 beats) - "God keep our land"
+      { note: 75, len: 1.5, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Dotted Quarter (720 ticks)
+      { note: 75, len: 0.5, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Eighth (240 ticks)
+      { note: 74, len: 1.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Quarter (480 ticks)
+      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
+
+      // Bar 16: 1.0, 1.0, 1.0, 1.0 (4.0 beats) - "glorious and free!"
+      { note: 70, len: 1.0, bass: 39, chord: 58 }, // Bb4 (G4 + 3) Quarter (480 ticks)
+      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
+      { note: 74, len: 1.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Quarter (480 ticks)
+      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Quarter (480 ticks)
+
+      // Bar 17: 4.0 (4.0 beats) - Powerful triumphant whole note hold!
+      { note: 77, len: 4.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Whole Note (1920 ticks)
+
+      // Bar 18: 1.0, 1.0, 1.0, 1.0 (4.0 beats) - "O Canada,"
+      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
+      { note: 79, len: 1.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Quarter (480 ticks)
+      { note: 80, len: 1.0, bass: 44, chord: 68 }, // Ab5 (F5 + 3) Quarter (480 ticks)
+      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
+
+      // Bar 19: 2.0, 2.0 (4.0 beats) - "we stand on guard"
+      { note: 75, len: 2.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Half Note (960 ticks)
+      { note: 74, len: 2.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Half Note (960 ticks)
+
+      // Bar 20: 2.0, 2.0 (4.0 beats) - "for thee."
+      { note: 75, len: 2.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Half Note (960 ticks)
+      { note: 77, len: 2.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Half Note (960 ticks)
+
+      // Bar 21: 4.0 (4.0 beats) - "O Canada," Whole Note peak!
+      { note: 79, len: 4.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Whole Note (1920 ticks)
+
+      // Bar 22: 1.0, 1.0, 1.0, 1.0 (4.0 beats) - "we stand on guard"
+      { note: 79, len: 1.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Quarter (480 ticks)
+      { note: 80, len: 1.0, bass: 44, chord: 68 }, // Ab5 (F5 + 3) Quarter (480 ticks)
+      { note: 82, len: 1.0, bass: 46, chord: 70 }, // Bb5 (G5 + 3) Quarter (480 ticks)
+      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
+
+      // Bar 23: 2.0, 2.0 (4.0 beats) - "for thee."
+      { note: 77, len: 2.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Half Note (960 ticks)
+      { note: 79, len: 2.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Half Note (960 ticks)
+
+      // Bar 24: 2.0, 4.0 - Grand Finale Resolution!
+      { note: 77, len: 2.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Half Note (960 ticks)
+      { note: 75, len: 4.0, bass: 39, chord: 63 }  // Eb5 (C5 + 3) Grand Whole Note Hold (1920 ticks)
     ];
 
-    const beatDur = 60 / 116;
+    const beatDur = 60 / 88;
     let idx = 0;
 
     const playStep = () => {
@@ -440,12 +464,12 @@ class EnhancedRetroAudio {
       o2.frequency.setValueAtTime(f * 1.004, t);
 
       filt.type = 'lowpass';
-      filt.frequency.setValueAtTime(1700, t);
-      filt.frequency.exponentialRampToValueAtTime(750, t + dur * 0.88);
+      filt.frequency.setValueAtTime(1800, t);
+      filt.frequency.exponentialRampToValueAtTime(800, t + dur * 0.9);
 
-      g.gain.setValueAtTime(0.2, t);
-      g.gain.setValueAtTime(0.18, t + dur * 0.75);
-      g.gain.exponentialRampToValueAtTime(0.005, t + dur * 0.95);
+      g.gain.setValueAtTime(0.22, t);
+      g.gain.setValueAtTime(0.20, t + dur * 0.85);
+      g.gain.exponentialRampToValueAtTime(0.005, t + dur * 0.98);
 
       o1.connect(filt);
       o2.connect(filt);
