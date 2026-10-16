@@ -1046,7 +1046,6 @@ function buildHockeyStickMesh() {
 
   return stickGroup;
 }
-}
 
 const hockeyStick = buildHockeyStickMesh();
 armsRig.add(hockeyStick);
