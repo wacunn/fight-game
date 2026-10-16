@@ -3418,10 +3418,15 @@ armsRig.add(bootGroup);
 function buildHockeyStickMesh() {
   const stickGroup = new THREE.Group();
 
-  const shaftMat = new THREE.MeshStandardMaterial({
-    color: 0xd4a373, // Maple wood shaft
-    roughness: 0.45,
+  const mapleMat = new THREE.MeshStandardMaterial({
+    color: 0xdfad7b,
+    roughness: 0.4,
     metalness: 0.1
+  });
+  const carbonMat = new THREE.MeshStandardMaterial({
+    color: 0x242426,
+    roughness: 0.35,
+    metalness: 0.3
   });
   const redMat = new THREE.MeshStandardMaterial({
     color: 0xd90429, // Team Canada Crimson Red
@@ -3429,7 +3434,7 @@ function buildHockeyStickMesh() {
     metalness: 0.2
   });
   const whiteTapeMat = new THREE.MeshStandardMaterial({
-    color: 0xf8f9fa, // White hockey tape
+    color: 0xf4f4f5, // Hockey friction tape
     roughness: 0.85,
     metalness: 0.05
   });
@@ -3449,87 +3454,124 @@ function buildHockeyStickMesh() {
     metalness: 0.1
   });
 
-  // Long composite/maple shaft
-  const shaftGeo = new THREE.BoxGeometry(0.042, 1.35, 0.026);
-  const shaft = new THREE.Mesh(shaftGeo, shaftMat);
-  shaft.position.set(0, 0.18, 0);
+  // 1. RECTANGULAR COMPOSITE SHAFT
+  // Length from y = -0.55 up to y = +0.40 (total 0.95m)
+  const shaftGeo = new THREE.BoxGeometry(0.032, 0.95, 0.022);
+  const shaft = new THREE.Mesh(shaftGeo, carbonMat);
+  shaft.position.set(0, -0.05, 0);
   stickGroup.add(shaft);
 
-  // Red & White decorative bands on upper shaft
-  const stripeGeo = new THREE.BoxGeometry(0.045, 0.12, 0.029);
-  const stripe1 = new THREE.Mesh(stripeGeo, redMat);
-  stripe1.position.set(0, 0.42, 0);
+  // Maple wood face inlay along front of shaft
+  const inlayGeo = new THREE.BoxGeometry(0.028, 0.92, 0.003);
+  const inlay = new THREE.Mesh(inlayGeo, mapleMat);
+  inlay.position.set(0, -0.05, 0.011);
+  stickGroup.add(inlay);
+
+  // Butt-end grip tape at bottom handle
+  const buttKnob = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.06, 0.028), whiteTapeMat);
+  buttKnob.position.set(0, -0.52, 0);
+  stickGroup.add(buttKnob);
+
+  const buttGrip = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.18, 0.025), whiteTapeMat);
+  buttGrip.position.set(0, -0.42, 0);
+  stickGroup.add(buttGrip);
+
+  // Canadian Decals & Racing Stripes on upper shaft
+  const stripeGeo1 = new THREE.BoxGeometry(0.035, 0.08, 0.025);
+  const stripe1 = new THREE.Mesh(stripeGeo1, redMat);
+  stripe1.position.set(0, 0.10, 0);
   stickGroup.add(stripe1);
 
-  const stripe2 = new THREE.Mesh(stripeGeo, whiteTapeMat);
-  stripe2.position.set(0, 0.28, 0);
+  const stripeGeo2 = new THREE.BoxGeometry(0.035, 0.03, 0.025);
+  const stripe2 = new THREE.Mesh(stripeGeo2, whiteTapeMat);
+  stripe2.position.set(0, 0.16, 0);
   stickGroup.add(stripe2);
 
-  const stripe3 = new THREE.Mesh(stripeGeo, redMat);
-  stripe3.position.set(0, 0.14, 0);
+  const stripeGeo3 = new THREE.BoxGeometry(0.035, 0.08, 0.025);
+  const stripe3 = new THREE.Mesh(stripeGeo3, redMat);
+  stripe3.position.set(0, 0.22, 0);
   stickGroup.add(stripe3);
 
-  // Butt-end thick grip tape at top
-  const buttEndGeo = new THREE.BoxGeometry(0.048, 0.24, 0.034);
-  const buttEnd = new THREE.Mesh(buttEndGeo, whiteTapeMat);
-  buttEnd.position.set(0, 0.74, 0);
-  stickGroup.add(buttEnd);
+  // 2. THE TOP: HOSEL, HEEL & DISTINCTIVE UPRIGHT CURVED HOCKEY BLADE!
+  const bladeGroup = new THREE.Group();
+  bladeGroup.position.set(0, 0.40, 0);
 
-  // Curved Blade at bottom (slanted at ~60° heel)
-  const heelGeo = new THREE.BoxGeometry(0.04, 0.12, 0.06);
-  const heel = new THREE.Mesh(heelGeo, shaftMat);
-  heel.position.set(0, -0.48, 0.03);
-  heel.rotation.x = 0.42;
-  stickGroup.add(heel);
+  // Hosel (shaft to heel transition angle)
+  const hoselGeo = new THREE.BoxGeometry(0.028, 0.10, 0.024);
+  const hosel = new THREE.Mesh(hoselGeo, carbonMat);
+  hosel.position.set(-0.025, 0.045, -0.01);
+  hosel.rotation.set(-0.15, -0.35, 0.65);
+  bladeGroup.add(hosel);
 
-  // Main Blade Body (taped in hockey friction tape)
-  const bladeGeo = new THREE.BoxGeometry(0.018, 0.085, 0.36);
-  const blade = new THREE.Mesh(bladeGeo, blackBladeMat);
-  blade.position.set(0, -0.53, 0.21);
-  blade.rotation.y = -0.14; // Left-curve shooter hook
-  stickGroup.add(blade);
+  // The Blade: Stands upright with vertical height ~0.082m, thin width ~0.013m
+  // Sweeps outward to the left and curves forward (shooter hook)
+  const bladeSegments = [
+    { dx: -0.065, dy: 0.075, dz: -0.035, len: 0.09, ry: -0.55, rz: 0.25, h: 0.082 },
+    { dx: -0.135, dy: 0.092, dz: -0.085, len: 0.09, ry: -0.85, rz: 0.16, h: 0.080 },
+    { dx: -0.195, dy: 0.102, dz: -0.150, len: 0.09, ry: -1.18, rz: 0.08, h: 0.078 },
+    { dx: -0.235, dy: 0.106, dz: -0.225, len: 0.09, ry: -1.52, rz: 0.02, h: 0.075 }
+  ];
 
-  // Curved Blade Toe (rounded end)
-  const toeGeo = new THREE.CylinderGeometry(0.042, 0.042, 0.018, 10);
-  const toe = new THREE.Mesh(toeGeo, blackBladeMat);
-  toe.rotation.z = Math.PI / 2;
-  toe.position.set(0.022, -0.53, 0.39);
-  stickGroup.add(toe);
+  bladeSegments.forEach((seg) => {
+    // Blade core (black composite)
+    const bGeo = new THREE.BoxGeometry(0.013, seg.h, seg.len);
+    const bMesh = new THREE.Mesh(bGeo, blackBladeMat);
+    bMesh.position.set(seg.dx, seg.dy, seg.dz);
+    bMesh.rotation.set(0.05, seg.ry, seg.rz);
+    bladeGroup.add(bMesh);
 
-  // White tape criss-cross stripes on blade
-  for (let b = -0.06; b <= 0.14; b += 0.07) {
-    const tapeBand = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.088, 0.026), whiteTapeMat);
-    tapeBand.position.set(0, -0.53, 0.20 + b);
-    tapeBand.rotation.y = -0.14;
-    stickGroup.add(tapeBand);
-  }
+    // White cloth tape wraps around each segment
+    const tapeGeo = new THREE.BoxGeometry(0.015, seg.h + 0.002, 0.035);
+    const tapeMesh = new THREE.Mesh(tapeGeo, whiteTapeMat);
+    tapeMesh.position.set(seg.dx, seg.dy, seg.dz);
+    tapeMesh.rotation.set(0.05, seg.ry, seg.rz);
+    bladeGroup.add(tapeMesh);
+  });
 
-  // Two Canadian Hockey Gloves gripping the stick
-  // Lower hand (Right hand, mid-shaft)
-  const lowerHand = new THREE.Group();
-  const lhFist = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.16), gloveMat);
-  const lhCuff = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.16, 0.14), gloveCuffMat);
-  lhCuff.position.set(0.02, 0.10, 0);
-  lowerHand.add(lhFist);
-  lowerHand.add(lhCuff);
-  lowerHand.position.set(0, 0.02, 0);
-  stickGroup.add(lowerHand);
+  // Rounded Toe at tip (Segment 4 end)
+  const toeGeo = new THREE.CylinderGeometry(0.037, 0.037, 0.013, 16);
+  const toeMesh = new THREE.Mesh(toeGeo, blackBladeMat);
+  toeMesh.position.set(-0.245, 0.106, -0.275);
+  toeMesh.rotation.set(0.05, -1.55, Math.PI / 2);
+  bladeGroup.add(toeMesh);
 
-  // Upper hand (Left hand, top of shaft)
-  const upperHand = new THREE.Group();
-  const uhFist = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.16), gloveMat);
-  const uhCuff = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.16, 0.14), gloveCuffMat);
-  uhCuff.position.set(-0.02, 0.10, 0);
-  upperHand.add(uhFist);
-  upperHand.add(uhCuff);
-  upperHand.position.set(0, 0.60, 0);
-  stickGroup.add(upperHand);
+  // Red Maple Leaf accent badge on the heel
+  const badgeGeo = new THREE.BoxGeometry(0.015, 0.045, 0.045);
+  const badgeMesh = new THREE.Mesh(badgeGeo, redMat);
+  badgeMesh.position.set(-0.065, 0.075, -0.035);
+  badgeMesh.rotation.set(0.05, -0.55, 0.25);
+  bladeGroup.add(badgeMesh);
 
-  stickGroup.position.set(0.24, -0.32, -0.42);
-  stickGroup.rotation.set(-0.25, -0.45, 0.35);
+  stickGroup.add(bladeGroup);
+
+  // 3. TWO CANADIAN HOCKEY GLOVES AT HANDLE (BOTTOM)
+  // Lower hand (near butt end, y = -0.36)
+  const buttGlove = new THREE.Group();
+  const bgFist = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.15), gloveMat);
+  const bgCuff = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.13), gloveCuffMat);
+  bgCuff.position.set(0.02, -0.08, 0);
+  buttGlove.add(bgFist);
+  buttGlove.add(bgCuff);
+  buttGlove.position.set(0, -0.36, 0);
+  stickGroup.add(buttGlove);
+
+  // Upper hand (guide/power hand, y = -0.12)
+  const powerGlove = new THREE.Group();
+  const pgFist = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.15), gloveMat);
+  const pgCuff = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.13), gloveCuffMat);
+  pgCuff.position.set(0.02, -0.08, 0);
+  powerGlove.add(pgFist);
+  powerGlove.add(pgCuff);
+  powerGlove.position.set(0, -0.12, 0);
+  stickGroup.add(powerGlove);
+
+  // First-person idle stance
+  stickGroup.position.set(0.22, -0.26, -0.44);
+  stickGroup.rotation.set(-0.22, -0.42, 0.38);
   stickGroup.visible = false;
 
   return stickGroup;
+}
 }
 
 const hockeyStick = buildHockeyStickMesh();
@@ -4843,23 +4885,23 @@ function updateArmsRig(dt) {
           if (prog < 0.28) {
             // Windup: pull back and up to the right
             const w = prog / 0.28;
-            hockeyStick.position.set(0.24 + w * 0.18, -0.32 + w * 0.25, -0.42 + w * 0.12);
-            hockeyStick.rotation.set(-0.25 - w * 0.5, -0.45 - w * 0.35, 0.35 + w * 0.65);
+            hockeyStick.position.set(0.22 + w * 0.16, -0.26 + w * 0.20, -0.44 + w * 0.10);
+            hockeyStick.rotation.set(-0.22 - w * 0.45, -0.42 - w * 0.30, 0.38 + w * 0.55);
           } else {
             // Explosive downswing and follow-through across screen to bottom-left
             const s = (prog - 0.28) / 0.72;
             const curve = Math.sin(s * Math.PI * 0.5);
             hockeyStick.position.set(
-              0.42 - curve * 0.88,
-              -0.07 - curve * 0.35,
-              -0.30 - Math.sin(s * Math.PI) * 0.42
+              0.38 - curve * 0.82,
+              -0.06 - curve * 0.30,
+              -0.34 - Math.sin(s * Math.PI) * 0.36
             );
-            hockeyStick.rotation.set(-0.75 + s * 1.35, -0.8 + s * 1.45, 1.0 - s * 2.2);
+            hockeyStick.rotation.set(-0.67 + s * 1.25, -0.72 + s * 1.35, 0.93 - s * 2.0);
           }
         } else {
           // Ready Idle Hockey Stance
-          hockeyStick.position.set(0.24 + swayX, -0.32 + swayY, -0.42);
-          hockeyStick.rotation.set(-0.25, -0.45, 0.35);
+          hockeyStick.position.set(0.22 + swayX, -0.26 + swayY, -0.44);
+          hockeyStick.rotation.set(-0.22, -0.42, 0.38);
         }
       }
     }
