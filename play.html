@@ -2551,7 +2551,7 @@ class EnhancedRetroAudio {
   playPunch(power = 1, isBerserk = false) {
     if (!this.ctx || this.isMuted) return;
     const t = this.ctx.currentTime;
-    
+
     // Punch whoosh
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
@@ -2848,123 +2848,96 @@ class EnhancedRetroAudio {
     // 4/4 Time, 88 BPM Marching Cadence
     // Measure-by-Measure Timing Grid matching official vocal/band score:
     const O_CANADA_MELODY = [
-      // Bar 1: 1.5, 0.5, 1.5, 0.5 (4.0 beats) - "O Canada!"
-      { note: 63, len: 1.5, bass: 39, chord: 51 }, // Eb4 (C4 + 3) Dotted Quarter (720 ticks)
-      { note: 67, len: 0.5, bass: 39, chord: 55 }, // G4  (E4 + 3) Eighth (240 ticks)
-      { note: 67, len: 1.5, bass: 39, chord: 55 }, // G4  (E4 + 3) Dotted Quarter (720 ticks)
-      { note: 70, len: 0.5, bass: 39, chord: 58 }, // Bb4 (G4 + 3) Eighth (240 ticks)
-
-      // Bar 2: 1.0, 1.0, 0.5, 0.5, 1.0 (4.0 beats) - "Our home and native land!"
-      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
-      { note: 65, len: 1.0, bass: 41, chord: 53 }, // F4  (D4 + 3) Quarter (480 ticks)
-      { note: 67, len: 0.5, bass: 41, chord: 55 }, // G4  (E4 + 3) Eighth (240 ticks)
-      { note: 68, len: 0.5, bass: 44, chord: 56 }, // Ab4 (F4 + 3) Eighth (240 ticks)
-      { note: 70, len: 1.0, bass: 46, chord: 58 }, // Bb4 (G4 + 3) Quarter (480 ticks)
-
-      // Bar 3: 1.5, 0.5, 1.0, 1.0 (4.0 beats) - "True patriot love"
-      { note: 72, len: 1.5, bass: 44, chord: 60 }, // C5  (A4 + 3) Dotted Quarter (720 ticks)
-      { note: 74, len: 0.5, bass: 46, chord: 62 }, // D5  (B4 + 3) Eighth (240 ticks)
-      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Quarter (480 ticks)
-      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
-
-      // Bar 4: 1.0, 1.0, 2.0 (4.0 beats) - "in all of us command."
-      { note: 79, len: 1.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Quarter (480 ticks)
-      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
-      { note: 75, len: 2.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Half Note tied/held (960 ticks)
-
-      // Bar 5: 4.0 (4.0 beats) - Held whole note resolution!
-      { note: 74, len: 4.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Whole Note (1920 ticks)
-
-      // Bar 6: 1.5, 0.5, 1.0, 1.0 (4.0 beats) - "With glowing hearts"
-      { note: 79, len: 1.5, bass: 39, chord: 67 }, // G5  (E5 + 3) Dotted Quarter (720 ticks)
-      { note: 77, len: 0.5, bass: 39, chord: 65 }, // F5  (D5 + 3) Eighth (240 ticks)
-      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Quarter (480 ticks)
-      { note: 74, len: 1.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Quarter (480 ticks)
-
-      // Bar 7: 1.0, 1.0, 1.0, 1.0 (4.0 beats) - "we see thee rise,"
-      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
-      { note: 74, len: 1.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Quarter (480 ticks)
-      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Quarter (480 ticks)
-      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
-
-      // Bar 8: 2.0, 1.0, 1.0 (4.0 beats) - "The True North"
-      { note: 70, len: 2.0, bass: 39, chord: 58 }, // Bb4 (G4 + 3) Half Note (960 ticks)
-      { note: 70, len: 1.0, bass: 39, chord: 58 }, // Bb4 (G4 + 3) Quarter (480 ticks)
-      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
-
-      // Bar 9: 1.0, 1.0, 2.0 (4.0 beats) - "strong and free!"
-      { note: 74, len: 1.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Quarter (480 ticks)
-      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Quarter (480 ticks)
-      { note: 77, len: 2.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Half Note held (960 ticks)
-
-      // Bar 10: 4.0 (4.0 beats) - Soaring whole note hold!
-      { note: 79, len: 4.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Whole Note (1920 ticks)
-
-      // Bar 11: 1.5, 0.5, 1.0, 1.0 (4.0 beats) - "From far and wide,"
-      { note: 79, len: 1.5, bass: 39, chord: 67 }, // G5  (E5 + 3) Dotted Quarter (720 ticks)
-      { note: 79, len: 0.5, bass: 39, chord: 67 }, // G5  (E5 + 3) Eighth (240 ticks)
-      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
-      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Quarter (480 ticks)
-
-      // Bar 12: 1.0, 1.0, 1.0, 1.0 (4.0 beats) - "O Canada,"
-      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
-      { note: 79, len: 1.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Quarter (480 ticks)
-      { note: 80, len: 1.0, bass: 44, chord: 68 }, // Ab5 (F5 + 3) Quarter (480 ticks)
-      { note: 82, len: 1.0, bass: 46, chord: 70 }, // Bb5 (G5 + 3) Quarter (480 ticks)
-
-      // Bar 13: 2.0, 1.0, 1.0 (4.0 beats) - "we stand on guard"
-      { note: 72, len: 2.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Half Note (960 ticks)
-      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
-      { note: 74, len: 1.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Quarter (480 ticks)
-
-      // Bar 14: 4.0 (4.0 beats) - "for thee." Whole Note
-      { note: 75, len: 4.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Whole Note (1920 ticks)
-
-      // Bar 15: 1.5, 0.5, 1.0, 1.0 (4.0 beats) - "God keep our land"
-      { note: 75, len: 1.5, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Dotted Quarter (720 ticks)
-      { note: 75, len: 0.5, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Eighth (240 ticks)
-      { note: 74, len: 1.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Quarter (480 ticks)
-      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
-
-      // Bar 16: 1.0, 1.0, 1.0, 1.0 (4.0 beats) - "glorious and free!"
-      { note: 70, len: 1.0, bass: 39, chord: 58 }, // Bb4 (G4 + 3) Quarter (480 ticks)
-      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
-      { note: 74, len: 1.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Quarter (480 ticks)
-      { note: 75, len: 1.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Quarter (480 ticks)
-
-      // Bar 17: 4.0 (4.0 beats) - Powerful triumphant whole note hold!
-      { note: 77, len: 4.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Whole Note (1920 ticks)
-
-      // Bar 18: 1.0, 1.0, 1.0, 1.0 (4.0 beats) - "O Canada,"
-      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
-      { note: 79, len: 1.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Quarter (480 ticks)
-      { note: 80, len: 1.0, bass: 44, chord: 68 }, // Ab5 (F5 + 3) Quarter (480 ticks)
-      { note: 77, len: 1.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Quarter (480 ticks)
-
-      // Bar 19: 2.0, 2.0 (4.0 beats) - "we stand on guard"
-      { note: 75, len: 2.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Half Note (960 ticks)
-      { note: 74, len: 2.0, bass: 46, chord: 62 }, // D5  (B4 + 3) Half Note (960 ticks)
-
-      // Bar 20: 2.0, 2.0 (4.0 beats) - "for thee."
-      { note: 75, len: 2.0, bass: 39, chord: 63 }, // Eb5 (C5 + 3) Half Note (960 ticks)
-      { note: 77, len: 2.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Half Note (960 ticks)
-
-      // Bar 21: 4.0 (4.0 beats) - "O Canada," Whole Note peak!
-      { note: 79, len: 4.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Whole Note (1920 ticks)
-
-      // Bar 22: 1.0, 1.0, 1.0, 1.0 (4.0 beats) - "we stand on guard"
-      { note: 79, len: 1.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Quarter (480 ticks)
-      { note: 80, len: 1.0, bass: 44, chord: 68 }, // Ab5 (F5 + 3) Quarter (480 ticks)
-      { note: 82, len: 1.0, bass: 46, chord: 70 }, // Bb5 (G5 + 3) Quarter (480 ticks)
-      { note: 72, len: 1.0, bass: 44, chord: 60 }, // C5  (A4 + 3) Quarter (480 ticks)
-
-      // Bar 23: 2.0, 2.0 (4.0 beats) - "for thee."
-      { note: 77, len: 2.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Half Note (960 ticks)
-      { note: 79, len: 2.0, bass: 39, chord: 67 }, // G5  (E5 + 3) Half Note (960 ticks)
-
-      // Bar 24: 2.0, 4.0 - Grand Finale Resolution!
-      { note: 77, len: 2.0, bass: 46, chord: 65 }, // F5  (D5 + 3) Half Note (960 ticks)
-      { note: 75, len: 4.0, bass: 39, chord: 63 }  // Eb5 (C5 + 3) Grand Whole Note Hold (1920 ticks)
+      // Bar 1: "O Canada! Our home and native land!"
+      { note: 67, len: 2, bass: 39, chord: 51 },  // G4
+      { note: 70, len: 1.5, bass: 39, chord: 51 },  // Bb4
+      { note: 70, len: 0.5, bass: 39, chord: 51 },  // Bb4
+      { note: 63, len: 3, bass: 39, chord: 51 },  // Eb4
+      { note: 65, len: 1, bass: 46, chord: 58 },  // F4
+      { note: 67, len: 1, bass: 39, chord: 51 },  // G4
+      { note: 68, len: 1, bass: 41, chord: 53 },  // Ab4
+      { note: 70, len: 1, bass: 39, chord: 51 },  // Bb4
+      { note: 72, len: 1, bass: 44, chord: 56 },  // C5
+      { note: 65, len: 4, bass: 46, chord: 58 },  // F4
+      // Bar 5: "True patriot love in all of us command."
+      { note: 67, len: 2, bass: 39, chord: 51 },  // G4
+      { note: 69, len: 1.5, bass: 41, chord: 53 },  // A4
+      { note: 69, len: 0.5, bass: 41, chord: 53 },  // A4
+      { note: 70, len: 3, bass: 46, chord: 58 },  // Bb4
+      { note: 72, len: 1, bass: 41, chord: 53 },  // C5
+      { note: 74, len: 1, bass: 46, chord: 58 },  // D5
+      { note: 74, len: 1, bass: 46, chord: 58 },  // D5
+      { note: 72, len: 1, bass: 41, chord: 53 },  // C5
+      { note: 72, len: 1, bass: 41, chord: 53 },  // C5
+      // Bar 8: last 2 notes = pickup into "With glowing hearts ... The True North strong and free!"
+      { note: 70, len: 3, bass: 46, chord: 58 },  // Bb4
+      { note: 65, len: 0.75, bass: 46, chord: 58 }, // F4
+      { note: 67, len: 0.25, bass: 46, chord: 58 }, // G4
+      { note: 68, len: 1.5, bass: 46, chord: 58 },  // Ab4
+      { note: 67, len: 0.5, bass: 46, chord: 58 },  // G4
+      { note: 65, len: 1, bass: 46, chord: 58 },  // F4
+      { note: 67, len: 0.75, bass: 46, chord: 58 }, // G4
+      { note: 68, len: 0.25, bass: 46, chord: 58 }, // Ab4
+      { note: 70, len: 1.5, bass: 39, chord: 51 },  // Bb4
+      { note: 68, len: 0.5, bass: 39, chord: 51 },  // Ab4
+      { note: 67, len: 1, bass: 39, chord: 51 },  // G4
+      { note: 68, len: 0.75, bass: 39, chord: 51 }, // Ab4
+      { note: 70, len: 0.25, bass: 39, chord: 51 }, // Bb4
+      { note: 72, len: 1, bass: 44, chord: 56 },  // C5
+      { note: 70, len: 1, bass: 39, chord: 51 },  // Bb4
+      { note: 68, len: 1, bass: 46, chord: 58 },  // Ab4
+      { note: 67, len: 1, bass: 39, chord: 51 },  // G4
+      // Bar 12: last 2 notes = pickup into "From far and wide ... We stand on guard for thee."
+      { note: 65, len: 3, bass: 46, chord: 58 },  // F4
+      { note: 65, len: 0.75, bass: 46, chord: 58 }, // F4
+      { note: 67, len: 0.25, bass: 46, chord: 58 }, // G4
+      { note: 68, len: 1.5, bass: 46, chord: 58 },  // Ab4
+      { note: 67, len: 0.5, bass: 46, chord: 58 },  // G4
+      { note: 65, len: 1, bass: 46, chord: 58 },  // F4
+      { note: 67, len: 0.75, bass: 46, chord: 58 }, // G4
+      { note: 68, len: 0.25, bass: 46, chord: 58 }, // Ab4
+      { note: 70, len: 1.5, bass: 39, chord: 51 },  // Bb4
+      { note: 68, len: 0.5, bass: 39, chord: 51 },  // Ab4
+      { note: 67, len: 1, bass: 39, chord: 51 },  // G4
+      { note: 67, len: 1, bass: 39, chord: 51 },  // G4
+      { note: 65, len: 1, bass: 46, chord: 58 },  // F4
+      { note: 70, len: 1, bass: 46, chord: 58 },  // Bb4
+      { note: 70, len: 0.5, bass: 41, chord: 53 },  // Bb4
+      { note: 69, len: 0.5, bass: 41, chord: 53 },  // A4
+      { note: 67, len: 0.5, bass: 41, chord: 53 },  // G4
+      { note: 69, len: 0.5, bass: 41, chord: 53 },  // A4
+      { note: 70, len: 4, bass: 46, chord: 58 },  // Bb4
+      // Bar 17: "God keep our land glorious and free!"
+      { note: 67, len: 2, bass: 39, chord: 51 },  // G4
+      { note: 70, len: 1.5, bass: 39, chord: 51 },  // Bb4
+      { note: 70, len: 0.5, bass: 39, chord: 51 },  // Bb4
+      { note: 63, len: 4, bass: 48, chord: 60 },  // Eb4
+      { note: 68, len: 2, bass: 44, chord: 56 },  // Ab4
+      { note: 72, len: 1.5, bass: 44, chord: 56 },  // C5
+      { note: 72, len: 0.5, bass: 44, chord: 56 },  // C5
+      { note: 65, len: 4, bass: 46, chord: 58 },  // F4
+      // Bar 21: "O Canada, we stand on guard for thee."
+      { note: 70, len: 2, bass: 39, chord: 51 },  // Bb4
+      { note: 71, len: 1.5, bass: 43, chord: 55 },  // B4
+      { note: 71, len: 0.5, bass: 43, chord: 55 },  // B4
+      { note: 72, len: 1, bass: 48, chord: 60 },  // C5
+      { note: 68, len: 1, bass: 41, chord: 53 },  // Ab4
+      { note: 67, len: 1, bass: 39, chord: 51 },  // G4
+      { note: 65, len: 1, bass: 46, chord: 58 },  // F4
+      { note: 63, len: 2, bass: 39, chord: 51 },  // Eb4
+      { note: 65, len: 2, bass: 46, chord: 58 },  // F4
+      { note: 67, len: 4, bass: 39, chord: 51 },  // G4
+      // Bar 25: "O Canada, we stand on guard for thee." (final)
+      { note: 70, len: 2, bass: 39, chord: 51 },  // Bb4
+      { note: 75, len: 1.5, bass: 43, chord: 55 },  // Eb5
+      { note: 75, len: 0.5, bass: 43, chord: 55 },  // Eb5
+      { note: 72, len: 1, bass: 44, chord: 56 },  // C5
+      { note: 68, len: 1, bass: 41, chord: 53 },  // Ab4
+      { note: 67, len: 1, bass: 39, chord: 51 },  // G4
+      { note: 65, len: 1, bass: 46, chord: 58 },  // F4
+      { note: 70, len: 2, bass: 39, chord: 51 },  // Bb4
+      { note: 62, len: 2, bass: 46, chord: 58 },  // D4
+      { note: 63, len: 4, bass: 39, chord: 51 }   // Eb4
     ];
 
     const beatDur = 60 / 88;
@@ -3078,7 +3051,7 @@ class EnhancedRetroAudio {
         osc.start(t + i * 0.08);
         osc.stop(t + i * 0.08 + 0.48);
       });
-    } catch (err) {}
+    } catch (err) { }
   }
 }
 
@@ -4213,9 +4186,9 @@ function populateEnemies() {
 
       const fromPeace = Math.hypot(spot.x - city.peaceZone.x, spot.z - city.peaceZone.z);
       if (!city.isInsidePeaceZone(spot.x, spot.z) &&
-          fromPeace >= city.peaceZone.radius + 20 &&
-          fromPlayer >= 25 &&
-          fromStart >= 25) {
+        fromPeace >= city.peaceZone.radius + 20 &&
+        fromPlayer >= 25 &&
+        fromStart >= 25) {
         spawnEnemy(spot.x, spot.z, target.idx);
         spawnedCount++;
       }
@@ -4338,7 +4311,7 @@ let mouseSensitivity = 0.0024;
 document.addEventListener('pointerlockchange', () => {
   state.isPointerLocked = (document.pointerLockElement === container);
   const tag = document.getElementById('mouse-status-tag');
-  
+
   if (state.isPointerLocked) {
     tag.innerText = 'MOUSE: LOCKED (FPS)';
     tag.className = 'tag tag-green';
@@ -5246,7 +5219,7 @@ function canMoveTo(x, z) {
     for (let i = 0; i < colliders.length; i++) {
       const box = colliders[i].box;
       if (x + pRadius > box.min.x && x - pRadius < box.max.x &&
-          z + pRadius > box.min.z && z - pRadius < box.max.z) {
+        z + pRadius > box.min.z && z - pRadius < box.max.z) {
         return false;
       }
     }
