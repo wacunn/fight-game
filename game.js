@@ -764,6 +764,7 @@ function setupPostFX() {
 
 // Build Toronto City from real OpenStreetMap data with CN Tower Peace Sanctuary
 const city = (typeof window.buildTorontoCity === 'function') ? window.buildTorontoCity(scene) : null;
+let traffic = null;
 
 const player = {
   pos: camera.position,
@@ -834,6 +835,8 @@ if (city) {
   // Lighting, fog and sky are owned by city.js (buildTorontoCity). Stacking a
   // 1.8-intensity ambient on top flattened every surface, so it's removed here.
   scene.environment = buildNightCityEnvMap(renderer);
+  // Live traffic on the real street network (traffic.js)
+  if (typeof window.createTraffic === 'function') traffic = window.createTraffic(scene, city, audio, { count: 30 });
 } else {
   // Fallback Indoor Enclosed Arena if map data failed to load
   scene.fog = new THREE.FogExp2(0x0a0c12, 0.038);
@@ -1103,55 +1106,125 @@ function buildHockeyStickMesh() {
   stripe3.position.set(0, 0.22, 0);
   stickGroup.add(stripe3);
 
-  // 2. THE TOP: HOSEL, HEEL & DISTINCTIVE UPRIGHT CURVED HOCKEY BLADE!
+  // 2. THE TOP: HOSEL + ONE-PIECE CURVED, TAPED BLADE
+  // The blade is a single extruded silhouette (heel -> rounded toe) that is then
+  // bent along a curve, so it reads as one smooth hooked blade instead of boxes.
   const bladeGroup = new THREE.Group();
   bladeGroup.position.set(0, 0.40, 0);
 
-  // Hosel (shaft to heel transition angle)
-  const hoselGeo = new THREE.BoxGeometry(0.028, 0.10, 0.024);
-  const hosel = new THREE.Mesh(hoselGeo, carbonMat);
-  hosel.position.set(-0.025, 0.045, -0.01);
-  hosel.rotation.set(-0.15, -0.35, 0.65);
+  const BLADE_LEN = 0.30;   // heel to toe (m)
+  const BLADE_H = 0.074;    // blade height at the heel
+  const BLADE_T = 0.012;    // blade thickness
+  const PHI0 = 0.35, PHI1 = 1.5;               // blade direction at heel -> toe (the hook)
+  const BEND_K = (PHI1 - PHI0) / BLADE_LEN;    // curvature (rad per metre)
+  const RISE = 0.1;                            // toe sits slightly higher than the heel
+  const HEEL = new THREE.Vector3(-0.03, 0.035, -0.01);
+
+  // Map flat blade coordinates (u along length, v up the height, w through the
+  // thickness) onto the curved blade. Centreline is the integral of a direction
+  // vector whose angle grows linearly: d(phi) = (-cos phi, 0, -sin phi).
+  function bendBladePoint(u, v, w, out) {
+    const phi = PHI0 + BEND_K * u;
+    const cx = -(Math.sin(phi) - Math.sin(PHI0)) / BEND_K;
+    const cz = (Math.cos(phi) - Math.cos(PHI0)) / BEND_K;
+    // n = horizontal normal to the blade face
+    out.set(HEEL.x + cx + Math.sin(phi) * w, HEEL.y + v + RISE * u, HEEL.z + cz - Math.cos(phi) * w);
+    return out;
+  }
+  function bendGeometry(geo) {
+    const p = geo.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      bendBladePoint(p.getX(i), p.getY(i), p.getZ(i), v);
+      p.setXYZ(i, v.x, v.y, v.z);
+    }
+    geo.computeVertexNormals();
+    return geo;
+  }
+
+  // Blade silhouette: straight heel, gently rising top edge, rounded toe.
+  // Edges are subdivided so the bend stays smooth.
+  const outline = new THREE.Shape();
+  const SEG = 28, TOE_R = 0.034, toeStart = BLADE_LEN - TOE_R;
+  outline.moveTo(0, 0);
+  for (let i = 1; i <= SEG; i++) outline.lineTo(toeStart * i / SEG, 0.004 * Math.sin(Math.PI * i / SEG)); // slight rocker
+  const topAt = u => BLADE_H + 0.006 * (u / BLADE_LEN);
+  const toeCy = topAt(toeStart) / 2, toeRy = topAt(toeStart) / 2;
+  for (let i = 1; i <= 12; i++) {            // elliptical toe
+    const a = -Math.PI / 2 + Math.PI * i / 12;
+    outline.lineTo(toeStart + Math.cos(a) * TOE_R, toeCy + Math.sin(a) * toeRy);
+  }
+  for (let i = SEG - 1; i >= 0; i--) outline.lineTo(toeStart * i / SEG, topAt(toeStart * i / SEG));
+  outline.closePath();
+
+  const bladeGeo = new THREE.ExtrudeGeometry(outline, {
+    depth: BLADE_T, bevelEnabled: true, bevelThickness: 0.0015, bevelSize: 0.0015, bevelSegments: 2, curveSegments: 4
+  });
+  bladeGeo.translate(0, 0, -BLADE_T / 2);
+  bendGeometry(bladeGeo);
+
+  // Cloth tape texture: black wrap with overlapping diagonal passes + puck scuffs
+  const tapeCanvas = document.createElement('canvas');
+  tapeCanvas.width = 512; tapeCanvas.height = 128;
+  const tctx = tapeCanvas.getContext('2d');
+  tctx.fillStyle = '#16171a'; tctx.fillRect(0, 0, 512, 128);
+  for (let x = -128; x < 640; x += 22) {          // tape overlap seams
+    tctx.strokeStyle = 'rgba(255,255,255,0.09)'; tctx.lineWidth = 2;
+    tctx.beginPath(); tctx.moveTo(x, 0); tctx.lineTo(x + 40, 128); tctx.stroke();
+    tctx.strokeStyle = 'rgba(0,0,0,0.5)'; tctx.lineWidth = 1;
+    tctx.beginPath(); tctx.moveTo(x + 2, 0); tctx.lineTo(x + 42, 128); tctx.stroke();
+  }
+  for (let i = 0; i < 2500; i++) {                // cloth weave
+    tctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.04})`;
+    tctx.fillRect(Math.random() * 512, Math.random() * 128, 1, 1);
+  }
+  for (let i = 0; i < 9; i++) {                   // grey puck marks near the middle of the blade
+    tctx.fillStyle = `rgba(140,140,150,${0.15 + Math.random() * 0.2})`;
+    tctx.beginPath();
+    tctx.ellipse(150 + Math.random() * 220, 30 + Math.random() * 70, 6 + Math.random() * 16, 2 + Math.random() * 4, Math.random(), 0, Math.PI * 2);
+    tctx.fill();
+  }
+  const tapeTex = new THREE.CanvasTexture(tapeCanvas);
+  tapeTex.wrapS = tapeTex.wrapT = THREE.RepeatWrapping;
+  tapeTex.repeat.set(1 / BLADE_LEN, 1 / 0.08);    // ExtrudeGeometry UVs are in metres
+  const bladeTapeMat = new THREE.MeshStandardMaterial({ map: tapeTex, roughness: 0.92, metalness: 0.0 });
+
+  const blade = new THREE.Mesh(bladeGeo, bladeTapeMat);
+  bladeGroup.add(blade);
+
+  // White tape band at the heel (a common way players finish the wrap)
+  const heelBand = new THREE.ExtrudeGeometry((() => {
+    const sh = new THREE.Shape();
+    sh.moveTo(0.012, -0.002); sh.lineTo(0.034, -0.002); sh.lineTo(0.034, topAt(0.034) + 0.002); sh.lineTo(0.012, topAt(0.012) + 0.002); sh.closePath();
+    return sh;
+  })(), { depth: BLADE_T + 0.003, bevelEnabled: false });
+  heelBand.translate(0, 0, -(BLADE_T + 0.003) / 2);
+  bendGeometry(heelBand);
+  bladeGroup.add(new THREE.Mesh(heelBand, whiteTapeMat));
+
+  // Hosel: tapered neck from the top of the shaft into the heel of the blade
+  const heelTop = bendBladePoint(0.004, BLADE_H * 0.55, 0, new THREE.Vector3());
+  const neckLen = heelTop.length();
+  const hosel = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.015, neckLen, 10), carbonMat);
+  hosel.position.copy(heelTop).multiplyScalar(0.5);
+  hosel.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), heelTop.clone().normalize());
   bladeGroup.add(hosel);
 
-  // The Blade: Stands upright with vertical height ~0.082m, thin width ~0.013m
-  // Sweeps outward to the left and curves forward (shooter hook)
-  const bladeSegments = [
-    { dx: -0.065, dy: 0.075, dz: -0.035, len: 0.09, ry: -0.55, rz: 0.25, h: 0.082 },
-    { dx: -0.135, dy: 0.092, dz: -0.085, len: 0.09, ry: -0.85, rz: 0.16, h: 0.080 },
-    { dx: -0.195, dy: 0.102, dz: -0.150, len: 0.09, ry: -1.18, rz: 0.08, h: 0.078 },
-    { dx: -0.235, dy: 0.106, dz: -0.225, len: 0.09, ry: -1.52, rz: 0.02, h: 0.075 }
+  // Red maple leaf decal, bent onto both faces of the blade near the heel
+  const leaf = new THREE.Shape();
+  const leafPts = [
+    [0, 1], [0.18, 0.62], [0.42, 0.74], [0.36, 0.38], [0.72, 0.52], [0.62, 0.32], [0.92, 0.2],
+    [0.5, -0.18], [0.56, -0.36], [0.06, -0.3], [0.06, -0.62], [-0.06, -0.62], [-0.06, -0.3],
+    [-0.56, -0.36], [-0.5, -0.18], [-0.92, 0.2], [-0.62, 0.32], [-0.72, 0.52], [-0.36, 0.38], [-0.42, 0.74], [-0.18, 0.62]
   ];
-
-  bladeSegments.forEach((seg) => {
-    // Blade core (black composite)
-    const bGeo = new THREE.BoxGeometry(0.013, seg.h, seg.len);
-    const bMesh = new THREE.Mesh(bGeo, blackBladeMat);
-    bMesh.position.set(seg.dx, seg.dy, seg.dz);
-    bMesh.rotation.set(0.05, seg.ry, seg.rz);
-    bladeGroup.add(bMesh);
-
-    // White cloth tape wraps around each segment
-    const tapeGeo = new THREE.BoxGeometry(0.015, seg.h + 0.002, 0.035);
-    const tapeMesh = new THREE.Mesh(tapeGeo, whiteTapeMat);
-    tapeMesh.position.set(seg.dx, seg.dy, seg.dz);
-    tapeMesh.rotation.set(0.05, seg.ry, seg.rz);
-    bladeGroup.add(tapeMesh);
+  leafPts.forEach(([x, y], i) => (i ? leaf.lineTo(x, y) : leaf.moveTo(x, y)));
+  leaf.closePath();
+  const leafRed = new THREE.MeshStandardMaterial({ color: 0xd90429, roughness: 0.4, metalness: 0.1, side: THREE.DoubleSide });
+  [1, -1].forEach(side => {
+    const g = new THREE.ShapeGeometry(leaf);
+    g.scale(0.017, 0.017, 1);
+    g.translate(0.075, BLADE_H * 0.5, side * (BLADE_T / 2 + 0.0022));
+    bladeGroup.add(new THREE.Mesh(bendGeometry(g), leafRed));
   });
-
-  // Rounded Toe at tip (Segment 4 end)
-  const toeGeo = new THREE.CylinderGeometry(0.037, 0.037, 0.013, 16);
-  const toeMesh = new THREE.Mesh(toeGeo, blackBladeMat);
-  toeMesh.position.set(-0.245, 0.106, -0.275);
-  toeMesh.rotation.set(0.05, -1.55, Math.PI / 2);
-  bladeGroup.add(toeMesh);
-
-  // Red Maple Leaf accent badge on the heel
-  const badgeGeo = new THREE.BoxGeometry(0.015, 0.045, 0.045);
-  const badgeMesh = new THREE.Mesh(badgeGeo, redMat);
-  badgeMesh.position.set(-0.065, 0.075, -0.035);
-  badgeMesh.rotation.set(0.05, -0.55, 0.25);
-  bladeGroup.add(badgeMesh);
 
   stickGroup.add(bladeGroup);
 
@@ -2841,11 +2914,15 @@ function animate(now) {
 
   if (state.inGame && !state.isDead && !state.isPaused) {
     updatePlayer(simDt);
+    applyCarKnockback(simDt);
     updateEnemies(simDt);
+    if (traffic) traffic.update(simDt, trafficHooks);
     updatePickups(simDt);
     updateParticles(simDt);
     updateCombatTimers(simDt);
   }
+
+  if (traffic && (!state.inGame || state.isPaused || state.isDead)) traffic.silence();
 
   // City animation & dynamic lighting
   if (city) {
@@ -2877,6 +2954,7 @@ function animate(now) {
         });
       }
     });
+    if (traffic) traffic.cars.forEach(c => dots.push({ x: c.vx, z: c.vz, c: '#e5e7eb', r: 2 }));
     city.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
 
     // Distance to CN Tower
@@ -3244,6 +3322,51 @@ function updateEnemies(dt) {
   }
 }
 
+
+// ---------------------------------------------------------------------------
+// TRAFFIC HOOKS: what happens when a car hits you / a fighter
+// ---------------------------------------------------------------------------
+const carKnock = new THREE.Vector3();
+let carInvuln = 0;
+const trafficHooks = {
+  player,
+  get enemies() { return enemies; },
+  onHitPlayer(dmg, kx, kz) {
+    if (carInvuln > 0 || state.isDead) return;
+    carInvuln = 1.2;
+    carKnock.set(kx, 0, kz);
+    player.velocity.y = 6.5;          // launched off your feet
+    player.isGrounded = false;
+    damagePlayer(dmg);
+    triggerScreenShake(26);
+    state.camPunch = 1.5;
+    showAnnouncement('🚗 HIT BY A CAR! LOOK BOTH WAYS!');
+  },
+  onHitEnemy(enemy, dmg, kx, kz) {
+    const wasAlive = !enemy.isDead;
+    hitEnemy(enemy, dmg, 0, 'car');
+    enemy.vx = kx; enemy.vz = kz;      // thrown along the car's path, not away from you
+    if (wasAlive && enemy.isDead) showAnnouncement('🚗 ROADKILL!');
+  },
+  pushOut(p, dx, dz) {
+    if (p.isPlayer) {
+      if (canMoveTo(player.pos.x + dx, player.pos.z)) player.pos.x += dx;
+      if (canMoveTo(player.pos.x, player.pos.z + dz)) player.pos.z += dz;
+    } else if (p.enemy && p.enemy.rig) {
+      p.enemy.rig.root.position.x += dx;
+      p.enemy.rig.root.position.z += dz;
+    }
+  }
+};
+
+function applyCarKnockback(dt) {
+  carInvuln -= dt;
+  if (carKnock.lengthSq() < 0.01) return;
+  const nx = player.pos.x + carKnock.x * dt, nz = player.pos.z + carKnock.z * dt;
+  if (canMoveTo(nx, player.pos.z)) player.pos.x = nx; else carKnock.x *= -0.3;
+  if (canMoveTo(player.pos.x, nz)) player.pos.z = nz; else carKnock.z *= -0.3;
+  carKnock.multiplyScalar(Math.exp(-dt * (player.isGrounded ? 6 : 1.5))); // slide less once you land
+}
 
 function damagePlayer(dmg) {
   if (state.isDead) return;

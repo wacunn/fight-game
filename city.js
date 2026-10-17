@@ -1625,6 +1625,12 @@
       bounds: PLAY,
       landmarks: LM,
       attribution: MAP.attribution,
+      // Drivable streets for traffic.js (no service lanes / pedestrian ways, and
+      // nothing that cuts through the CN Tower peace sanctuary)
+      trafficRoads: groundRoads
+        .filter(r => ['service', 'pedestrian', 'living_street'].indexOf(r.t) < 0)
+        .filter(r => !r.pts.some(p => Math.hypot(p[0] - peaceCenter[0], p[1] - peaceCenter[1]) < PEACE_RADIUS + 8))
+        .map(r => ({ pts: r.pts, w: r.w, t: r.t, y: r.y, major: !!MAJOR[r.t] })),
       peaceZone: {
         x: peaceCenter[0],
         z: peaceCenter[1],
