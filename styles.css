@@ -616,7 +616,7 @@ canvas {
 #vignette-overlay {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle, transparent 55%, rgba(0, 0, 0, 0.75) 100%);
+  background: radial-gradient(circle, transparent 60%, rgba(0, 0, 0, 0.55) 100%);
   pointer-events: none;
   z-index: 10;
 }
@@ -625,7 +625,8 @@ canvas {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.18) 50%);
+  /* scanlines toned down from 0.18: at full strength they darken and cheapen the whole image */
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%);
   background-size: 100% 4px;
   z-index: 11;
 }

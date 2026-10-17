@@ -671,6 +671,9 @@ const state = {
   attackProgress: 0,
   attackTimer: 0,
   currentAnimType: 'jab',
+  attackDuration: 0.22, // length of the CURRENT animation (was wrongly read from activeAttack)
+  hitStop: 0,           // brief freeze-frame on impact
+  camPunch: 0,          // camera recoil on impact
   screenShake: 0,
   faceExpression: 'neutral',
   faceTimer: 0,
@@ -699,6 +702,65 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.insertBefore(renderer.domElement, container.firstChild);
+
+// --- Filmic tone mapping: rolls off highlights instead of clipping them ---
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+// Image-based lighting for MeshStandardMaterial (hands, boots, fighters, crates).
+// Without an environment map, metal (brass, steel) renders as flat black/grey.
+function buildNightCityEnvMap(renderer) {
+  const envScene = new THREE.Scene();
+  const c = document.createElement('canvas');
+  c.width = 8; c.height = 256;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0.0, '#05070f');
+  grad.addColorStop(0.42, '#1a1f3a');
+  grad.addColorStop(0.5, '#6b4a5c');   // sodium/neon glow on the horizon
+  grad.addColorStop(0.56, '#20202a');
+  grad.addColorStop(1.0, '#0c0c10');  // wet asphalt below
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 8, 256);
+  const skyTex = new THREE.CanvasTexture(c);
+  envScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide })));
+  // Ring of bright "windows / signs" so glossy surfaces pick up specular glints
+  const panelGeo = new THREE.PlaneGeometry(5, 9);
+  const cols = [0xffd59a, 0xffb36b, 0x9fd2ff, 0xffffff, 0xff5a7a, 0x63f0ff];
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2;
+    const m = new THREE.Mesh(panelGeo, new THREE.MeshBasicMaterial({ color: cols[i % cols.length] }));
+    m.position.set(Math.cos(a) * 30, 2 + (i % 3) * 5, Math.sin(a) * 30);
+    m.lookAt(0, 4, 0);
+    envScene.add(m);
+  }
+  const top = new THREE.Mesh(new THREE.CircleGeometry(10, 24), new THREE.MeshBasicMaterial({ color: 0x8090c0 }));
+  top.position.y = 45; top.rotation.x = Math.PI / 2;
+  envScene.add(top);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const rt = pmrem.fromScene(envScene, 0.035);
+  pmrem.dispose();
+  return rt.texture;
+}
+
+// --- Bloom post-processing (lit windows, neon, lamps, CN Tower LEDs glow) ---
+let composer = null, bloomPass = null;
+function setupPostFX() {
+  if (!THREE.EffectComposer || !THREE.RenderPass || !THREE.UnrealBloomPass) return; // scripts not loaded: plain render
+  const size = renderer.getDrawingBufferSize(new THREE.Vector2());
+  let rt;
+  if (renderer.capabilities.isWebGL2 && THREE.WebGLMultisampleRenderTarget) {
+    // keep MSAA when rendering through the composer (otherwise edges go jaggy)
+    rt = new THREE.WebGLMultisampleRenderTarget(size.x, size.y, { format: THREE.RGBAFormat });
+    rt.samples = 4;
+  }
+  composer = new THREE.EffectComposer(renderer, rt);
+  composer.setPixelRatio(renderer.getPixelRatio());
+  composer.setSize(window.innerWidth, window.innerHeight);
+  composer.addPass(new THREE.RenderPass(scene, camera));
+  bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.85, 0.5, 0.8);
+  composer.addPass(bloomPass);
+}
 
 // Build Toronto City from real OpenStreetMap data with CN Tower Peace Sanctuary
 const city = (typeof window.buildTorontoCity === 'function') ? window.buildTorontoCity(scene) : null;
@@ -769,15 +831,9 @@ function createProceduralTexture(type) {
 const crateTex = createProceduralTexture('crate');
 
 if (city) {
-  // Atmospheric Toronto Night Skyline Lighting & Fog
-  scene.fog = new THREE.FogExp2(0x0a0c12, 0.0022);
-
-  const ambLight = new THREE.AmbientLight(0x424c5e, 1.8);
-  scene.add(ambLight);
-
-  const moonLight = new THREE.DirectionalLight(0xa5c4e8, 1.25);
-  moonLight.position.set(150, 350, 180);
-  scene.add(moonLight);
+  // Lighting, fog and sky are owned by city.js (buildTorontoCity). Stacking a
+  // 1.8-intensity ambient on top flattened every surface, so it's removed here.
+  scene.environment = buildNightCityEnvMap(renderer);
 } else {
   // Fallback Indoor Enclosed Arena if map data failed to load
   scene.fog = new THREE.FogExp2(0x0a0c12, 0.038);
@@ -806,87 +862,168 @@ if (city) {
 }
 
 // ============================================================================
-// 3D FIRST-PERSON ARMS & WEAPON VIEWMODEL (Attached to Camera!)
+// 3D FIRST-PERSON VIEWMODEL — stylised armoured gauntlets + kicking leg
 // ============================================================================
 const armsRig = new THREE.Group();
 camera.add(armsRig);
 scene.add(camera);
 
-// Build procedural 3D Arm & Knuckle Mesh
-function buildArmMesh(isLeft = false) {
-  const armGroup = new THREE.Group();
+// A small key light that rides with the camera so the hands always read,
+// even in dark alleys between street lamps (standard FPS viewmodel trick).
+const viewmodelLight = new THREE.PointLight(0xffe2c4, 0.3, 1.6, 2);
+viewmodelLight.position.set(0.45, 0.5, 0.2);
+camera.add(viewmodelLight);
 
-  // Forearm with combat glove
-  const armGeo = new THREE.CylinderGeometry(0.09, 0.12, 0.7, 8);
-  const gloveMat = new THREE.MeshStandardMaterial({
-    color: 0x1e2430,
-    roughness: 0.5,
-    metalness: 0.4
-  });
-  const arm = new THREE.Mesh(armGeo, gloveMat);
-  arm.rotation.x = Math.PI / 2.3;
-  arm.position.set(0, -0.15, -0.25);
-  armGroup.add(arm);
-
-  // Armored Fist Clump
-  const fistGeo = new THREE.BoxGeometry(0.18, 0.18, 0.24);
-  const fistMat = new THREE.MeshStandardMaterial({
-    color: 0x2b3342,
-    roughness: 0.4,
-    metalness: 0.6
-  });
-  const fist = new THREE.Mesh(fistGeo, fistMat);
-  fist.position.set(0, -0.05, -0.55);
-  armGroup.add(fist);
-
-  // Brass / Steel Knuckles Spikes
-  const spikeGeo = new THREE.ConeGeometry(0.025, 0.08, 6);
-  const spikeMat = new THREE.MeshStandardMaterial({
-    color: 0xf59e0b,
-    metalness: 0.9,
-    roughness: 0.2
-  });
-
-  [-0.06, -0.02, 0.02, 0.06].forEach(sX => {
-    const spike = new THREE.Mesh(spikeGeo, spikeMat);
-    spike.rotation.x = -Math.PI / 2;
-    spike.position.set(sX, -0.02, -0.68);
-    armGroup.add(spike);
-  });
-
-  return armGroup;
+// Rounded box: a box whose vertices are pushed onto a rounded shell, with
+// smooth analytic normals. Gives soft, organic shapes without extra libraries.
+function roundedBoxGeo(w, h, d, r, seg = 3) {
+  r = Math.min(r, w / 2, h / 2, d / 2);
+  const g = new THREE.BoxGeometry(w, h, d, seg * 2, seg * 2, seg * 2);
+  const p = g.attributes.position, n = g.attributes.normal;
+  const ix = w / 2 - r, iy = h / 2 - r, iz = d / 2 - r;
+  const v = new THREE.Vector3(), c = new THREE.Vector3(), off = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    c.set(THREE.MathUtils.clamp(v.x, -ix, ix), THREE.MathUtils.clamp(v.y, -iy, iy), THREE.MathUtils.clamp(v.z, -iz, iz));
+    off.subVectors(v, c);
+    if (off.lengthSq() < 1e-12) off.fromBufferAttribute(n, i);
+    off.normalize();
+    p.setXYZ(i, c.x + off.x * r, c.y + off.y * r, c.z + off.z * r);
+    n.setXYZ(i, off.x, off.y, off.z);
+  }
+  return g;
 }
 
-// Right & Left Arms
-const rightArm = buildArmMesh(false);
-rightArm.position.set(0.32, -0.28, -0.2);
-armsRig.add(rightArm);
+const VM_MATS = {
+  brass: new THREE.MeshStandardMaterial({ color: 0xd9a845, roughness: 0.22, metalness: 1.0 }),
+  denim: new THREE.MeshStandardMaterial({ color: 0x232c3d, roughness: 0.9, metalness: 0.0 }),
+  leather: new THREE.MeshStandardMaterial({ color: 0x2b1e16, roughness: 0.38, metalness: 0.05 }),
+  rubber: new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.95, metalness: 0.0 }),
+  steel: new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: 0.3, metalness: 1.0 }),
+  lace: new THREE.MeshStandardMaterial({ color: 0x6b5232, roughness: 0.9, metalness: 0.0 })
+};
 
+function buildArmMesh(isLeft = false) {
+  // Stylised armoured gauntlet: the original chunky block look, but beveled,
+  // layered and properly lit instead of raw boxes.
+  const arm = new THREE.Group();
+  arm.rotation.order = 'YXZ';
+  const plateMat = new THREE.MeshStandardMaterial({ color: 0x2a303b, roughness: 0.35, metalness: 0.8 });
+  const padMat = new THREE.MeshStandardMaterial({ color: 0x15171c, roughness: 0.7, metalness: 0.1 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0xb8432c, roughness: 0.4, metalness: 0.6 });
+
+  const bracer = new THREE.Mesh(roundedBoxGeo(0.12, 0.11, 0.36, 0.035), padMat);
+  bracer.position.z = -0.12; arm.add(bracer);
+  const plate = new THREE.Mesh(roundedBoxGeo(0.13, 0.05, 0.3, 0.02), plateMat);
+  plate.position.set(0, 0.045, -0.13); arm.add(plate);
+  const stripe = new THREE.Mesh(roundedBoxGeo(0.022, 0.052, 0.28, 0.008), trimMat);
+  stripe.position.set(0, 0.05, -0.13); arm.add(stripe);
+  const cuff = new THREE.Mesh(roundedBoxGeo(0.14, 0.13, 0.05, 0.02), plateMat);
+  cuff.position.z = -0.3; arm.add(cuff);
+
+  const fist = new THREE.Group(); fist.position.z = -0.41; arm.add(fist);
+  fist.add(new THREE.Mesh(roundedBoxGeo(0.15, 0.13, 0.15, 0.04), padMat));
+  const knuckles = new THREE.Mesh(roundedBoxGeo(0.155, 0.075, 0.05, 0.02), plateMat);
+  knuckles.position.set(0, 0.025, -0.065); fist.add(knuckles);
+  const fingerSeam = new THREE.Mesh(roundedBoxGeo(0.15, 0.006, 0.02, 0.003), padMat);
+  [-0.035, 0, 0.035].forEach(x => { const m = fingerSeam.clone(); m.scale.set(0.04, 8, 1); m.position.set(x, -0.025, -0.075); fist.add(m); });
+  const thumb = new THREE.Mesh(roundedBoxGeo(0.04, 0.045, 0.09, 0.016), padMat);
+  thumb.position.set((isLeft ? 1 : -1) * 0.07, -0.025, -0.03); fist.add(thumb);
+
+  const brass = new THREE.Group();
+  const spikeGeo = new THREE.ConeGeometry(0.014, 0.04, 8);
+  [-0.054, -0.018, 0.018, 0.054].forEach(x => {
+    const sp = new THREE.Mesh(spikeGeo, VM_MATS.brass);
+    sp.rotation.x = -Math.PI / 2; sp.position.set(x, 0.03, -0.105); brass.add(sp);
+  });
+  brass.visible = false; fist.add(brass);
+  arm.userData.brass = brass;
+  return arm;
+}
+
+const rightArm = buildArmMesh(false);
+armsRig.add(rightArm);
 const leftArm = buildArmMesh(true);
-leftArm.position.set(-0.32, -0.28, -0.2);
 armsRig.add(leftArm);
 
-// Combat Boot for Mighty Kick
-const bootGroup = new THREE.Group();
-const bootGeo = new THREE.BoxGeometry(0.24, 0.32, 0.6);
-const bootMat = new THREE.MeshStandardMaterial({
-  color: 0x111620,
-  roughness: 0.6,
-  metalness: 0.3
-});
-const bootMesh = new THREE.Mesh(bootGeo, bootMat);
-bootGroup.add(bootMesh);
+// ---------------------------------------------------------------------------
+// Kicking leg: hip pivot -> thigh -> knee pivot -> shin -> boot (sole faces
+// the target at full extension, like a real push kick seen from first person)
+// ---------------------------------------------------------------------------
+function buildKickLeg() {
+  const hip = new THREE.Group();
+  const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.08, 0.44, 16), VM_MATS.denim);
+  thigh.position.y = -0.22;
+  hip.add(thigh);
 
-// Steel toe
-const toeGeo = new THREE.BoxGeometry(0.26, 0.14, 0.16);
-const toeMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
-const toeMesh = new THREE.Mesh(toeGeo, toeMat);
-toeMesh.position.set(0, -0.08, 0.32);
-bootGroup.add(toeMesh);
+  const knee = new THREE.Group();
+  knee.position.y = -0.44;
+  hip.add(knee);
+  const kneeCap = new THREE.Mesh(new THREE.SphereGeometry(0.082, 14, 10), VM_MATS.denim);
+  knee.add(kneeCap);
+  const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.064, 0.42, 16), VM_MATS.denim);
+  shin.position.y = -0.21;
+  knee.add(shin);
+  const hem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.082, 0.05, 16), VM_MATS.denim);
+  hem.position.y = -0.36;
+  knee.add(hem);
 
-bootGroup.position.set(0, -1.2, -0.5);
-bootGroup.visible = false;
-armsRig.add(bootGroup);
+  // Combat boot (toe toward -Z when the leg hangs straight down)
+  const boot = new THREE.Group();
+  boot.position.y = -0.44;
+  knee.add(boot);
+  const shaft = new THREE.Mesh(roundedBoxGeo(0.118, 0.17, 0.13, 0.04), VM_MATS.leather);
+  shaft.position.set(0, 0.02, 0.01);
+  boot.add(shaft);
+  const vamp = new THREE.Mesh(roundedBoxGeo(0.112, 0.085, 0.25, 0.038), VM_MATS.leather);
+  vamp.position.set(0, -0.06, -0.07);
+  boot.add(vamp);
+  const toeCap = new THREE.Mesh(roundedBoxGeo(0.114, 0.072, 0.075, 0.034), VM_MATS.leather);
+  toeCap.position.set(0, -0.068, -0.172);
+  boot.add(toeCap);
+  // Midsole + lugged outsole
+  const sole = new THREE.Mesh(roundedBoxGeo(0.128, 0.03, 0.32, 0.012), VM_MATS.rubber);
+  sole.position.set(0, -0.112, -0.062);
+  boot.add(sole);
+  const heel = new THREE.Mesh(roundedBoxGeo(0.124, 0.032, 0.085, 0.01), VM_MATS.rubber);
+  heel.position.set(0, -0.14, 0.05);
+  boot.add(heel);
+  const lugGeo = roundedBoxGeo(0.11, 0.014, 0.022, 0.005);
+  for (let i = 0; i < 6; i++) {
+    const lug = new THREE.Mesh(lugGeo, VM_MATS.rubber);
+    lug.position.set(0, -0.131, -0.2 + i * 0.03);
+    boot.add(lug);
+  }
+  // Laces + steel eyelets
+  const laceGeo = roundedBoxGeo(0.07, 0.008, 0.01, 0.003);
+  const eyeletGeo = new THREE.SphereGeometry(0.006, 6, 4);
+  for (let i = 0; i < 6; i++) {
+    const y = -0.01 + i * 0.022, z = -0.11 + i * 0.022;
+    const lace = new THREE.Mesh(laceGeo, VM_MATS.lace);
+    lace.position.set(0, y, z - 0.02);
+    lace.rotation.x = -0.9;
+    boot.add(lace);
+    [-1, 1].forEach(sx => {
+      const e = new THREE.Mesh(eyeletGeo, VM_MATS.steel);
+      e.position.set(sx * 0.04, y, z - 0.02);
+      boot.add(e);
+    });
+  }
+
+  boot.scale.setScalar(1.5);
+  hip.userData = { knee, boot };
+  return hip;
+}
+
+const kickLeg = buildKickLeg();
+kickLeg.position.set(0.17, -0.3, 0.1);
+kickLeg.scale.setScalar(1.3);
+kickLeg.rotation.order = 'YXZ';
+kickLeg.visible = false;
+armsRig.add(kickLeg);
+
+// Kept for backward compatibility with any code that toggles bootGroup
+const bootGroup = kickLeg;
 
 // Canadian Hockey Stick for Berserk Rage Mode
 function buildHockeyStickMesh() {
@@ -1965,6 +2102,9 @@ document.getElementById('esc-unlock-btn').addEventListener('click', () => {
 // ============================================================================
 // ATTACK & GLORY KILL EXECUTION MECHANICS
 // ============================================================================
+// Fraction of each attack animation at which the blow actually connects
+const IMPACT_FRACTION = { punch: 0.3, heavy: 0.42, kick: 0.4, slam: 0.5 };
+
 function triggerAttack() {
   if (state.attackTimer > 0 || state.isDead || state.isPaused) return;
 
@@ -1989,16 +2129,18 @@ function triggerAttack() {
 
   const atk = state.activeAttack;
   state.attackTimer = atk.cooldown;
+  state.attackDuration = atk.cooldown;
   state.isAttacking = true;
   state.attackProgress = 0;
   state.currentAnimType = atk.type;
+  if (atk.type === 'punch') vm.jabHand = vm.jabHand === 'right' ? 'left' : 'right';
 
   audio.playPunch(atk.type === 'heavy' ? 1.6 : 1.0, state.isBerserk);
 
-  // Check hits in front of player
+  // Land the hit on the frame the fist reaches full extension
   setTimeout(() => {
     checkMeleeHits(atk);
-  }, 90);
+  }, atk.cooldown * (IMPACT_FRACTION[atk.type] || 0.35) * 1000);
 }
 
 function triggerQuickKick() {
@@ -2013,6 +2155,7 @@ function triggerQuickKick() {
 
   const atk = ATTACKS.KICK;
   state.attackTimer = atk.cooldown;
+  state.attackDuration = atk.cooldown;
   state.isAttacking = true;
   state.attackProgress = 0;
   state.currentAnimType = 'kick';
@@ -2021,7 +2164,7 @@ function triggerQuickKick() {
 
   setTimeout(() => {
     checkMeleeHits(atk);
-  }, 100);
+  }, atk.cooldown * IMPACT_FRACTION.kick * 1000);
 }
 
 function executeMeteorSlam() {
@@ -2034,6 +2177,7 @@ function executeMeteorSlam() {
 
   const atk = ATTACKS.SLAM;
   state.attackTimer = atk.cooldown;
+  state.attackDuration = atk.cooldown;
   state.isAttacking = true;
   state.attackProgress = 0;
   state.currentAnimType = 'slam';
@@ -2077,6 +2221,8 @@ function executeMeteorSlam() {
 function executeGloryKill(enemy) {
   state.gloryTarget = null;
   state.attackTimer = 0.5;
+  state.attackDuration = 0.5;
+  state.attackProgress = 0;
   state.isAttacking = true;
   state.currentAnimType = 'heavy';
 
@@ -2133,6 +2279,9 @@ function checkMeleeHits(atk) {
   });
 
   if (hitSomething) {
+    // Freeze-frame + camera recoil sell the weight of the blow
+    state.hitStop = atk.type === 'punch' ? 0.045 : atk.type === 'heavy' ? 0.075 : 0.09;
+    state.camPunch = atk.type === 'punch' ? 0.5 : 1.0;
     showHitMarker();
     triggerScreenShake(state.isBerserk ? atk.knockback * 1.5 : atk.knockback * 0.7);
     if (state.isBerserk) {
@@ -2330,110 +2479,223 @@ function setFaceExpression(expr, duration = 0.8) {
 }
 
 // 3D Arms Bobbing & Procedural Swing Animation
-function updateArmsRig(dt) {
-  const swayX = Math.sin(player.bobTimer) * 0.04;
-  const swayY = Math.abs(Math.cos(player.bobTimer)) * 0.035;
+// ---------------------------------------------------------------------------
+// Viewmodel animation: anticipation -> snap -> hold -> recover, look-sway,
+// walk/sprint bob, landing dip, alternating 1-2 jabs, torso twist on hooks.
+// ---------------------------------------------------------------------------
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+const easeOutBack = t => { const c1 = 1.6, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+const easeInOutSine = t => -(Math.cos(Math.PI * t) - 1) / 2;
+const clamp01 = t => Math.min(1, Math.max(0, t));
 
-  const prog = state.attackProgress;
+// Returns -windupDepth..1: small pull-back, explosive extension, brief hold, smooth recovery
+function strikeCurve(p, windup, strike, hold, depth = 0.22) {
+  if (p < windup) return -depth * easeInOutSine(p / windup);
+  if (p < strike) return -depth + (1 + depth) * easeOutCubic((p - windup) / (strike - windup));
+  if (p < hold) return 1;
+  return 1 - easeInOutSine((p - hold) / (1 - hold));
+}
+
+// Guard pose (right hand; left hand is mirrored). Values in camera space.
+const GUARD = { x: 0.22, y: -0.31, z: 0.0, rx: 0.42, ry: 0.12, rz: -0.6 };
+
+const vm = {
+  lastYaw: 0, lastPitch: 0, swayX: 0, swayY: 0,
+  landDip: 0, wasGrounded: true, time: 0,
+  jabHand: 'right', lastAttackId: 0
+};
+
+function lerpPose(a, b, t) {
+  return {
+    x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t,
+    rx: a.rx + (b.rx - a.rx) * t, ry: a.ry + (b.ry - a.ry) * t, rz: a.rz + (b.rz - a.rz) * t
+  };
+}
+function mirror(p) { return { x: -p.x, y: p.y, z: p.z, rx: p.rx, ry: -p.ry, rz: -p.rz }; }
+function applyPose(obj, p, ox, oy) {
+  obj.position.set(p.x + ox, p.y + oy, p.z);
+  obj.rotation.set(p.rx, p.ry, p.rz);
+}
+
+// ---------------------------------------------------------------------------
+// KICK: a whole-body move, not just a leg. Phases (fraction of the animation):
+//   0.00-0.28 chamber : hips turn, knee lifts out to the side, torso starts leaning back/away
+//   0.28-0.42 snap    : leg whips around and extends, body counter-leans hardest
+//   0.42-0.56 hold    : contact
+//   0.56-1.00 recover : leg retracts, body rights itself
+// ---------------------------------------------------------------------------
+function kickEnvelope(prog) {
+  // 0..1 "how committed the body is" to the kick
+  if (prog < 0.42) return easeInOutSine(prog / 0.42);
+  if (prog < 0.56) return 1;
+  return 1 - easeInOutSine((prog - 0.56) / 0.44);
+}
+
+// Body motion, applied to the CAMERA (in first person your eyes ride the torso).
+// Right-leg kick: lean back + away to the left, standing leg bends, hips rotate.
+function kickBodyPose(prog) {
+  const b = kickEnvelope(prog);
+  const snap = prog > 0.28 && prog < 0.5 ? Math.sin(((prog - 0.28) / 0.22) * Math.PI) : 0; // extra whip at extension
+  return {
+    fwd: -0.16 * b,               // torso leans back
+    side: -0.14 * b,              // ...and away from the kicking leg
+    drop: -0.1 * b - 0.03 * snap, // standing knee bends
+    pitch: 0.075 * b,             // leaning back tips the view up
+    yaw: 0.06 * b + 0.03 * snap,  // hips/shoulders rotate into the kick
+    roll: 0.13 * b + 0.04 * snap  // head tilts away from the leg
+  };
+}
+
+function updateKickLeg(prog) {
+  const knee = kickLeg.userData.knee;
+  let hipA, kneeA, arc;
+  if (prog < 0.28) {
+    const t = easeOutCubic(prog / 0.28);
+    hipA = 1.15 * t; kneeA = -1.9 * t; arc = t;          // knee comes up and OUT to the side
+  } else if (prog < 0.42) {
+    const t = easeOutBack((prog - 0.28) / 0.14);
+    hipA = 1.15 + 0.47 * t; kneeA = -1.9 * (1 - t); arc = 1 - t; // whips around to the front
+  } else if (prog < 0.56) {
+    hipA = 1.62; kneeA = 0; arc = 0;
+  } else {
+    const t = easeInOutSine((prog - 0.56) / 0.44);
+    hipA = 1.62 * (1 - t); kneeA = -1.4 * Math.sin(t * Math.PI); arc = 0.5 * Math.sin(t * Math.PI);
+  }
+  kickLeg.visible = true;
+  // yaw: leg swings in from the outside; roll: hip turned over like a roundhouse chamber
+  kickLeg.rotation.set(hipA, 0.12 + 0.6 * arc, -0.15 - 0.5 * arc);
+  knee.rotation.x = kneeA;
+  kickLeg.userData.boot.rotation.x = -1.1 * clamp01((hipA - 1.0) / 0.62);
+  return kickEnvelope(prog);
+}
+
+function updateArmsRig(dt) {
+  vm.time += dt;
+
+  // --- Look sway: hands lag behind camera rotation ---
+  let dYaw = player.yaw - vm.lastYaw;
+  let dPitch = player.pitch - vm.lastPitch;
+  vm.lastYaw = player.yaw; vm.lastPitch = player.pitch;
+  if (Math.abs(dYaw) > 1) dYaw = 0; // ignore teleports / respawn snaps
+  const k = 1 - Math.exp(-dt * 10);
+  vm.swayX += (THREE.MathUtils.clamp(dYaw * 1.8, -0.06, 0.06) - vm.swayX) * k;
+  vm.swayY += (THREE.MathUtils.clamp(-dPitch * 1.8, -0.05, 0.05) - vm.swayY) * k;
+
+  // --- Landing dip ---
+  if (player.isGrounded && !vm.wasGrounded) vm.landDip = 0.07;
+  vm.wasGrounded = player.isGrounded;
+  vm.landDip *= Math.exp(-dt * 9);
+
+  // --- Walk / sprint bob (figure-eight) + breathing ---
+  const sprinting = keys['ShiftLeft'] || keys['ShiftRight'];
+  const bobAmt = Math.min(1, Math.abs(Math.sin(player.bobTimer)) + Math.abs(Math.cos(player.bobTimer))) * (player.bobTimer > 0.05 ? 1 : 0);
+  const bobX = Math.sin(player.bobTimer * 0.5) * 0.012 * bobAmt;
+  const bobY = -Math.abs(Math.sin(player.bobTimer * 0.5)) * 0.016 * bobAmt;
+  const breathe = Math.sin(vm.time * 1.9) * 0.004;
+  const ox = vm.swayX + bobX;
+  const oy = vm.swayY + bobY + breathe - vm.landDip;
+
+  armsRig.rotation.set(0, 0, 0);
+  armsRig.position.set(0, 0, 0);
+
+  // Brass knuckles visibility follows the equipped attack
+  const brassOn = state.activeAttack === ATTACKS.HOOK;
+  rightArm.userData.brass.visible = brassOn;
+  leftArm.userData.brass.visible = brassOn;
+
+  const prog = state.isAttacking ? clamp01(state.attackProgress) : 0;
   const anim = state.currentAnimType;
 
-  // Canadian Hockey Stick Wielding in Berserk Mode
+  // ---------------- Berserk: hockey stick ----------------
   if (state.isBerserk) {
     rightArm.visible = false;
     leftArm.visible = false;
-
     if (state.isAttacking && anim === 'kick') {
-      bootGroup.visible = true;
       if (typeof hockeyStick !== 'undefined') hockeyStick.visible = false;
-      const reach = Math.sin(prog * Math.PI);
-      bootGroup.position.set(0, -0.25 - (1 - reach) * 0.8, -0.6 - reach * 0.7);
-      bootGroup.rotation.x = 0.3 - reach * 0.4;
-    } else {
-      bootGroup.visible = false;
-      if (typeof hockeyStick !== 'undefined') {
-        hockeyStick.visible = true;
-
-        if (state.isAttacking) {
-          // Dynamic Hockey Slapshot Swing!
-          if (prog < 0.28) {
-            // Windup: pull back and up to the right
-            const w = prog / 0.28;
-            hockeyStick.position.set(0.22 + w * 0.16, -0.26 + w * 0.20, -0.44 + w * 0.10);
-            hockeyStick.rotation.set(-0.22 - w * 0.45, -0.42 - w * 0.30, 0.38 + w * 0.55);
-          } else {
-            // Explosive downswing and follow-through across screen to bottom-left
-            const s = (prog - 0.28) / 0.72;
-            const curve = Math.sin(s * Math.PI * 0.5);
-            hockeyStick.position.set(
-              0.38 - curve * 0.82,
-              -0.06 - curve * 0.30,
-              -0.34 - Math.sin(s * Math.PI) * 0.36
-            );
-            hockeyStick.rotation.set(-0.67 + s * 1.25, -0.72 + s * 1.35, 0.93 - s * 2.0);
-          }
+      updateKickLeg(prog);
+      return;
+    }
+    kickLeg.visible = false;
+    if (typeof hockeyStick !== 'undefined') {
+      hockeyStick.visible = true;
+      if (state.isAttacking) {
+        if (prog < 0.28) {
+          const w = easeInOutSine(prog / 0.28);
+          hockeyStick.position.set(0.22 + w * 0.16, -0.26 + w * 0.20, -0.44 + w * 0.10);
+          hockeyStick.rotation.set(-0.22 - w * 0.45, -0.42 - w * 0.30, 0.38 + w * 0.55);
         } else {
-          // Ready Idle Hockey Stance
-          hockeyStick.position.set(0.22 + swayX, -0.26 + swayY, -0.44);
-          hockeyStick.rotation.set(-0.22, -0.42, 0.38);
+          const s = (prog - 0.28) / 0.72;
+          const curve = easeOutCubic(Math.min(1, s * 1.6));
+          hockeyStick.position.set(0.38 - curve * 0.82, -0.06 - curve * 0.30, -0.34 - Math.sin(s * Math.PI) * 0.36);
+          hockeyStick.rotation.set(-0.67 + curve * 1.25, -0.72 + curve * 1.35, 0.93 - curve * 2.0);
         }
+      } else {
+        hockeyStick.position.set(0.22 + ox, -0.26 + oy, -0.44);
+        hockeyStick.rotation.set(-0.22 + vm.swayY, -0.42 + vm.swayX, 0.38);
       }
     }
     return;
   }
-
-  // Not in Berserk: ensure hockey stick is hidden
   if (typeof hockeyStick !== 'undefined') hockeyStick.visible = false;
+
+  rightArm.visible = true;
+  leftArm.visible = true;
+  kickLeg.visible = false;
+
+  // Idle guard: hands up, slight sprint pump
+  let R = { ...GUARD };
+  let L = mirror(GUARD);
+  if (sprinting && player.bobTimer > 0.05) {
+    const pump = Math.sin(player.bobTimer * 0.5) * 0.07;
+    R = { ...R, y: R.y - 0.05, z: R.z + pump, rx: R.rx - 0.2 };
+    L = { ...L, y: L.y - 0.05, z: L.z - pump, rx: L.rx - 0.2 };
+  }
 
   if (state.isAttacking) {
     if (anim === 'kick') {
-      // Hide arms, thrust mighty boot forward into screen!
-      rightArm.visible = false;
-      leftArm.visible = false;
-      bootGroup.visible = true;
-
-      const reach = Math.sin(prog * Math.PI);
-      bootGroup.position.set(0, -0.25 - (1 - reach) * 0.8, -0.6 - reach * 0.7);
-      bootGroup.rotation.x = 0.3 - reach * 0.4;
+      const b = updateKickLeg(prog);
+      // Right arm swings down and back to counterbalance the right leg;
+      // left hand comes up high to cover the face (what fighters actually do)
+      const swingBack = { x: 0.34, y: -0.52, z: 0.12, rx: -0.35, ry: -0.35, rz: -1.1 };
+      const highGuard = { x: -0.21, y: -0.27, z: 0.04, rx: 0.68, ry: -0.08, rz: 0.75 };
+      R = lerpPose(R, swingBack, b);
+      L = lerpPose(L, highGuard, b);
     } else if (anim === 'slam') {
-      // Both fists raised high, then slammed down
-      bootGroup.visible = false;
-      rightArm.visible = true;
-      leftArm.visible = true;
-
-      const slamReach = Math.sin(prog * Math.PI);
-      rightArm.position.set(0.24, -0.15 + slamReach * 0.25, -0.3 - slamReach * 0.45);
-      leftArm.position.set(-0.24, -0.15 + slamReach * 0.25, -0.3 - slamReach * 0.45);
+      // raise both fists overhead, then hammer down
+      let up, down;
+      if (prog < 0.35) { up = easeOutCubic(prog / 0.35); down = 0; }
+      else if (prog < 0.55) { up = 1; down = easeOutCubic((prog - 0.35) / 0.2); }
+      else { up = 1 - easeInOutSine((prog - 0.55) / 0.45); down = up; }
+      const raised = { x: 0.25, y: -0.05, z: -0.05, rx: 1.0, ry: 0.1, rz: -0.6 };
+      const smashed = { x: 0.15, y: -0.1, z: -0.3, rx: -0.35, ry: 0.15, rz: -0.25 };
+      const pose = lerpPose(lerpPose(GUARD, raised, up), smashed, down);
+      R = pose; L = mirror(pose);
     } else if (anim === 'heavy') {
-      // Brass Knuckles Hook: Wide brutal haymaker arc
-      bootGroup.visible = false;
-      rightArm.visible = true;
-      leftArm.visible = true;
-
-      const hookArc = Math.sin(prog * Math.PI);
-      rightArm.position.set(0.32 - hookArc * 0.55, -0.24 + swayY, -0.2 - hookArc * 0.5);
-      rightArm.rotation.y = hookArc * 0.8;
-      leftArm.position.set(-0.32, -0.32 + swayY, -0.2);
+      // Hook: elbow stays out right, forearm swings horizontal across the screen
+      const a = strikeCurve(prog, 0.2, 0.45, 0.55, 0.3);
+      const arc = Math.max(0, a);
+      const wound = { x: 0.3, y: -0.3, z: 0.04, rx: 0.5, ry: -0.15, rz: -0.9 };
+      const landed = { x: 0.22, y: -0.2, z: -0.42, rx: 0.12, ry: 1.2, rz: -1.55 };
+      R = a < 0 ? lerpPose(GUARD, wound, -a / 0.3) : lerpPose(wound, landed, arc);
+      L = { ...L, z: L.z + 0.04 * arc, x: L.x + 0.02 * arc };
+      armsRig.rotation.y = 0.1 * a;     // shoulders rotate into the punch
+      armsRig.rotation.z = -0.04 * arc;
     } else {
-      // Standard Jab: Fast straight punch thrust
-      bootGroup.visible = false;
-      rightArm.visible = true;
-      leftArm.visible = true;
-
-      const jab = Math.sin(prog * Math.PI);
-      rightArm.position.set(0.32 + swayX, -0.26 + swayY, -0.2 - jab * 0.55);
-      leftArm.position.set(-0.32 + swayX, -0.28 + swayY, -0.2);
+      // Jab / cross: alternate hands, corkscrew the fist palm-down at impact
+      const e = strikeCurve(prog, 0.12, 0.34, 0.44, 0.18);
+      const ext = Math.max(0, e);
+      const extended = { x: 0.11, y: -0.19, z: -0.3, rx: 0.3, ry: 0.12, rz: -0.12 };
+      const pull = lerpPose(GUARD, { ...GUARD, z: GUARD.z + 0.04 }, Math.max(0, -e) / 0.18);
+      const punch = lerpPose(pull, extended, ext);
+      const guardTight = { ...GUARD, x: GUARD.x - 0.015, z: GUARD.z + 0.035 * ext };
+      if (vm.jabHand === 'right') { R = punch; L = mirror(guardTight); }
+      else { L = mirror(punch); R = guardTight; }
+      armsRig.rotation.y = (vm.jabHand === 'right' ? 0.05 : -0.05) * ext;
     }
-  } else {
-    // Idle weapon stance: gentle natural breathing bob
-    bootGroup.visible = false;
-    rightArm.visible = true;
-    leftArm.visible = true;
-    rightArm.rotation.set(0, 0, 0);
-    leftArm.rotation.set(0, 0, 0);
-
-    rightArm.position.set(0.32 + swayX, -0.28 + swayY, -0.2);
-    leftArm.position.set(-0.32 + swayX, -0.30 + swayY, -0.2);
   }
+
+  applyPose(rightArm, R, ox, oy);
+  applyPose(leftArm, L, ox, oy);
 }
 
 // ============================================================================
@@ -2542,6 +2804,10 @@ function registerCombo() {
 // MAIN LOOP & GAME PHYSICS
 // ============================================================================
 let lastTime = performance.now();
+const shakeOffset = new THREE.Vector3();
+const bodyRot = new THREE.Vector3(); // temporary camera rotation from body motion (kick)
+const BASE_FOV = 78;
+setupPostFX();
 let fpsCount = 0;
 let fpsTimer = 0;
 
@@ -2560,12 +2826,25 @@ function animate(now) {
     fpsTimer = 0;
   }
 
+  // Undo last frame's shake / body-motion offsets so they never leak into the real state
+  camera.position.sub(shakeOffset);
+  shakeOffset.set(0, 0, 0);
+  camera.rotation.x -= bodyRot.x; camera.rotation.y -= bodyRot.y; camera.rotation.z -= bodyRot.z;
+  bodyRot.set(0, 0, 0);
+
+  // Hit-stop: slow the simulation to a crawl for a few frames on impact
+  let simDt = dt;
+  if (state.hitStop > 0) {
+    state.hitStop -= dt;
+    simDt = dt * 0.06;
+  }
+
   if (state.inGame && !state.isDead && !state.isPaused) {
-    updatePlayer(dt);
-    updateEnemies(dt);
-    updatePickups(dt);
-    updateParticles(dt);
-    updateCombatTimers(dt);
+    updatePlayer(simDt);
+    updateEnemies(simDt);
+    updatePickups(simDt);
+    updateParticles(simDt);
+    updateCombatTimers(simDt);
   }
 
   // City animation & dynamic lighting
@@ -2614,18 +2893,46 @@ function animate(now) {
     }
   }
 
-  // Camera Shake
+  // Camera Shake (applied as a temporary offset, removed at the top of next frame)
   if (state.screenShake > 0) {
-    camera.position.x += (Math.random() - 0.5) * state.screenShake * 0.02;
-    camera.position.y += (Math.random() - 0.5) * state.screenShake * 0.02;
-    state.screenShake *= 0.82;
+    shakeOffset.set(
+      (Math.random() - 0.5) * state.screenShake * 0.012,
+      (Math.random() - 0.5) * state.screenShake * 0.012,
+      0
+    );
+    camera.position.add(shakeOffset);
+    state.screenShake *= Math.pow(0.82, dt * 60);
     if (state.screenShake < 0.05) state.screenShake = 0;
   }
 
-  updateArmsRig(dt);
+  // Full-body kick motion seen through the eyes: lean back/away, dip, hip turn, head tilt
+  if (state.isAttacking && state.currentAnimType === 'kick' && state.inGame && !state.isPaused) {
+    const k = kickBodyPose(clamp01(state.attackProgress));
+    const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw);
+    // forward = (-sin, 0, -cos), right = (cos, 0, -sin)
+    const off = new THREE.Vector3(-sy * k.fwd + cy * k.side, k.drop, -cy * k.fwd - sy * k.side);
+    shakeOffset.add(off);
+    camera.position.add(off);
+    bodyRot.set(k.pitch, k.yaw, k.roll);
+    camera.rotation.x += k.pitch; camera.rotation.y += k.yaw; camera.rotation.z += k.roll;
+  }
+
+  // Camera punch: quick pitch kick + FOV squeeze on impact, springs back
+  if (state.camPunch > 0.001 && state.inGame && !state.isPaused) {
+    camera.rotation.x += state.camPunch * 0.018;
+    state.camPunch *= Math.exp(-dt * 14);
+  }
+  const targetFov = BASE_FOV + (keys['ShiftLeft'] || keys['ShiftRight'] ? 4 : 0) - state.camPunch * 2.5;
+  if (Math.abs(camera.fov - targetFov) > 0.01) {
+    camera.fov += (targetFov - camera.fov) * (1 - Math.exp(-dt * 10));
+    camera.updateProjectionMatrix();
+  }
+
+  updateArmsRig(simDt);
   drawFace();
 
-  renderer.render(scene, camera);
+  if (composer) composer.render(dt);
+  else renderer.render(scene, camera);
 }
 
 function updatePlayer(dt) {
@@ -3030,7 +3337,7 @@ function updateParticles(dt) {
 function updateCombatTimers(dt) {
   if (state.attackTimer > 0) {
     state.attackTimer -= dt;
-    state.attackProgress = 1 - (state.attackTimer / state.activeAttack.cooldown);
+    state.attackProgress = 1 - (state.attackTimer / state.attackDuration);
     if (state.attackTimer <= 0) {
       state.isAttacking = false;
       state.attackProgress = 0;
@@ -3123,6 +3430,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  if (composer) composer.setSize(window.innerWidth, window.innerHeight);
 });
 
 // Difficulty Selection Event Listeners
