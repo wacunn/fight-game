@@ -3043,25 +3043,21 @@ function spawnShowdownWave(waveNum) {
   if (waveTag) waveTag.innerText = `WAVE ${waveNum} / 3`;
 
   if (waveNum === 1) {
-    if (subEl) subEl.innerText = 'LEVEL 1: GLASS FLOOR DEFENSE';
-    if (countEl) countEl.innerText = '4 INTRUDERS REMAINING';
-    // Spawn 4 fighters on Floor 1
-    for (let i = 0; i < 4; i++) {
-      const a = (i * Math.PI * 2) / 4 + 0.3;
-      const r = 13.5;
-      spawnDeckFighter(342.0, a, r, (i % 2), 'GLASS FLOOR BRAWLER');
+    if (subEl) subEl.innerText = 'LEVEL 2: LOOKOUT DECK DEFENSE';
+    if (countEl) countEl.innerText = '3 INTRUDERS REMAINING';
+    // Spawn 3 brawlers on Floor 2 around the lookout deck where showdown starts
+    for (let i = 0; i < 3; i++) {
+      const a = (i * Math.PI * 2) / 3 + 0.8;
+      const r = 16.5;
+      spawnDeckFighter(348.0, a, r, (i % 3), 'LOOKOUT BRAWLER');
     }
   } else if (waveNum === 2) {
-    if (subEl) subEl.innerText = 'MULTI-LEVEL INFILTRATION';
-    if (countEl) countEl.innerText = '6 INTRUDERS REMAINING';
-    // Spawn 3 fighters on Floor 1, 3 on Floor 2
-    for (let i = 0; i < 3; i++) {
-      const a = (i * Math.PI * 2) / 3 + 0.2;
-      spawnDeckFighter(342.0, a, 14.0, (i % 4), 'SKYTERRACE STRIKER');
-    }
-    for (let i = 0; i < 3; i++) {
-      const a = (i * Math.PI * 2) / 3 + 0.7;
-      spawnDeckFighter(348.0, a, 16.5, ((i + 2) % 4), 'LOOKOUT INFILTRATOR');
+    if (subEl) subEl.innerText = 'LEVEL 1: GLASS FLOOR ASSAULT';
+    if (countEl) countEl.innerText = '4 INTRUDERS ON GLASS FLOOR';
+    // Spawn 4 brawlers on Floor 1 on the Glass Floor (player descends stairs to fight)
+    for (let i = 0; i < 4; i++) {
+      const a = (i * Math.PI * 2) / 4 + 0.3;
+      spawnDeckFighter(342.0, a, 13.5, (i % 4), 'GLASS FLOOR INFILTRATOR');
     }
   } else if (waveNum === 3) {
     if (subEl) subEl.innerText = 'APEX MINI-BOSS DUEL';
@@ -3122,10 +3118,10 @@ function onDeckEnemyDefeated(enemy) {
 
   if (aliveDeck.length === 0 && state.skyShowdownActive) {
     if (state.skyShowdownWave === 1) {
-      showAnnouncement('⚡ WAVE 1 CLEARED! PREPARE FOR MULTI-LEVEL INFILTRATION! ⚡', 3000);
+      showAnnouncement('⚡ WAVE 1 CLEARED! DESCEND TO LEVEL 1 TO DEFEND THE GLASS FLOOR! ⚡', 3500);
       setTimeout(() => spawnShowdownWave(2), 2500);
     } else if (state.skyShowdownWave === 2) {
-      showAnnouncement('⚠️ WARNING: THE SKY APEX BRUTE HAS ENTERED THE LOOKOUT! ⚠️', 3500);
+      showAnnouncement('⚠️ WAVE 2 CLEARED! ASCEND TO LEVEL 2 FOR THE APEX MINI-BOSS DUEL! ⚠️', 3500);
       setTimeout(() => spawnShowdownWave(3), 2800);
     } else if (state.skyShowdownWave === 3) {
       // VICTORY!
@@ -4460,7 +4456,12 @@ function updatePlayer(dt) {
   if (keys['KeyA']) moveDir.sub(right);
 
   const isMoving = moveDir.lengthSq() > 0;
-  if (isMoving) moveDir.normalize();
+  if (isMoving) {
+    moveDir.normalize();
+    if (state.telescopeActive) {
+      exitTelescope();
+    }
+  }
 
   if (state.inElevator) {
     return;
@@ -4540,21 +4541,27 @@ function updatePlayer(dt) {
 }
 
 function canMoveTo(x, z) {
-  if (player.pos.y > 50) {
+  const pY = player.pos.y;
+  if (pY > 50) {
     if (!city || !city.landmarks || !city.landmarks.cnTower) return true;
     const cx = city.landmarks.cnTower[0];
     const cz = city.landmarks.cnTower[1];
     const r = Math.hypot(x - cx, z - cz);
     if (r < 4.8 || r > 21.8) return false;
 
-    // Body blocking on deck against living deck enemies
+    // Body blocking on deck against living deck enemies ON THE SAME FLOOR
     for (let i = 0; i < enemies.length; i++) {
       const e = enemies[i];
       if (e.isDead || e.isKnockedOut || !e.isDeckEnemy) continue;
       const ePos = e.rig ? e.rig.root.position : null;
       if (!ePos) continue;
+
+      // Ignore enemies on a different deck floor (Floor 1 vs Floor 2 have 6m vertical separation)
+      if (Math.abs(pY - ePos.y) > 2.2) continue;
+
       const dNew = Math.hypot(x - ePos.x, z - ePos.z);
-      if (dNew < 1.35) {
+      const minBodyDist = 0.75; // physical contact distance
+      if (dNew < minBodyDist) {
         if (state.isBerserk) return true;
         const dCurr = Math.hypot(player.pos.x - ePos.x, player.pos.z - ePos.z);
         if (dNew < dCurr) return false;
@@ -4590,12 +4597,15 @@ function canMoveTo(x, z) {
   // Player CANNOT run right through alive fighters or guards!
   for (let i = 0; i < enemies.length; i++) {
     const e = enemies[i];
-    if (e.isDead || e.isKnockedOut) continue;
+    if (e.isDead || e.isKnockedOut || e.isDeckEnemy) continue;
     const ePos = e.rig ? e.rig.root.position : (e.sprite ? e.sprite.position : null);
     if (!ePos) continue;
 
+    if (pY > 50) continue;
+    if (Math.abs(pY - ePos.y) > 2.2) continue;
+
     const dNew = Math.hypot(x - ePos.x, z - ePos.z);
-    const minFighterDist = 1.35; // combined physical collision radius
+    const minFighterDist = 0.75; // contact boundary
     if (dNew < minFighterDist) {
       // In Canadian Berserker Mode: player can bulldoze and shove fighters out of the way!
       if (state.isBerserk) {
@@ -4752,17 +4762,20 @@ function updateEnemies(dt) {
       minDist = distToPlayer;
     }
 
-    // AI Chasing, Footwork & Punch Attacks (Enemies CANNOT pursue into or attack inside Peace Sanctuary)
+    const isDifferentFloor = (enemy.isDeckEnemy && Math.abs(player.pos.y - enemy.rig.root.position.y) > 2.5) ||
+                             (!enemy.isDeckEnemy && player.pos.y > 50);
+
+    // AI Chasing, Footwork & Punch Attacks (Enemies CANNOT pursue into or attack inside Peace Sanctuary, or across different deck floors)
     if (!enemy.isStaggered) {
       const aggroLimit = enemy.aggroDist || 45;
-      const isMoving = !playerInPeace && distToPlayer > 1.35 && distToPlayer < aggroLimit;
+      const isMoving = !playerInPeace && !isDifferentFloor && distToPlayer > 1.35 && distToPlayer < aggroLimit;
 
       if (isMoving) {
         const dir = player.pos.clone().sub(enemy.rig.root.position).normalize();
         const nextEx = enemy.rig.root.position.x + dir.x * enemy.speed * dt;
         const nextEz = enemy.rig.root.position.z + dir.z * enemy.speed * dt;
         const nextDist = Math.hypot(nextEx - player.pos.x, nextEz - player.pos.z);
-        if (nextDist >= 1.30) {
+        if (nextDist >= 1.35) {
           enemy.rig.root.position.x = nextEx;
           enemy.rig.root.position.z = nextEz;
         }
@@ -4798,9 +4811,9 @@ function updateEnemies(dt) {
         }
       }
 
-      // Keep enemy body from clipping inside player camera/body
-      if (distToPlayer < 1.30 && distToPlayer > 0.05) {
-        const overlap = 1.30 - distToPlayer;
+      // Keep enemy body from clipping inside player camera/body (only when on same floor!)
+      if (!isDifferentFloor && distToPlayer < 1.10 && distToPlayer > 0.05) {
+        const overlap = 1.10 - distToPlayer;
         const pushX = (enemy.rig.root.position.x - player.pos.x) / distToPlayer;
         const pushZ = (enemy.rig.root.position.z - player.pos.z) / distToPlayer;
         enemy.rig.root.position.x += pushX * overlap;
@@ -4826,10 +4839,10 @@ function updateEnemies(dt) {
           enemy.rig.rightForearmPivot.rotation.x = -0.8;
         }
 
-        // Deal damage at peak extension (strictly blocked if player is in Peace Sanctuary)
+        // Deal damage at peak extension (strictly blocked if player is in Peace Sanctuary or different floor)
         if (enemy.attackProg >= 0.5 && !enemy.punchHasDealtDamage) {
           enemy.punchHasDealtDamage = true;
-          if (distToPlayer <= 2.4 && !playerInPeace) {
+          if (distToPlayer <= 2.4 && !playerInPeace && !isDifferentFloor) {
             damagePlayer(enemy.damage);
             audio.playImpact('punch');
           }
@@ -4847,8 +4860,8 @@ function updateEnemies(dt) {
         enemy.rig.rightArmPivot.rotation.set(-1.25 - sway, -0.3, -0.15);
         enemy.rig.rightForearmPivot.rotation.set(-0.85, 0, 0);
 
-        // Within attack range -> trigger a punch (strictly blocked if player is in Peace Sanctuary)
-        if (distToPlayer <= 2.2 && !playerInPeace) {
+        // Within attack range -> trigger a punch (strictly blocked if player is in Peace Sanctuary or different floor)
+        if (distToPlayer <= 2.2 && !playerInPeace && !isDifferentFloor) {
           enemy.attackTimer -= dt;
           if (enemy.attackTimer <= 0) {
             enemy.attackTimer = enemy.attackCooldown + Math.random() * 0.4;
