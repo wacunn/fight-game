@@ -943,6 +943,7 @@
       }
     }
 
+    const landmarkFeet = {}; // real OSM footprints of hand-modelled landmarks
     MAP.buildings.forEach((b, bi) => {
       let pts = toPairs(b.p);
       if (pts.length < 3) return;
@@ -955,12 +956,15 @@
       // Hand-built landmarks get custom high-detail architectural models
       if (Math.hypot(cx - LM.cnTower[0], cz - LM.cnTower[1]) < 40 && (name.indexOf('CN Tower') === 0 || (b.h && b.h > 300))) return;
       if (name === 'CN Tower tickets') return;
-      if (name.indexOf("Ripley's Aquarium") >= 0) return;
-      if (name.indexOf('John Street Roundhouse') >= 0 || name === 'Don Station' || name === 'Cabin D' || name.indexOf('Railcar') >= 0 || name.indexOf('Coaling') >= 0) return;
-      if (name.indexOf('Fairmont Royal York') >= 0) return;
-      if (name.indexOf('Roy Thomson') >= 0) return;
-      if (name.indexOf('Gooderham') >= 0) return;
-      if (name.indexOf('St. Lawrence Market') >= 0) return;
+      // Custom-modelled landmarks keep their REAL footprint (for placement + collision)
+      const lmKey = name.indexOf("Ripley's Aquarium") >= 0 ? 'ripleys'
+        : name.indexOf('John Street Roundhouse') >= 0 ? 'roundhouse'
+        : name.indexOf('Roy Thomson') >= 0 ? 'royThomson' : null;
+      if (lmKey) {
+        landmarkFeet[lmKey] = pts;
+        addSolid({ type: 'poly', pts, h: b.h || 10, name });
+        return;
+      }
 
       let h = b.h;
       if (!h) {
@@ -968,6 +972,7 @@
         h = 9 + hash(bi * 1.37) * (area > 2000 ? 40 : 18);
       }
       if (name === 'Union Station') h = 26;
+      if (name.indexOf('Fairmont Royal York') >= 0) { h = 50; landmarkFeet.royalYork = pts; } // chateau roof added later
       h = Math.max(4, Math.min(h, 320));
 
       let style;
@@ -996,13 +1001,190 @@
       if (h > 70 && roofLights.length < 60) roofLights.push(new THREE.Vector3(cx, h + 1.5, cz));
     });
 
+    // ==========================================================================
+    // OLD TOWN / EXTENDED-MAP INFILL
+    // The map bounds were extended past the OSM building data, which left bare
+    // streets. Fill those streets with street-aligned frontage buildings (shops,
+    // 3-6 storey brick, the odd condo tower) only where there is no real data.
+    // ==========================================================================
+    const OSM_CELL = 40;
+    const osmCells = new Map();
+    MAP.buildings.forEach(b => {
+      const xs = b.p.filter((_, i) => i % 2 === 0), zs = b.p.filter((_, i) => i % 2 === 1);
+      const cx = xs.reduce((a, v) => a + v, 0) / xs.length, cz = zs.reduce((a, v) => a + v, 0) / zs.length;
+      const k = Math.floor(cx / OSM_CELL) + ',' + Math.floor(cz / OSM_CELL);
+      if (!osmCells.has(k)) osmCells.set(k, []);
+      osmCells.get(k).push([cx, cz]);
+    });
+    function nearRealBuilding(x, z, dist) {
+      const gx = Math.floor(x / OSM_CELL), gz = Math.floor(z / OSM_CELL);
+      for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) {
+        const list = osmCells.get((gx + a) + ',' + (gz + b));
+        if (list && list.some(([px, pz]) => Math.hypot(px - x, pz - z) < dist)) return true;
+      }
+      return false;
+    }
+    const nearSanctuary = (x, z) => Math.hypot(x - LM.cnTower[0], z - LM.cnTower[1]) < 75;
+    function lotIsFree(rect) {
+      const probes = rect.slice();
+      for (let i = 0; i < rect.length; i++) {
+        const a = rect[i], b = rect[(i + 1) % rect.length];
+        probes.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+      }
+      const [cx, cz] = centroid(rect);
+      probes.push([cx, cz]);
+      return probes.every(([x, z]) => !onRoad(x, z, -1.2, -1) && canMoveTo(x, z, 0.8) && !nearSanctuary(x, z));
+    }
+    function addLot(rect, h, style, seed, opts) {
+      if (polyArea(rect) < 0) rect.reverse();
+      const tb = 0.75 + hash(seed * 2.7) * 0.4;
+      addBuilding(rect, h, style, 0, Object.assign({
+        tint: [tb * (0.95 + hash(seed * 9.1) * 0.1), tb, tb * (0.95 + hash(seed * 4.3) * 0.1)],
+        uOff: hash(seed * 7.7) * TILE_W
+      }, opts || {}));
+      addSolid({ type: 'poly', pts: rect, h });
+      if (h > 70 && roofLights.length < 90) { const [cx, cz] = centroid(rect); roofLights.push(new THREE.Vector3(cx, h + 1.5, cz)); }
+    }
+
+    // ---------- Gooderham ("Flatiron") Building: wedge between Front St E & Wellington St E ----------
+    const roadByName = n => groundRoads.filter(r => (MAP.roads[r.id] || {}).n === n);
+    function lineHit(p, d, q, e) { // intersect p + t d with q + u e
+      const den = d[0] * e[1] - d[1] * e[0];
+      if (Math.abs(den) < 1e-6) return null;
+      const t = ((q[0] - p[0]) * e[1] - (q[1] - p[1]) * e[0]) / den;
+      return [p[0] + d[0] * t, p[1] + d[1] * t];
+    }
+    const unit = (x, z) => { const l = Math.hypot(x, z) || 1; return [x / l, z / l]; };
+    const landmarkExtras = {};
+    {
+      const fronts = roadByName('Front Street East'), wells = roadByName('Wellington Street East');
+      let best = null;
+      wells.forEach(w => [0, w.pts.length - 1].forEach(wi => {
+        const wp = w.pts[wi];
+        fronts.forEach(f => f.pts.forEach((fp, fi) => {
+          const d = Math.hypot(fp[0] - wp[0], fp[1] - wp[1]);
+          if (d < 15 && (!best || d < best.d)) best = { d, w, wi, f, fi };
+        }));
+      }));
+      if (best) {
+        const { w, wi, f, fi } = best;
+        const tip = f.pts[fi];
+        // directions pointing WEST (away from the tip) along each street
+        const fPrev = f.pts[fi > 0 ? fi - 1 : fi + 1], wPrev = w.pts[wi > 0 ? wi - 1 : wi + 1];
+        const df = unit(fPrev[0] - tip[0], fPrev[1] - tip[1]), dw = unit(wPrev[0] - w.pts[wi][0], wPrev[1] - w.pts[wi][1]);
+        // offset each street edge toward the other street (road half width + sidewalk)
+        const sideF = Math.sign((wPrev[0] - tip[0]) * -df[1] + (wPrev[1] - tip[1]) * df[0]) || 1;
+        const nf = [-df[1] * sideF, df[0] * sideF];
+        const sideW = Math.sign((fPrev[0] - w.pts[wi][0]) * -dw[1] + (fPrev[1] - w.pts[wi][1]) * dw[0]) || 1;
+        const nw = [-dw[1] * sideW, dw[0] * sideW];
+        const pf = [tip[0] + nf[0] * (f.w / 2 + 2.5), tip[1] + nf[1] * (f.w / 2 + 2.5)];
+        const pw = [w.pts[wi][0] + nw[0] * (w.w / 2 + 2.5), w.pts[wi][1] + nw[1] * (w.w / 2 + 2.5)];
+        const apex = lineHit(pf, df, pw, dw);
+        if (apex) {
+          const L = 30;
+          const along = (p, d, t) => [p[0] + d[0] * t, p[1] + d[1] * t];
+          const fEdge = t => lineHit(along(apex, df, t), [-df[1], df[0]], pf, df) || along(apex, df, t);
+          // rounded nose (the real building has a curved prow), then back along both streets
+          const a1 = along(apex, df, 3.2), a2 = along(apex, dw, 3.2);
+          const nose = along(apex, unit(df[0] + dw[0], df[1] + dw[1]), 1.4);
+          const poly = [a2, nose, a1, along(apex, df, L), along(apex, dw, L)];
+          if (Math.abs(polyArea(poly)) > 120) {
+            if (polyArea(poly) < 0) poly.reverse();
+            addLot(poly, 20, 'brick', 77, { roof: false });
+            const c = centroid(poly);
+            LM.gooderham = [c[0], c[1]];
+            landmarkExtras.gooderham = { poly, apex, df, dw, nose };
+            // Berczy Park: the rest of the wedge west of the building
+            landmarkExtras.berczy = [along(apex, df, L + 2), along(apex, df, L + 60), along(apex, dw, L + 60), along(apex, dw, L + 2)];
+          }
+        }
+      }
+    }
+
+    // ---------- St. Lawrence Market (South Market): SW corner of Front St E & Jarvis ----------
+    {
+      const fronts = roadByName('Front Street East'), jarv = roadByName('Jarvis Street');
+      let hit = null;
+      fronts.forEach(f => f.pts.forEach((fp, fi) => jarv.forEach(j => j.pts.forEach(jp => {
+        if (Math.hypot(fp[0] - jp[0], fp[1] - jp[1]) < 3) hit = { f, fi, j, p: fp };
+      }))));
+      if (hit) {
+        const { f, fi, j, p } = hit;
+        const fNext = f.pts[fi > 0 ? fi - 1 : fi + 1];               // west along Front
+        const west = unit(fNext[0] - p[0], fNext[1] - p[1]);
+        // run the long side parallel to Jarvis itself (streets here aren't exactly perpendicular)
+        const jSouth = j.pts.filter(q => q[1] > p[1] + 5).sort((u, v) => u[1] - v[1])[0];
+        let south = jSouth ? unit(jSouth[0] - p[0], jSouth[1] - p[1]) : [-west[1], west[0]];
+        if (south[1] < 0) south = [-south[0], -south[1]];             // +z is south
+        const K = [p[0] + south[0] * (f.w / 2 + 3) + west[0] * (j.w / 2 + 3), p[1] + south[1] * (f.w / 2 + 3) + west[1] * (j.w / 2 + 3)];
+        const W = 46, D = 95;
+        const rect = [K, [K[0] + west[0] * W, K[1] + west[1] * W], [K[0] + west[0] * W + south[0] * D, K[1] + west[1] * W + south[1] * D], [K[0] + south[0] * D, K[1] + south[1] * D]];
+        if (lotIsFree(rect)) {
+          addLot(rect, 12, 'brick', 91, { shops: false, roof: false });
+          const c = centroid(rect);
+          LM.stLawrence = [c[0], c[1]];
+          landmarkExtras.market = { rect, west, south, K, W, D };
+        }
+      }
+    }
+
+    // ---------- Frontage infill along every street that has no real buildings ----------
+    {
+      let lots = 0;
+      groundRoads.forEach(r => {
+        if (['service', 'pedestrian', 'motorway', 'motorway_link', 'trunk', 'trunk_link'].indexOf(r.t) >= 0) return;
+        for (let i = 0; i < r.pts.length - 1; i++) {
+          const [ax, az] = r.pts[i], [bx, bz] = r.pts[i + 1];
+          const len = Math.hypot(bx - ax, bz - az);
+          if (len < 14) continue;
+          const dx = (bx - ax) / len, dz = (bz - az) / len, nx = -dz, nz = dx;
+          [-1, 1].forEach(side => {
+            let t = 3 + hash(ax * 0.3 + side) * 4;
+            while (t < len - 8) {
+              const seed = ax * 1.7 + az * 0.9 + t * 3.1 + side * 11;
+              const lotW = 9 + hash(seed) * 14;
+              if (t + lotW > len - 3) break;
+              const s0 = r.w / 2 + 3.2;
+              const mx = ax + dx * (t + lotW / 2) + nx * side * (s0 + 10), mz = az + dz * (t + lotW / 2) + nz * side * (s0 + 10);
+              if (mx < PLAY.minX || mx > PLAY.maxX || mz < PLAY.minZ || mz > PLAY.maxZ || nearRealBuilding(mx, mz, 48)) { t += lotW; continue; }
+              // up to two rows deep: street-front shops, then a taller building behind
+              let off = s0;
+              for (let row = 0; row < 2; row++) {
+                const depth = row ? 16 + hash(seed * 5.3) * 14 : 13 + hash(seed * 3.1) * 11;
+                const p0 = [ax + dx * t + nx * side * off, az + dz * t + nz * side * off];
+                const p1 = [p0[0] + dx * lotW, p0[1] + dz * lotW];
+                const rect = [p0, p1, [p1[0] + nx * side * depth, p1[1] + nz * side * depth], [p0[0] + nx * side * depth, p0[1] + nz * side * depth]];
+                if (!lotIsFree(rect)) break;
+                const r1 = hash(seed * 7.9 + row);
+                let h, style;
+                if (r1 > 0.97) { h = 60 + hash(seed * 2.2) * 50; style = hash(seed) > 0.5 ? 'glass' : 'dark'; }
+                else if (r1 > 0.85 || row) { h = 14 + hash(seed * 4.4) * 18; style = ['office', 'concrete', 'glass', 'brick'][Math.floor(hash(seed * 6.6) * 4)]; }
+                else { h = 9 + hash(seed * 8.8) * 14; style = ['brick', 'brick', 'stone', 'office'][Math.floor(hash(seed * 1.9) * 4)]; }
+                addLot(rect, h, style, seed + row * 31, { shops: row === 0 });
+                lots++;
+                off += depth + 1.5;
+              }
+              t += lotW + (hash(seed * 4.1) < 0.2 ? 5 + hash(seed) * 8 : 0.5); // occasional laneway gap
+            }
+          });
+        }
+      });
+      console.info('[city] frontage infill lots:', lots);
+    }
+
     // ---------- Distant skyline: procedural blocks beyond the OSM data ----------
     // The real data covers ~1.4 x 0.95 km; without this the city just stops at the fog.
     {
       const PITCH = 68, REACH = 650;
       let n = 0;
-      for (let gx = minX - REACH; gx < maxX + REACH; gx += PITCH) {
-        for (let gz = minZ - REACH; gz < maxZ + 40; gz += PITCH) {
+      // Lay the filler out on Toronto's street grid (rotated ~17°) instead of an axis-aligned one
+      const GA = -17 * Math.PI / 180, gca = Math.cos(GA), gsa = Math.sin(GA);
+      const gcx = (minX + maxX) / 2, gcz = (minZ + maxZ) / 2;
+      const GH = Math.hypot(maxX - minX, maxZ - minZ) / 2 + REACH;
+      for (let gu = -GH; gu < GH; gu += PITCH) {
+        for (let gv = -GH; gv < GH; gv += PITCH) {
+          const gx = gcx + gu * gca - gv * gsa, gz = gcz + gu * gsa + gv * gca;
+          if (gx < minX - REACH || gx > maxX + REACH || gz < minZ - REACH || gz > maxZ + 40) continue;
           const jx = gx + (hash(gx * 0.13 + gz) - 0.5) * 16, jz = gz + (hash(gz * 0.17 + gx) - 0.5) * 16;
           if (jx > minX - 40 && jx < maxX + 40 && jz > minZ - 40 && jz < maxZ + 40) continue;
           const sx = 22 + hash(jx * 0.7) * 30, sz = 22 + hash(jz * 0.9) * 30;
@@ -1013,7 +1195,7 @@
           const r = hash(jx * 1.31 + jz * 0.77);
           const h = 14 + r * 40 + (r > 0.7 ? fidi * 220 * r : fidi * 60);
           const style = h > 90 ? (r > 0.85 ? 'dark' : 'glass') : ['brick', 'office', 'concrete', 'glass'][Math.floor(hash(jx + jz) * 4)];
-          const rect = [[jx - sx / 2, jz + sz / 2], [jx + sx / 2, jz + sz / 2], [jx + sx / 2, jz - sz / 2], [jx - sx / 2, jz - sz / 2]];
+          const rect = [[-sx / 2, sz / 2], [sx / 2, sz / 2], [sx / 2, -sz / 2], [-sx / 2, -sz / 2]].map(([u, v]) => [jx + u * gca - v * gsa, jz + u * gsa + v * gca]);
           if (polyArea(rect) < 0) rect.reverse();
           const tb = 0.7 + hash(jx * 3.3) * 0.35;
           addBuilding(rect, h, style, 0, { tint: [tb, tb, tb], uOff: hash(jz) * TILE_W, shops: h > 20 && hash(jx) > 0.5, roof: false });
@@ -1315,545 +1497,496 @@
     }
 
     // ==========================================================================
-    // 1. RIPLEY'S AQUARIUM OF CANADA (HAND-BUILT OCEAN CANOPY)
+    // HAND-BUILT LANDMARKS — modelled on their REAL OpenStreetMap footprints so
+    // they sit exactly where the building is and follow Toronto's ~17° street grid.
+    // (No extra PointLights: glow comes from emissive materials + bloom.)
     // ==========================================================================
-    {
-      const aqCenter = [-216.6, 171.4];
-      const aqGroup = new THREE.Group();
-      aqGroup.position.set(aqCenter[0], 0, aqCenter[1]);
-
-      const baseMat = new THREE.MeshStandardMaterial({ color: 0x1e242d, roughness: 0.6, metalness: 0.3 });
-      const aqBase = new THREE.Mesh(new THREE.BoxGeometry(84, 9, 46), baseMat);
-      aqBase.position.y = 4.5;
-      aqGroup.add(aqBase);
-
-      // Angled Faceted Glass Wave Roof / Tectonic Shard Canopy
-      const glassMat = new THREE.MeshPhysicalMaterial({
-        color: 0x0077b6,
-        roughness: 0.12,
-        metalness: 0.25,
-        transmission: 0.65,
-        transparent: true,
-        opacity: 0.88,
-        clearcoat: 1.0,
-        envMapIntensity: 0.95
-      });
-      const shardGeo = new THREE.ConeGeometry(26, 18, 4);
-      shardGeo.rotateY(Math.PI / 4);
-      const shard1 = new THREE.Mesh(shardGeo, glassMat);
-      shard1.scale.set(1.4, 0.9, 1.1);
-      shard1.rotation.z = -0.22;
-      shard1.position.set(-18, 14, 0);
-      aqGroup.add(shard1);
-
-      const shard2 = new THREE.Mesh(shardGeo, glassMat);
-      shard2.scale.set(1.2, 1.1, 0.9);
-      shard2.rotation.z = 0.18;
-      shard2.position.set(16, 15, -4);
-      aqGroup.add(shard2);
-
-      const shard3 = new THREE.Mesh(shardGeo, glassMat);
-      shard3.scale.set(1.6, 0.8, 1.2);
-      shard3.position.set(0, 13, 8);
-      aqGroup.add(shard3);
-
-      // Deep-Sea Bioluminescent Blue Interior Lighting
-      const aqLight1 = new THREE.PointLight(0x0099ff, 3.2, 65);
-      aqLight1.position.set(-10, 8, 0);
-      aqGroup.add(aqLight1);
-      const aqLight2 = new THREE.PointLight(0x00e5ff, 2.4, 55);
-      aqLight2.position.set(12, 9, 6);
-      aqGroup.add(aqLight2);
-
-      // Acrylic Underwater Viewing Tunnel inside glass
-      const tunnelMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.75, wireframe: true });
-      const tunnel = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.5, 52, 16, 1, true), tunnelMat);
-      tunnel.rotation.z = Math.PI / 2;
-      tunnel.position.set(0, 5, 0);
-      aqGroup.add(tunnel);
-
-      // Shark Silhouettes inside viewing tank
-      const sharkMat = new THREE.MeshBasicMaterial({ color: 0x05131f });
-      for (let si = 0; si < 4; si++) {
-        const shark = new THREE.Mesh(new THREE.ConeGeometry(0.8, 3.8, 6), sharkMat);
-        shark.rotation.z = Math.PI / 2;
-        shark.position.set(-18 + si * 12, 6 + Math.sin(si) * 2, (si % 2 === 0 ? 5 : -5));
-        aqGroup.add(shark);
+    function subdividePoly(pts, maxLen) {
+      const out = [];
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length];
+        const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / maxLen));
+        for (let k = 0; k < n; k++) out.push([a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]);
       }
-
-      // Grand Entrance Canopy & Neon Sign
-      const canopy = new THREE.Mesh(
-        new THREE.BoxGeometry(28, 1.2, 14),
-        new THREE.MeshStandardMaterial({ color: 0x11161d, metalness: 0.8, roughness: 0.2 })
-      );
-      canopy.position.set(0, 6, 26);
-      aqGroup.add(canopy);
-
-      const signTex = makeLabelTexture(["RIPLEY'S AQUARIUM OF CANADA", "DANGEROUS LAGOON • DISCOVERY CENTRE"], {
-        bg: '#041b2d', fg: '#00f0ff', borderColor: '#00a8e8', size: 48, w: 1024, h: 180
-      });
-      const signMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(24, 4.2),
-        new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide })
-      );
-      signMesh.position.set(0, 9.2, 32.5);
-      aqGroup.add(signMesh);
-
-      // Landscaped Plaza & Reflecting Water Feature
-      const poolGeo = new THREE.CylinderGeometry(8, 8, 0.4, 24);
-      const poolMat = new THREE.MeshPhongMaterial({ color: 0x0066aa, specular: 0x44ccff, shininess: 90 });
-      const pool = new THREE.Mesh(poolGeo, poolMat);
-      pool.position.set(0, 0.2, 38);
-      aqGroup.add(pool);
-
-      scene.add(aqGroup);
-      addSolid({ type: 'poly', pts: [[aqCenter[0]-44, aqCenter[1]-24], [aqCenter[0]+44, aqCenter[1]-24], [aqCenter[0]+44, aqCenter[1]+28], [aqCenter[0]-44, aqCenter[1]+28]], bb: [aqCenter[0]-44, aqCenter[1]-24, aqCenter[0]+44, aqCenter[1]+28], h: 18, name: "Ripley's Aquarium" });
+      return out;
+    }
+    function principalDir(pts) {
+      let best = 0, d = [1, 0];
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (L > best) { best = L; d = [(b[0] - a[0]) / L, (b[1] - a[1]) / L]; }
+      }
+      return d;
+    }
+    // Walls from y0 to a per-vertex top height; uv u = metres along the wall / uScale
+    function wallsGeo(pts, y0, topFn, uScale, vScale) {
+      const gb = new GeoBuilder();
+      let u = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length];
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (len < 0.01) continue;
+        const nx = (b[1] - a[1]) / len, nz = -(b[0] - a[0]) / len;
+        const ha = topFn(a, i), hb = topFn(b, (i + 1) % pts.length);
+        const q = [gb.vert(a[0], y0, a[1], nx, 0, nz, u / uScale, y0 / vScale), gb.vert(b[0], y0, b[1], nx, 0, nz, (u + len) / uScale, y0 / vScale),
+                   gb.vert(b[0], hb, b[1], nx, 0, nz, (u + len) / uScale, hb / vScale), gb.vert(a[0], ha, a[1], nx, 0, nz, u / uScale, ha / vScale)];
+        gb.quad(q[0], q[1], q[2], q[3]);
+        u += len;
+      }
+      return gb.build();
+    }
+    // Roof cap whose vertices can each have their own height (faceted roofs)
+    function capGeo(pts, topFn, flat) {
+      const contour = pts.map(p => new THREE.Vector2(p[0], p[1]));
+      const tris = THREE.ShapeUtils.triangulateShape(contour, []);
+      const pos = [];
+      tris.forEach(t => [t[0], t[2], t[1]].forEach(i => pos.push(pts[i][0], topFn(pts[i], i), pts[i][1])));
+      let g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.computeVertexNormals(); // non-indexed -> flat facets
+      // make sure facets face up
+      const n = g.attributes.normal;
+      for (let i = 0; i < n.count; i++) if (n.getY(i) < 0) n.setXYZ(i, -n.getX(i), -n.getY(i), -n.getZ(i));
+      return g;
+    }
+    function scaledPoly(pts, k) {
+      const [cx, cz] = centroid(pts);
+      return pts.map(p => [cx + (p[0] - cx) * k, cz + (p[1] - cz) * k]);
+    }
+    // Slanted mansard / chateau roof: ring from the outer footprint up to a shrunken copy
+    function mansardGeo(pts, y0, y1, k) {
+      const top = scaledPoly(pts, k);
+      const gb = new GeoBuilder();
+      for (let i = 0; i < pts.length; i++) {
+        const j = (i + 1) % pts.length;
+        const a = pts[i], b = pts[j], c = top[j], d = top[i];
+        const ex = b[0] - a[0], ez = b[1] - a[1], L = Math.hypot(ex, ez) || 1;
+        const nx = ez / L, nz = -ex / L, ny = 0.6;
+        const nl = Math.hypot(nx, ny, nz);
+        const q = [gb.vert(a[0], y0, a[1], nx / nl, ny / nl, nz / nl, 0, 0), gb.vert(b[0], y0, b[1], nx / nl, ny / nl, nz / nl, L / 4, 0),
+                   gb.vert(c[0], y1, c[1], nx / nl, ny / nl, nz / nl, L / 4, 1), gb.vert(d[0], y1, d[1], nx / nl, ny / nl, nz / nl, 0, 1)];
+        gb.quad(q[0], q[1], q[2], q[3]);
+      }
+      return { geo: gb.build(), top };
+    }
+    function signMesh(text, w, h, colors) {
+      const tex = makeLabelTexture(Array.isArray(text) ? text : [text], Object.assign({ size: 70, w: 1024, h: Array.isArray(text) ? 170 : 140 }, colors));
+      return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+    }
+    // Place a flat sign on the footprint edge whose outward normal best faces `towards`
+    function signOnEdge(pts, towards, sign, y, minLen) {
+      const [cx, cz] = centroid(pts);
+      const want = unit(towards[0] - cx, towards[1] - cz);
+      let best = -2, bi = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (L < (minLen || 12)) continue;
+        const s = ((b[1] - a[1]) / L) * want[0] + (-(b[0] - a[0]) / L) * want[1];
+        if (s > best) { best = s; bi = i; }
+      }
+      const a = pts[bi], b = pts[(bi + 1) % pts.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const nx = (b[1] - a[1]) / L, nz = -(b[0] - a[0]) / L;
+      sign.position.set((a[0] + b[0]) / 2 + nx * 0.35, y, (a[1] + b[1]) / 2 + nz * 0.35);
+      sign.rotation.y = Math.atan2(nx, nz);
+      scene.add(sign);
+      return { nx, nz, a, b };
+    }
+    function canvasTex(w, h, draw, emissiveDraw) {
+      const [c, ctx] = canvas2(w, h);
+      draw(ctx);
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+      let e = null;
+      if (emissiveDraw) {
+        const [c2, ctx2] = canvas2(w, h);
+        ctx2.fillStyle = '#000'; ctx2.fillRect(0, 0, w, h);
+        emissiveDraw(ctx2);
+        e = new THREE.CanvasTexture(c2);
+        e.wrapS = e.wrapT = THREE.RepeatWrapping;
+      }
+      return { t, e };
+    }
+    function brickBase(ctx, w, h, base) {
+      ctx.fillStyle = base; ctx.fillRect(0, 0, w, h);
+      for (let y = 0; y < h; y += 6) for (let x = (y / 6) % 2 ? 0 : 7; x < w; x += 14) {
+        ctx.fillStyle = `rgba(${hash(x * 3 + y) > 0.5 ? '255,220,200' : '0,0,0'},${0.04 + hash(x + y * 7) * 0.1})`;
+        ctx.fillRect(x, y, 13, 5);
+      }
     }
 
-    // ==========================================================================
-    // 2. ROUNDHOUSE PARK & TORONTO RAILWAY MUSEUM
-    // ==========================================================================
-    {
-      const rhCenter = [-203.9, 349.5];
-      const ttCenter = [-203.9, 305.0];
-      const rhGroup = new THREE.Group();
-
-      const brickMat = new THREE.MeshStandardMaterial({ color: 0x8a382a, roughness: 0.85, metalness: 0.1 });
-      const darkTimber = new THREE.MeshStandardMaterial({ color: 0x241e1b, roughness: 0.9 });
-      const steelBlack = new THREE.MeshStandardMaterial({ color: 0x1b1d20, roughness: 0.4, metalness: 0.8 });
-      const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.3, metalness: 0.85 });
-
-      // Curved 32-stall Semi-Circular Roundhouse
-      const stalls = 32;
-      const rInner = 68, rOuter = 102;
-      const startAng = -0.55, totalAng = 2.15;
-      const glowBayMat = new THREE.MeshBasicMaterial({ color: 0xffd188 });
-
-      for (let i = 0; i < stalls; i++) {
-        const a = startAng + (i / stalls) * totalAng;
-        const midR = (rInner + rOuter) / 2;
-        const sx = ttCenter[0] + Math.cos(a) * midR;
-        const sz = ttCenter[1] + Math.sin(a) * midR;
-
-        // Stall bay box
-        const bay = new THREE.Mesh(new THREE.BoxGeometry(7.2, 8.5, rOuter - rInner), brickMat);
-        bay.position.set(sx, 4.25, sz);
-        bay.rotation.y = -a + Math.PI / 2;
-        rhGroup.add(bay);
-
-        // Arched stall door facing turntable
-        const doorX = ttCenter[0] + Math.cos(a) * (rInner + 0.5);
-        const doorZ = ttCenter[1] + Math.sin(a) * (rInner + 0.5);
-        const door = new THREE.Mesh(new THREE.BoxGeometry(5.8, 6.2, 0.4), darkTimber);
-        door.position.set(doorX, 3.1, doorZ);
-        door.rotation.y = -a + Math.PI / 2;
-        rhGroup.add(door);
-
-        // Clerestory transom window glowing with amber shop light
-        const transom = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 1.8), glowBayMat);
-        transom.position.set(doorX - Math.cos(a) * 0.25, 6.8, doorZ - Math.sin(a) * 0.25);
-        transom.rotation.y = -a - Math.PI / 2;
-        rhGroup.add(transom);
-
-        // Radial rail tracks extending from pit rim to each stall
-        const trackL = rInner - 19;
-        const trkX = ttCenter[0] + Math.cos(a) * (19 + trackL / 2);
-        const trkZ = ttCenter[1] + Math.sin(a) * (19 + trackL / 2);
-        const trk = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.08, trackL), steelBlack);
-        trk.position.set(trkX, 0.08, trkZ);
-        trk.rotation.y = -a + Math.PI / 2;
-        rhGroup.add(trk);
-      }
-
-      // Turntable Pit: sunken circle
-      const pitGeo = new THREE.CylinderGeometry(18.5, 18.5, 1.4, 48, 1, false);
-      const pitMat = new THREE.MeshStandardMaterial({ color: 0x3a3c42, roughness: 0.9 });
-      const pit = new THREE.Mesh(pitGeo, pitMat);
-      pit.position.set(ttCenter[0], -0.65, ttCenter[1]);
-      rhGroup.add(pit);
-
-      // Circular guide rail in pit
-      const ringRail = new THREE.Mesh(new THREE.TorusGeometry(17.2, 0.12, 6, 48), steelBlack);
-      ringRail.rotation.x = Math.PI / 2;
-      ringRail.position.set(ttCenter[0], 0.06, ttCenter[1]);
-      rhGroup.add(ringRail);
-
-      // Rotating Turntable Bridge: steel through-plate girder
-      const bridgeGroup = new THREE.Group();
-      bridgeGroup.position.set(ttCenter[0], 0.2, ttCenter[1]);
-      const girderL = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.6, 36), steelBlack);
-      girderL.position.x = -2.1; girderL.position.y = 0.8; bridgeGroup.add(girderL);
-      const girderR = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.6, 36), steelBlack);
-      girderR.position.x = 2.1; girderR.position.y = 0.8; bridgeGroup.add(girderR);
-      const deck = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.3, 36), darkTimber);
-      deck.position.y = 0.15; bridgeGroup.add(deck);
-      const archMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
-      const arch = new THREE.Mesh(new THREE.TorusGeometry(3.4, 0.2, 4, 16, Math.PI), archMat);
-      arch.position.y = 3.2; bridgeGroup.add(arch);
-      rhGroup.add(bridgeGroup);
-
-      // Steam Whistle Brewing & Toronto Railway Museum Heritage Signs
-      const signTex1 = makeLabelTexture(['STEAM WHISTLE BREWING', 'THE ROUNDHOUSE • TORONTO'], {
-        bg: '#064e3b', fg: '#ecfdf5', borderColor: '#10b981', size: 52, w: 1024, h: 160
+    // ---------------- 1. Ripley's Aquarium: angular faceted roof over a glowing glass base ----------------
+    if (landmarkFeet.ripleys) {
+      const F = subdividePoly(landmarkFeet.ripleys, 4);
+      const ax = principalDir(landmarkFeet.ripleys);
+      const [cx, cz] = centroid(F);
+      const proj = F.map(p => (p[0] - cx) * ax[0] + (p[1] - cz) * ax[1]);
+      const pMin = Math.min(...proj), pMax = Math.max(...proj);
+      const tri = x => 1 - Math.abs(2 * (x - Math.floor(x)) - 1);
+      const topH = (p) => {
+        const t = ((p[0] - cx) * ax[0] + (p[1] - cz) * ax[1] - pMin) / (pMax - pMin);
+        const s = (p[0] - cx) * -ax[1] + (p[1] - cz) * ax[0];
+        return 8 + 7 * tri(t * 2.2 + 0.15) + 1.5 * tri(s / 18);   // zig-zag "wave" ridges
+      };
+      const wallTex = canvasTex(256, 128, ctx => {
+        ctx.fillStyle = '#0b1b2a'; ctx.fillRect(0, 0, 256, 128);
+        ctx.fillStyle = '#1d3a52'; for (let x = 0; x < 256; x += 32) ctx.fillRect(x, 0, 3, 128);
+      }, ctx => {
+        const g = ctx.createLinearGradient(0, 70, 0, 128);
+        g.addColorStop(0, 'rgba(0,160,220,0)'); g.addColorStop(0.5, 'rgba(20,190,255,0.9)'); g.addColorStop(1, 'rgba(0,90,160,0.4)');
+        ctx.fillStyle = g; ctx.fillRect(0, 70, 256, 58);
+        ctx.fillStyle = '#000'; for (let x = 0; x < 256; x += 32) ctx.fillRect(x, 0, 3, 128);
       });
-      const rhSign1 = new THREE.Mesh(new THREE.PlaneGeometry(28, 4.4), new THREE.MeshBasicMaterial({ map: signTex1, side: THREE.DoubleSide }));
-      rhSign1.position.set(rhCenter[0] + 18, 9.8, rhCenter[1] + 12);
-      rhSign1.rotation.y = 0.4;
-      rhGroup.add(rhSign1);
-
-      // Canadian National 4-8-4 Steam Locomotive #6213
-      const locoGroup = new THREE.Group();
-      locoGroup.position.set(-170, 0, 288);
-      locoGroup.rotation.y = 0.35;
-
-      const boiler = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 10.5, 20), steelBlack);
-      boiler.rotation.x = Math.PI / 2;
-      boiler.position.set(0, 2.7, 0);
-      locoGroup.add(boiler);
-
-      const smokebox = new THREE.Mesh(new THREE.CylinderGeometry(1.27, 1.27, 2.8, 20), new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.5 }));
-      smokebox.rotation.x = Math.PI / 2;
-      smokebox.position.set(0, 2.7, 5.8);
-      locoGroup.add(smokebox);
-      const numPlate = new THREE.Mesh(new THREE.CircleGeometry(0.35, 16), brassMat);
-      numPlate.position.set(0, 2.7, 7.22);
-      locoGroup.add(numPlate);
-
-      // Headlight with warm illuminated beam
-      const hlMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.7, 14), brassMat);
-      hlMesh.rotation.x = Math.PI / 2;
-      hlMesh.position.set(0, 4.2, 6.2);
-      locoGroup.add(hlMesh);
-      const hlLens = new THREE.Mesh(new THREE.CircleGeometry(0.36, 16), new THREE.MeshBasicMaterial({ color: 0xffe899, toneMapped: false }));
-      hlLens.position.set(0, 4.2, 6.56);
-      locoGroup.add(hlLens);
-      const hlLight = new THREE.PointLight(0xffea99, 2.2, 28);
-      hlLight.position.set(0, 4.2, 7.5);
-      locoGroup.add(hlLight);
-
-      const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.36, 1.3, 12), steelBlack);
-      stack.position.set(0, 4.4, 5.2); locoGroup.add(stack);
-      const dome1 = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 8), steelBlack);
-      dome1.scale.set(1, 0.7, 1); dome1.position.set(0, 4.2, 2.8); locoGroup.add(dome1);
-      const dome2 = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 8), steelBlack);
-      dome2.scale.set(1, 0.7, 1); dome2.position.set(0, 4.2, -0.6); locoGroup.add(dome2);
-
-      const pilot = new THREE.Mesh(new THREE.ConeGeometry(1.6, 2.2, 4), steelBlack);
-      pilot.rotation.y = Math.PI / 4; pilot.rotation.x = Math.PI / 2;
-      pilot.position.set(0, 0.9, 7.2);
-      locoGroup.add(pilot);
-
-      // 8 Driving Wheels with side connecting rod
-      const wheelGeo = new THREE.CylinderGeometry(0.92, 0.92, 0.22, 18);
-      wheelGeo.rotateZ(Math.PI / 2);
-      [-1, 1].forEach(side => {
-        for (let w = 0; w < 4; w++) {
-          const wh = new THREE.Mesh(wheelGeo, steelBlack);
-          wh.position.set(side * 1.3, 0.92, -3.2 + w * 2.1);
-          locoGroup.add(wh);
-        }
-        const rod = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 6.8), brassMat);
-        rod.position.set(side * 1.48, 0.75, 0);
-        locoGroup.add(rod);
-      });
-
-      // Engineer's Cab with warm firebox glow
-      const cab = new THREE.Mesh(new THREE.BoxGeometry(3.1, 3.2, 3.6), steelBlack);
-      cab.position.set(0, 3.5, -5.8);
-      locoGroup.add(cab);
-      const fireLight = new THREE.PointLight(0xff4500, 1.8, 10);
-      fireLight.position.set(0, 2.5, -5.2);
-      locoGroup.add(fireLight);
-
-      // Tender Car with CANADIAN NATIONAL sign
-      const tender = new THREE.Mesh(new THREE.BoxGeometry(3.0, 3.2, 8.5), steelBlack);
-      tender.position.set(0, 2.8, -12.4);
-      locoGroup.add(tender);
-      const tenderSign = new THREE.Mesh(
-        new THREE.PlaneGeometry(7.2, 1.2),
-        new THREE.MeshBasicMaterial({ map: makeLabelTexture(['CANADIAN NATIONAL'], { bg: '#16181b', fg: '#f59e0b', borderColor: '#d97706', size: 54, w: 1024, h: 140 }), side: THREE.DoubleSide })
-      );
-      tenderSign.position.set(1.52, 3.2, -12.4);
-      tenderSign.rotation.y = Math.PI / 2;
-      locoGroup.add(tenderSign);
-
-      rhGroup.add(locoGroup);
-
-      // Vintage Red Canadian Pacific Wooden Caboose
-      const cabooseGroup = new THREE.Group();
-      cabooseGroup.position.set(-145, 0, 292);
-      cabooseGroup.rotation.y = 0.35;
-      const cabooseRed = new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.7 });
-      const cabBody = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.6, 9.2), cabooseRed);
-      cabBody.position.y = 2.4; cabooseGroup.add(cabBody);
-      const cupola = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.1, 2.6), cabooseRed);
-      cupola.position.set(0, 4.2, 0.5); cabooseGroup.add(cupola);
-      const platGeo = new THREE.BoxGeometry(2.8, 0.3, 1.4);
-      const yellowMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.5 });
-      const pFront = new THREE.Mesh(platGeo, yellowMat); pFront.position.set(0, 1.1, 5.2); cabooseGroup.add(pFront);
-      const pBack = new THREE.Mesh(platGeo, yellowMat); pBack.position.set(0, 1.1, -5.2); cabooseGroup.add(pBack);
-      rhGroup.add(cabooseGroup);
-
-      // Cedar Railway Water Tower
-      const wtGroup = new THREE.Group();
-      wtGroup.position.set(-230, 0, 275);
-      const woodTrestle = new THREE.MeshStandardMaterial({ color: 0x453123, roughness: 0.95 });
-      [-2.2, 2.2].forEach(lx => [-2.2, 2.2].forEach(lz => {
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.32, 9.5, 6), woodTrestle);
-        leg.position.set(lx, 4.75, lz); wtGroup.add(leg);
+      const walls = new THREE.Mesh(wallsGeo(F, 0, topH, 8, 16), new THREE.MeshStandardMaterial({
+        map: wallTex.t, emissive: 0xffffff, emissiveMap: wallTex.e, emissiveIntensity: 1.2, roughness: 0.25, metalness: 0.5, envMapIntensity: 0.6, side: THREE.DoubleSide
       }));
-      const cedarTank = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, 4.6, 24), new THREE.MeshStandardMaterial({ color: 0x6e4730, roughness: 0.9 }));
-      cedarTank.position.y = 11.8; wtGroup.add(cedarTank);
-      const tankRoof = new THREE.Mesh(new THREE.ConeGeometry(4.2, 2.4, 24), woodTrestle);
-      tankRoof.position.y = 15.3; wtGroup.add(tankRoof);
-      rhGroup.add(wtGroup);
-
-      // Don Station & Cabin D
-      const stn = new THREE.Mesh(new THREE.BoxGeometry(14, 6.5, 12), new THREE.MeshStandardMaterial({ color: 0x85754e, roughness: 0.8 }));
-      stn.position.set(-125.8, 3.25, 274.5);
-      const stnRoof = new THREE.Mesh(new THREE.ConeGeometry(11, 4.5, 4), new THREE.MeshStandardMaterial({ color: 0x223826, roughness: 0.8 }));
-      stnRoof.position.set(-125.8, 8.5, 274.5); stnRoof.rotation.y = Math.PI / 4;
-      rhGroup.add(stn); rhGroup.add(stnRoof);
-
-      const cabin = new THREE.Mesh(new THREE.BoxGeometry(10, 8.2, 8.5), new THREE.MeshStandardMaterial({ color: 0x943d2c, roughness: 0.8 }));
-      cabin.position.set(-117.8, 4.1, 248.3);
-      rhGroup.add(cabin);
-
-      scene.add(rhGroup);
-      addCircle(ttCenter[0], ttCenter[1], 19);
-      addSolid({ type: 'poly', pts: [[-260, 310], [-260, 395], [-140, 395], [-140, 310]], bb: [-260, 310, -140, 395], h: 12, name: 'John Street Roundhouse' });
-      addSolid({ type: 'poly', pts: [[-180, 280], [-160, 280], [-160, 300], [-180, 300]], bb: [-180, 280, -160, 300], h: 6, name: 'CN 6213 Locomotive' });
-    }
-
-    // ==========================================================================
-    // 3. FAIRMONT ROYAL YORK HOTEL & UNION STATION GREAT HALL
-    // ==========================================================================
-    {
-      const ryCenter = [178.2, -215.2];
-      const ryGroup = new THREE.Group();
-      ryGroup.position.set(ryCenter[0], 0, ryCenter[1]);
-
-      const stoneMat = new THREE.MeshStandardMaterial({ color: 0xc8c2b5, roughness: 0.75, metalness: 0.05 });
-      const chateauCopper = new THREE.MeshStandardMaterial({ color: 0x489b88, roughness: 0.6, metalness: 0.4 });
-
-      // Base Podium (storeys 1-4, h = 18m, 120m x 68m)
-      const podium = new THREE.Mesh(new THREE.BoxGeometry(120, 18, 68), stoneMat);
-      podium.position.y = 9; ryGroup.add(podium);
-
-      // Main Tower & H-shaped Wings (storeys 5-20, h = 72m)
-      const towerMain = new THREE.Mesh(new THREE.BoxGeometry(104, 54, 52), stoneMat);
-      towerMain.position.y = 45; ryGroup.add(towerMain);
-
-      // Upper Setbacks (storeys 21-24, h = 88m)
-      const setback = new THREE.Mesh(new THREE.BoxGeometry(78, 16, 38), stoneMat);
-      setback.position.y = 80; ryGroup.add(setback);
-
-      // Iconic Château Mansard Copper Roof (storeys 25-28, h = 100m)
-      const roof = new THREE.Mesh(new THREE.ConeGeometry(38, 16, 4), chateauCopper);
-      roof.scale.set(1.9, 1.0, 0.9); roof.position.y = 96; roof.rotation.y = Math.PI / 4;
-      ryGroup.add(roof);
-
-      // Giant Glowing Red Neon Rooftop Letters: "FAIRMONT ROYAL YORK"
-      const neonTex = makeLabelTexture(['FAIRMONT ROYAL YORK'], {
-        bg: '#111', fg: '#ff1a2e', borderColor: '#ff1a2e', size: 68, w: 1024, h: 140
-      });
-      const neonSignF = new THREE.Mesh(new THREE.PlaneGeometry(42, 5.8), new THREE.MeshBasicMaterial({ map: neonTex, side: THREE.DoubleSide }));
-      neonSignF.position.set(0, 106, 16); ryGroup.add(neonSignF);
-      const neonSignB = new THREE.Mesh(new THREE.PlaneGeometry(42, 5.8), new THREE.MeshBasicMaterial({ map: neonTex, side: THREE.DoubleSide }));
-      neonSignB.position.set(0, 106, -16); neonSignB.rotation.y = Math.PI; ryGroup.add(neonSignB);
-
-      // Front Street Entrance Marquee Canopy
-      const marquee = new THREE.Mesh(new THREE.BoxGeometry(32, 1.4, 8), new THREE.MeshStandardMaterial({ color: 0x3d3024, metalness: 0.8, roughness: 0.3 }));
-      marquee.position.set(0, 6, 36); ryGroup.add(marquee);
-      const mLight = new THREE.PointLight(0xffdf99, 2.5, 25);
-      mLight.position.set(0, 5.2, 38); ryGroup.add(mLight);
-
-      scene.add(ryGroup);
-      addSolid({ type: 'poly', pts: [[ryCenter[0]-60, ryCenter[1]-35], [ryCenter[0]+60, ryCenter[1]-35], [ryCenter[0]+60, ryCenter[1]+35], [ryCenter[0]-60, ryCenter[1]+35]], bb: [ryCenter[0]-60, ryCenter[1]-35, ryCenter[0]+60, ryCenter[1]+35], h: 100, name: 'Fairmont Royal York Hotel' });
-
-      // Union Station Great Hall Beaux-Arts Colonnade Portico
-      const usGroup = new THREE.Group();
-      usGroup.position.set(229.7, 0, -171.3);
-      // 22 Giant Fluted Doric Limestone Columns along Front St West facade
-      const colGeo = new THREE.CylinderGeometry(0.85, 0.95, 13.5, 16);
-      const colMat = new THREE.MeshStandardMaterial({ color: 0xd6d0c4, roughness: 0.7 });
-      const colonnadeMesh = new THREE.InstancedMesh(colGeo, colMat, 22);
-      const cMat4 = new THREE.Matrix4(), cPos = new THREE.Vector3();
-      for (let c = 0; c < 22; c++) {
-        cPos.set(-70 + c * 6.7, 6.75, 28);
-        cMat4.makeTranslation(cPos.x, cPos.y, cPos.z);
-        colonnadeMesh.setMatrixAt(c, cMat4);
+      const roofGeo = capGeo(F, topH);
+      // tint ~1/3 of the facets as blue glass, the rest as pale metal panels
+      const cols = [];
+      for (let i = 0; i < roofGeo.attributes.position.count; i += 3) {
+        const glass = hash(i * 0.37) < 0.33;
+        const c = glass ? [0.12, 0.35, 0.55] : [0.78, 0.82, 0.86];
+        for (let k = 0; k < 3; k++) cols.push(...c);
       }
-      usGroup.add(colonnadeMesh);
-
-      // Massive Classical Entablature & Pediment
-      const entablature = new THREE.Mesh(new THREE.BoxGeometry(152, 3.2, 6.5), colMat);
-      entablature.position.set(0, 15.1, 28); usGroup.add(entablature);
-      const pediment = new THREE.Mesh(new THREE.ConeGeometry(24, 6.2, 4), colMat);
-      pediment.rotation.y = Math.PI / 4; pediment.scale.set(3.2, 1, 0.3);
-      pediment.position.set(0, 19.5, 28); usGroup.add(pediment);
-
-      const hallLight = new THREE.PointLight(0xffdf88, 3.0, 50);
-      hallLight.position.set(0, 6, 22); usGroup.add(hallLight);
-
-      scene.add(usGroup);
+      roofGeo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+      const roof = new THREE.Mesh(roofGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.32, metalness: 0.55, envMapIntensity: 0.5, side: THREE.DoubleSide }));
+      [walls, roof].forEach(m => { m.castShadow = true; m.receiveShadow = true; scene.add(m); });
+      signOnEdge(landmarkFeet.ripleys, LM.cnTower, signMesh(["RIPLEY'S AQUARIUM OF CANADA"], 26, 3.4, { bg: '#032a3d', fg: '#7dd3fc', borderColor: '#0ea5e9', size: 62 }), 5.2, 14);
     }
 
-    // ==========================================================================
-    // 4. ROY THOMSON HALL & DAVID PECAUT SQUARE
-    // ==========================================================================
-    {
-      const rthCenter = [-229.0, -292.5];
-      const rthGroup = new THREE.Group();
-      rthGroup.position.set(rthCenter[0], 0, rthCenter[1]);
-
-      // Arthur Erickson's Inverted Glass Blossom Cone
-      const coneMat = new THREE.MeshPhysicalMaterial({
-        color: 0x90c4de,
-        roughness: 0.1,
-        metalness: 0.3,
-        transmission: 0.72,
-        transparent: true,
-        opacity: 0.88,
-        clearcoat: 1.0,
-        envMapIntensity: 0.95
-      });
-      const coneGeo = new THREE.CylinderGeometry(42, 30, 28, 36, 1, true);
-      const coneMesh = new THREE.Mesh(coneGeo, coneMat);
-      coneMesh.position.y = 14; rthGroup.add(coneMesh);
-
-      const roofDisc = new THREE.Mesh(new THREE.CircleGeometry(42, 36), new THREE.MeshStandardMaterial({ color: 0x2d333b, roughness: 0.7 }));
-      roofDisc.rotation.x = -Math.PI / 2; roofDisc.position.y = 28; rthGroup.add(roofDisc);
-
-      const ringMat = new THREE.MeshBasicMaterial({ color: 0xcfd6df });
-      [7, 14, 21, 28].forEach(ry => {
-        const rad = 30 + (ry / 28) * 12;
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(rad, 0.22, 6, 36), ringMat);
-        ring.rotation.x = Math.PI / 2; ring.position.y = ry; rthGroup.add(ring);
-      });
-
-      // Warm Concert Hall Acoustic Core glowing through glass
-      const coreMat = new THREE.MeshBasicMaterial({ color: 0xffba42 });
-      const core = new THREE.Mesh(new THREE.CylinderGeometry(20, 20, 22, 24), coreMat);
-      core.position.y = 11; rthGroup.add(core);
-      const hallLight = new THREE.PointLight(0xffbe44, 3.5, 75);
-      hallLight.position.set(0, 16, 0); rthGroup.add(hallLight);
-
-      const rthSign = new THREE.Mesh(
-        new THREE.PlaneGeometry(24, 3.8),
-        new THREE.MeshBasicMaterial({ map: makeLabelTexture(['ROY THOMSON HALL', 'TORONTO SYMPHONY ORCHESTRA'], { bg: '#0f172a', fg: '#f8fafc', borderColor: '#38bdf8', size: 48, w: 1024, h: 160 }), side: THREE.DoubleSide })
-      );
-      rthSign.position.set(0, 4.5, 34); rthGroup.add(rthSign);
-
-      scene.add(rthGroup);
-      addCircle(rthCenter[0], rthCenter[1], 35);
-
-      // David Pecaut Square Civic Plaza & Sunken Reflecting Pool
-      const sqCenter = [-245.0, -240.0];
-      const sqGroup = new THREE.Group();
-      sqGroup.position.set(sqCenter[0], 0, sqCenter[1]);
-
-      const poolRim = new THREE.Mesh(new THREE.BoxGeometry(34, 0.4, 16), new THREE.MeshStandardMaterial({ color: 0x5a5e66, roughness: 0.8 }));
-      poolRim.position.y = 0.2; sqGroup.add(poolRim);
-      const water = new THREE.Mesh(new THREE.PlaneGeometry(32, 14), new THREE.MeshPhongMaterial({ color: 0x0ea5e9, specular: 0x67e8f9, shininess: 95 }));
-      water.rotation.x = -Math.PI / 2; water.position.y = 0.35; sqGroup.add(water);
-      const waterLight = new THREE.PointLight(0x38bdf8, 2.0, 30);
-      waterLight.position.set(0, 2, 0); sqGroup.add(waterLight);
-
-      const grassMat = new THREE.MeshStandardMaterial({ color: 0x22543d, roughness: 0.9 });
-      const lawn1 = new THREE.Mesh(new THREE.BoxGeometry(24, 0.3, 10), grassMat);
-      lawn1.position.set(-18, 0.15, 18); sqGroup.add(lawn1);
-      const lawn2 = new THREE.Mesh(new THREE.BoxGeometry(24, 0.3, 10), grassMat);
-      lawn2.position.set(18, 0.15, 18); sqGroup.add(lawn2);
-
-      scene.add(sqGroup);
-    }
-
-    // ==========================================================================
-    // 5. GOODERHAM FLATIRON BUILDING & ST. LAWRENCE MARKET
-    // ==========================================================================
-    {
-      const fiCenter = [725.0, -489.0];
-      const fiGroup = new THREE.Group();
-      fiGroup.position.set(fiCenter[0], 0, fiCenter[1]);
-
-      const redBrick = new THREE.MeshStandardMaterial({ color: 0x9c3426, roughness: 0.85, metalness: 0.1 });
-      const copperCupola = new THREE.MeshStandardMaterial({ color: 0x459885, roughness: 0.5, metalness: 0.4 });
-      const bistroGreen = new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.7 });
-
-      // Wedge body: 5 storeys (h = 24m)
-      const wedgeSh = new THREE.Shape();
-      wedgeSh.moveTo(-24, -11);
-      wedgeSh.lineTo(16, -3.5);
-      wedgeSh.absarc(18, 0, 3.5, -Math.PI / 2, Math.PI / 2, false);
-      wedgeSh.lineTo(-24, 11);
-      wedgeSh.closePath();
-      const wedgeGeo = new THREE.ExtrudeGeometry(wedgeSh, { depth: 24, bevelEnabled: false });
-      wedgeGeo.rotateX(Math.PI / 2);
-      const wedge = new THREE.Mesh(wedgeGeo, redBrick);
-      wedge.position.y = 24; fiGroup.add(wedge);
-
-      // Conical Copper Turret / Cupola at eastern apex
-      const cupola = new THREE.Mesh(new THREE.ConeGeometry(4.2, 9.5, 16), copperCupola);
-      cupola.position.set(18, 28.5, 0); fiGroup.add(cupola);
-
-      // Ground Floor Flatiron Bistro
-      const bistro = new THREE.Mesh(new THREE.BoxGeometry(16, 4.5, 9), bistroGreen);
-      bistro.position.set(0, 2.25, 0); fiGroup.add(bistro);
-
-      const fiSign = new THREE.Mesh(
-        new THREE.PlaneGeometry(14, 2.2),
-        new THREE.MeshBasicMaterial({ map: makeLabelTexture(['THE GOODERHAM BUILDING', 'THE FLATIRON • EST. 1892'], { bg: '#1c1917', fg: '#facc15', borderColor: '#ca8a04', size: 52, w: 1024, h: 140 }), side: THREE.DoubleSide })
-      );
-      fiSign.position.set(0, 6.2, 7.5); fiGroup.add(fiSign);
-
-      // Berczy Dog Fountain behind the Flatiron
-      const fountain = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 1.2, 16), new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.5 }));
-      fountain.position.set(-36, 0.6, 0); fiGroup.add(fountain);
-      const fLight = new THREE.PointLight(0x38bdf8, 1.8, 18);
-      fLight.position.set(-36, 2, 0); fiGroup.add(fLight);
-
-      scene.add(fiGroup);
-      addSolid({ type: 'poly', pts: [[fiCenter[0]-25, fiCenter[1]-12], [fiCenter[0]+22, fiCenter[1]-4], [fiCenter[0]+22, fiCenter[1]+4], [fiCenter[0]-25, fiCenter[1]+12]], bb: [fiCenter[0]-25, fiCenter[1]-12, fiCenter[0]+22, fiCenter[1]+12], h: 26, name: 'Gooderham Building' });
-
-      // St. Lawrence Market (South Market): Front St E at Jarvis St
-      const mktCenter = [845.0, -530.0];
-      const mktGroup = new THREE.Group();
-      mktGroup.position.set(mktCenter[0], 0, mktCenter[1]);
-
-      const mktBody = new THREE.Mesh(new THREE.BoxGeometry(76, 14, 42), redBrick);
-      mktBody.position.y = 7; mktGroup.add(mktBody);
-
-      const barrelRoof = new THREE.Mesh(
-        new THREE.CylinderGeometry(21.2, 21.2, 76, 32, 1, false, 0, Math.PI),
-        new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.6, metalness: 0.5 })
-      );
-      barrelRoof.rotation.z = Math.PI / 2; barrelRoof.position.y = 14; mktGroup.add(barrelRoof);
-
-      const ped = new THREE.Mesh(new THREE.ConeGeometry(14, 6.5, 4), redBrick);
-      ped.rotation.y = Math.PI / 4; ped.scale.set(1.8, 1, 0.4);
-      ped.position.set(0, 17, 21.2); mktGroup.add(ped);
-
-      const clock = new THREE.Mesh(new THREE.CircleGeometry(1.8, 20), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-      clock.position.set(0, 16.5, 21.6); mktGroup.add(clock);
-
-      const mktSign = new THREE.Mesh(
-        new THREE.PlaneGeometry(36, 4.6),
-        new THREE.MeshBasicMaterial({ map: makeLabelTexture(['ST. LAWRENCE MARKET', 'SOUTH MARKET • FOUNDED 1803'], { bg: '#064e3b', fg: '#fde047', borderColor: '#eab308', size: 60, w: 1024, h: 140 }), side: THREE.DoubleSide })
-      );
-      mktSign.position.set(0, 11.5, 21.6); mktGroup.add(mktSign);
-
-      const awningMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.6 });
-      for (let st = -28; st <= 28; st += 14) {
-        const stall = new THREE.Mesh(new THREE.BoxGeometry(10, 3.2, 4.5), awningMat);
-        stall.position.set(st, 1.6, 26); mktGroup.add(stall);
+    // ---------------- 2. John Street Roundhouse + turntable + rail museum ----------------
+    if (landmarkFeet.roundhouse) {
+      const R = landmarkFeet.roundhouse;
+      // Circle through the INNER arc = turntable centre (Kasa fit, refined on the closest points)
+      function fitCircle(pts) {
+        let sx = 0, sz = 0, sxx = 0, szz = 0, sxz = 0, sx3 = 0, sz3 = 0, sxzz = 0, sxxz = 0;
+        pts.forEach(([x, z]) => { sx += x; sz += z; sxx += x * x; szz += z * z; sxz += x * z; sx3 += x * x * x; sz3 += z * z * z; sxzz += x * z * z; sxxz += x * x * z; });
+        const n = pts.length;
+        const A = [[sxx, sxz, sx], [sxz, szz, sz], [sx, sz, n]];
+        const B = [-(sx3 + sxzz), -(sxxz + sz3), -(sxx + szz)];
+        const det = m => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+        const D0 = det(A);
+        const col = (k) => A.map((row, i) => row.map((v, j) => (j === k ? B[i] : v)));
+        const D = det(col(0)) / D0, E = det(col(1)) / D0;
+        return [-D / 2, -E / 2];
       }
+      let C = fitCircle(R);
+      const inner = R.filter(p => Math.hypot(p[0] - C[0], p[1] - C[1]) < 40);
+      if (inner.length > 6) C = fitCircle(inner);
+      const rIn = Math.min(...R.map(p => Math.hypot(p[0] - C[0], p[1] - C[1])));
+      const TT = Math.min(18, rIn - 3);
+      const H = 9;
 
-      const mktLight = new THREE.PointLight(0xffeaad, 3.0, 50);
-      mktLight.position.set(0, 6, 0); mktGroup.add(mktLight);
+      // Facade textures: stall doors on the turntable side, arched windows elsewhere
+      const doorTex = canvasTex(256, 320, ctx => {
+        brickBase(ctx, 256, 320, '#7a3324');
+        ctx.fillStyle = '#5e2619'; ctx.fillRect(0, 0, 18, 320); ctx.fillRect(238, 0, 18, 320); // pilasters
+        ctx.fillStyle = '#2a1d15'; ctx.fillRect(40, 70, 176, 250);                             // timber doors
+        ctx.beginPath(); ctx.arc(128, 70, 88, Math.PI, 0); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; for (let x = 44; x < 216; x += 11) ctx.fillRect(x, 70, 2, 250);
+        ctx.fillStyle = '#3a2a1c'; ctx.fillRect(126, 70, 4, 250);
+        ctx.fillStyle = '#c9a36a'; ctx.beginPath(); ctx.arc(128, 70, 74, Math.PI, 0); ctx.fill();          // fanlight
+        ctx.strokeStyle = '#2a1d15'; ctx.lineWidth = 4; for (let k = 1; k < 6; k++) { ctx.beginPath(); ctx.moveTo(128, 70); ctx.lineTo(128 + Math.cos(Math.PI + k * Math.PI / 6) * 74, 70 + Math.sin(Math.PI + k * Math.PI / 6) * 74); ctx.stroke(); }
+      }, ctx => {
+        ctx.fillStyle = '#ffb55a'; ctx.beginPath(); ctx.arc(128, 70, 72, Math.PI, 0); ctx.fill();
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 5; for (let k = 1; k < 6; k++) { ctx.beginPath(); ctx.moveTo(128, 70); ctx.lineTo(128 + Math.cos(Math.PI + k * Math.PI / 6) * 74, 70 + Math.sin(Math.PI + k * Math.PI / 6) * 74); ctx.stroke(); }
+      });
+      const winTex = canvasTex(256, 320, ctx => {
+        brickBase(ctx, 256, 320, '#7a3324');
+        ctx.fillStyle = '#5e2619'; ctx.fillRect(0, 0, 18, 320); ctx.fillRect(238, 0, 18, 320);
+        [[64, 1], [192, 2]].forEach(([x, s]) => {
+          ctx.fillStyle = '#1a1512'; ctx.fillRect(x - 30, 120, 60, 120); ctx.beginPath(); ctx.arc(x, 120, 30, Math.PI, 0); ctx.fill();
+          ctx.fillStyle = '#d8c9a8'; ctx.fillRect(x - 36, 240, 72, 8);
+        });
+      }, ctx => {
+        [[64, 1], [192, 2]].forEach(([x], k) => {
+          if (hash(k * 9.1) > 0.4) { ctx.fillStyle = 'rgba(255,190,110,0.85)'; ctx.fillRect(x - 26, 124, 52, 112); ctx.beginPath(); ctx.arc(x, 124, 26, Math.PI, 0); ctx.fill(); }
+          ctx.fillStyle = '#000'; ctx.fillRect(x - 1, 96, 2, 140); ctx.fillRect(x - 26, 175, 52, 2);
+        });
+      });
+      const doorMat = new THREE.MeshStandardMaterial({ map: doorTex.t, emissive: 0xffffff, emissiveMap: doorTex.e, roughness: 0.85, envMapIntensity: 0.15 });
+      const winMat = new THREE.MeshStandardMaterial({ map: winTex.t, emissive: 0xffffff, emissiveMap: winTex.e, roughness: 0.85, envMapIntensity: 0.15 });
+      // Split walls by which way they face; doors are spaced exactly one stall (7.3 m) apart
+      const doorGB = new GeoBuilder(), winGB = new GeoBuilder();
+      const doorSpots = [];
+      for (let i = 0; i < R.length; i++) {
+        const a = R[i], b = R[(i + 1) % R.length];
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (len < 0.01) continue;
+        const nx = (b[1] - a[1]) / len, nz = -(b[0] - a[0]) / len;
+        const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2;
+        const toC = unit(C[0] - mx, C[1] - mz);
+        const facesTable = nx * toC[0] + nz * toC[1] > 0.6 && Math.hypot(mx - C[0], mz - C[1]) < rIn + 10;
+        const gb = facesTable ? doorGB : winGB;
+        const stall = 7.3, nStalls = Math.max(1, Math.round(len / stall)), uLen = facesTable ? nStalls : len / stall;
+        const q = [gb.vert(a[0], 0, a[1], nx, 0, nz, 0, 0), gb.vert(b[0], 0, b[1], nx, 0, nz, uLen, 0),
+                   gb.vert(b[0], H, b[1], nx, 0, nz, uLen, 1), gb.vert(a[0], H, a[1], nx, 0, nz, 0, 1)];
+        gb.quad(q[0], q[1], q[2], q[3]);
+        if (facesTable) for (let k = 0; k < nStalls; k++) {
+          const f = (k + 0.5) / nStalls;
+          doorSpots.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+        }
+      }
+      [[doorGB, doorMat], [winGB, winMat]].forEach(([gb, mat]) => {
+        if (!gb.pos.length) return;
+        const m = new THREE.Mesh(gb.build(), mat); m.castShadow = true; m.receiveShadow = true; scene.add(m);
+      });
+      // Low-pitched roof with a raised clerestory "monitor" running round the arc
+      const roofMat = new THREE.MeshStandardMaterial({ color: 0x2b2a2a, roughness: 0.8, envMapIntensity: 0.15 });
+      const roof = new THREE.Mesh(capGeo(R, () => H), roofMat); roof.receiveShadow = true; scene.add(roof);
+      const trim = new THREE.Mesh(wallsGeo(R, H, () => H + 0.6, 4, 1), new THREE.MeshStandardMaterial({ color: 0x4a3a30, roughness: 0.8 }));
+      scene.add(trim);
+      const stackGeo = new THREE.CylinderGeometry(0.45, 0.55, 3.2, 8);
+      const stacks = new THREE.InstancedMesh(stackGeo, new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.6, metalness: 0.5 }), doorSpots.length);
+      const sm = new THREE.Matrix4();
+      doorSpots.forEach((d, i) => {
+        const r = unit(d[0] - C[0], d[1] - C[1]);
+        sm.makeTranslation(d[0] + r[0] * 14, H + 1.6, d[1] + r[1] * 14);
+        stacks.setMatrixAt(i, pointInPoly(d[0] + r[0] * 14, d[1] + r[1] * 14, R) ? sm : new THREE.Matrix4().makeScale(0, 0, 0));
+      });
+      scene.add(stacks);
 
-      scene.add(mktGroup);
-      addSolid({ type: 'poly', pts: [[mktCenter[0]-40, mktCenter[1]-22], [mktCenter[0]+40, mktCenter[1]-22], [mktCenter[0]+40, mktCenter[1]+22], [mktCenter[0]-40, mktCenter[1]+22]], bb: [mktCenter[0]-40, mktCenter[1]-22, mktCenter[0]+40, mktCenter[1]+22], h: 22, name: 'St. Lawrence Market' });
+      // Turntable: recessed dark pit (no coplanar surfaces), ring rail, rotating bridge
+      if (TT > 8 && !pointInPoly(C[0], C[1], R)) {
+        const steel = new THREE.MeshStandardMaterial({ color: 0x24262a, roughness: 0.45, metalness: 0.8 });
+        const pit = new THREE.Mesh(new THREE.CircleGeometry(TT, 56), new THREE.MeshStandardMaterial({ color: 0x1b1a18, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+        pit.rotation.x = -Math.PI / 2; pit.position.set(C[0], 0.035, C[1]); pit.receiveShadow = true; scene.add(pit);
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(TT, 0.35, 8, 64), new THREE.MeshStandardMaterial({ color: 0x6d6a64, roughness: 0.8 }));
+        rim.rotation.x = Math.PI / 2; rim.position.set(C[0], 0.12, C[1]); scene.add(rim);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(TT - 1.2, 0.09, 6, 64), steel);
+        ring.rotation.x = Math.PI / 2; ring.position.set(C[0], 0.12, C[1]); scene.add(ring);
+        // lead track heads out of the open (north) mouth of the horseshoe
+        const [rcx, rcz] = centroid(R);
+        const lead = unit(C[0] - rcx, C[1] - rcz);
+        const bridge = new THREE.Group();
+        bridge.position.set(C[0], 0, C[1]);
+        bridge.rotation.y = Math.atan2(lead[0], lead[1]) + 0.4;
+        [-1.7, 1.7].forEach(x => { const g = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.3, TT * 2 - 0.6), steel); g.position.set(x, 0.75, 0); bridge.add(g); });
+        const deck = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.25, TT * 2 - 0.6), new THREE.MeshStandardMaterial({ color: 0x3a2e24, roughness: 0.9 }));
+        deck.position.y = 0.55; bridge.add(deck);
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.4, 2.2), new THREE.MeshStandardMaterial({ color: 0x8c2b1f, roughness: 0.7 }));
+        cabin.position.set(2.9, 1.6, TT - 3); bridge.add(cabin);
+        scene.add(bridge);
+        landmarkExtras.turntable = { C, bridge };
+
+        // Radial rails: one pair from the turntable to every stall door, plus the lead track
+        const railGeo = new THREE.BoxGeometry(0.12, 0.16, 1); railGeo.translate(0, 0.08, 0.5);
+        const tracks = doorSpots.map(d => ({ from: d, dir: unit(C[0] - d[0], C[1] - d[1]) }));
+        const leadStart = [C[0] + lead[0] * TT, C[1] + lead[1] * TT];
+        const rails = new THREE.InstancedMesh(railGeo, steel, (tracks.length + 1) * 2);
+        let ri = 0;
+        const rq = new THREE.Quaternion(), rs = new THREE.Vector3(), rp = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+        const addPair = (start, dir, L) => {
+          rq.setFromAxisAngle(up, Math.atan2(dir[0], dir[1]));
+          [-0.72, 0.72].forEach(g => {
+            rp.set(start[0] + -dir[1] * g, 0, start[1] + dir[0] * g);
+            sm.compose(rp, rq, rs.set(1, 1, L));
+            rails.setMatrixAt(ri++, sm);
+          });
+        };
+        tracks.forEach(t => {
+          const L = Math.hypot(t.from[0] - C[0], t.from[1] - C[1]) - TT;
+          if (L > 0.5) addPair(t.from, t.dir, L);
+        });
+        addPair(leadStart, lead, 60);
+        rails.count = ri;
+        scene.add(rails);
+
+        // ----- CN 6213 steam locomotive + caboose on the lead track (the user's models, re-sited) -----
+        const steelBlack = steel, brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.3, metalness: 0.85 });
+        const loco = new THREE.Group();
+        const boiler = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 10.5, 20), steelBlack); boiler.rotation.x = Math.PI / 2; boiler.position.set(0, 2.7, 0); loco.add(boiler);
+        const smokebox = new THREE.Mesh(new THREE.CylinderGeometry(1.27, 1.27, 2.8, 20), new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.5 })); smokebox.rotation.x = Math.PI / 2; smokebox.position.set(0, 2.7, 5.8); loco.add(smokebox);
+        const numPlate = new THREE.Mesh(new THREE.CircleGeometry(0.35, 16), brassMat); numPlate.position.set(0, 2.7, 7.22); loco.add(numPlate);
+        const hl = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.7, 14), brassMat); hl.rotation.x = Math.PI / 2; hl.position.set(0, 4.2, 6.2); loco.add(hl);
+        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.36, 16), new THREE.MeshBasicMaterial({ color: 0xffe899, toneMapped: false })); lens.position.set(0, 4.2, 6.56); loco.add(lens);
+        const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.36, 1.3, 12), steelBlack); stack.position.set(0, 4.4, 5.2); loco.add(stack);
+        [2.8, -0.6].forEach(z => { const d = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 8), steelBlack); d.scale.set(1, 0.7, 1); d.position.set(0, 4.2, z); loco.add(d); });
+        const pilot = new THREE.Mesh(new THREE.ConeGeometry(1.6, 2.2, 4), steelBlack); pilot.rotation.set(Math.PI / 2, Math.PI / 4, 0); pilot.position.set(0, 0.9, 7.2); loco.add(pilot);
+        const wheelGeo = new THREE.CylinderGeometry(0.92, 0.92, 0.22, 18); wheelGeo.rotateZ(Math.PI / 2);
+        [-1, 1].forEach(side => {
+          for (let w = 0; w < 4; w++) { const wh = new THREE.Mesh(wheelGeo, steelBlack); wh.position.set(side * 0.72, 0.92, -3.2 + w * 2.1); loco.add(wh); }
+          const rod = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 6.8), brassMat); rod.position.set(side * 0.9, 0.75, 0); loco.add(rod);
+        });
+        const cab = new THREE.Mesh(new THREE.BoxGeometry(3.1, 3.2, 3.6), steelBlack); cab.position.set(0, 3.5, -5.8); loco.add(cab);
+        const fire = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.8), new THREE.MeshBasicMaterial({ color: 0xff6a1a, toneMapped: false, side: THREE.DoubleSide })); fire.position.set(0, 2.6, -7.62); loco.add(fire);
+        const tender = new THREE.Mesh(new THREE.BoxGeometry(3.0, 3.2, 8.5), steelBlack); tender.position.set(0, 2.8, -12.4); loco.add(tender);
+        [-1, 1].forEach(s => { const ts = signMesh(['CANADIAN NATIONAL'], 7.2, 1.2, { bg: '#16181b', fg: '#f59e0b', borderColor: '#d97706', size: 54 }); ts.position.set(s * 1.52, 3.2, -12.4); ts.rotation.y = s * Math.PI / 2; loco.add(ts); });
+        const cabooseRed = new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.7 }), yellow = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.5 });
+        const caboose = new THREE.Group();
+        const cb = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.6, 9.2), cabooseRed); cb.position.y = 2.4; caboose.add(cb);
+        const cup = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.1, 2.6), cabooseRed); cup.position.set(0, 4.2, 0.5); caboose.add(cup);
+        [5.2, -5.2].forEach(z => { const pl = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.3, 1.4), yellow); pl.position.set(0, 1.1, z); caboose.add(pl); });
+        const yaw = Math.atan2(-lead[0], -lead[1]); // front of the loco faces the turntable
+        const place = (obj, dist, halfL) => {
+          const x = C[0] + lead[0] * dist, z = C[1] + lead[1] * dist;
+          obj.position.set(x, 0, z); obj.rotation.y = yaw; scene.add(obj);
+          const px = -lead[1] * 1.7, pz = lead[0] * 1.7, lx = lead[0] * halfL, lz = lead[1] * halfL;
+          addSolid({ type: 'poly', pts: [[x - lx - px, z - lz - pz], [x + lx - px, z + lz - pz], [x + lx + px, z + lz + pz], [x - lx + px, z - lz + pz]] });
+        };
+        place(loco, TT + 13, 12.5);
+        place(caboose, TT + 34, 5.5);
+
+        // Cedar water tower beside the Sand & Coaling Tower
+        const spot = findOpenSpot(C[0] + -lead[1] * 32, C[1] + lead[0] * 32, 0, 18, 5);
+        const wt = new THREE.Group(); wt.position.set(spot.x, 0, spot.z);
+        const wood = new THREE.MeshStandardMaterial({ color: 0x453123, roughness: 0.95 });
+        [-2.2, 2.2].forEach(lx => [-2.2, 2.2].forEach(lz => { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.32, 9.5, 6), wood); leg.position.set(lx, 4.75, lz); wt.add(leg); }));
+        const tank = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, 4.6, 24), new THREE.MeshStandardMaterial({ color: 0x6e4730, roughness: 0.9 })); tank.position.y = 11.8; wt.add(tank);
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(4.2, 2.4, 24), wood); cone.position.y = 15.3; wt.add(cone);
+        scene.add(wt); addCircle(spot.x, spot.z, 3.4);
+      }
+      // Sign over the central stall doors, facing the turntable
+      if (doorSpots.length) {
+        const mid = doorSpots[Math.floor(doorSpots.length / 2)];
+        const toC = unit(C[0] - mid[0], C[1] - mid[1]);
+        const s = signMesh(['STEAM WHISTLE BREWING', 'THE ROUNDHOUSE'], 16, 2.6, { bg: '#064e3b', fg: '#ecfdf5', borderColor: '#10b981', size: 52 });
+        s.position.set(mid[0] + toC[0] * 0.4, 7.6, mid[1] + toC[1] * 0.4);
+        s.rotation.y = Math.atan2(toC[0], toC[1]);
+        scene.add(s);
+      }
+    }
+
+    // ---------------- 3. Fairmont Royal York: green copper chateau roof on the real footprint ----------------
+    if (landmarkFeet.royalYork) {
+      const P = landmarkFeet.royalYork, y0 = 51, y1 = 63;
+      const copper = new THREE.MeshStandardMaterial({ color: 0x4f8a72, roughness: 0.5, metalness: 0.45, envMapIntensity: 0.6, side: THREE.DoubleSide });
+      const m = mansardGeo(P, y0, y1, 0.78);
+      const roof = new THREE.Mesh(m.geo, copper); roof.castShadow = true; scene.add(roof);
+      scene.add(new THREE.Mesh(capGeo(m.top, () => y1), copper));
+      // central spire-like ridge cap
+      const [cx, cz] = centroid(P), d = principalDir(P);
+      const ridge = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 7), copper);
+      ridge.position.set(cx, y1 + 2, cz); ridge.rotation.y = Math.atan2(d[0], d[1]) + Math.PI / 2; scene.add(ridge);
+      // lit dormer windows on the mansard
+      const dorm = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.4, 2.0), new THREE.MeshBasicMaterial({ color: 0xffd9a0, toneMapped: false }), 80);
+      let di = 0; const dm = new THREE.Matrix4(), dq = new THREE.Quaternion(), dv = new THREE.Vector3(), dsc = new THREE.Vector3(1, 1, 1), upv = new THREE.Vector3(0, 1, 0);
+      for (let i = 0; i < P.length && di < 80; i++) {
+        const a = P[i], b = P[(i + 1) % P.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const nx = (b[1] - a[1]) / L, nz = -(b[0] - a[0]) / L;
+        for (let t = 4; t < L - 3 && di < 80; t += 7) {
+          if (hash(i * 13 + t) < 0.35) continue;
+          const f = t / L, k = 0.93; // a little way up the slope
+          const px = cx + (a[0] + (b[0] - a[0]) * f - cx) * k, pz = cz + (a[1] + (b[1] - a[1]) * f - cz) * k;
+          dq.setFromAxisAngle(upv, Math.atan2(nx, nz));
+          dm.compose(dv.set(px + nx * 0.6, y0 + 3, pz + nz * 0.6), dq, dsc); dorm.setMatrixAt(di++, dm);
+        }
+      }
+      dorm.count = di; scene.add(dorm);
+    }
+
+    // ---------------- Union Station: Front Street colonnade, aligned to the real facade ----------------
+    if (unionPoly) {
+      const p = unionPoly.pts;
+      let bi = -1, bestZ = Infinity;
+      for (let i = 0; i < p.length; i++) {
+        const q = p[(i + 1) % p.length], len = Math.hypot(q[0] - p[i][0], q[1] - p[i][1]);
+        const nz = -(q[0] - p[i][0]) / len;
+        if (len > 40 && nz < -0.6 && (p[i][1] + q[1]) / 2 < bestZ) { bestZ = (p[i][1] + q[1]) / 2; bi = i; }
+      }
+      if (bi >= 0) {
+        const a = p[bi], b = p[(bi + 1) % p.length], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const dx = (b[0] - a[0]) / len, dz = (b[1] - a[1]) / len, nx = dz, nz = -dx;
+        const stone = new THREE.MeshStandardMaterial({ color: 0xcdbf9f, roughness: 0.7, envMapIntensity: 0.3 });
+        const span = Math.min(len * 0.8, 150), start = (len - span) / 2, nCol = Math.floor(span / 5.4);
+        const cols = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.75, 0.85, 13.2, 14), stone, nCol + 1);
+        const cm = new THREE.Matrix4();
+        for (let k = 0; k <= nCol; k++) {
+          const t = start + (span * k) / nCol;
+          cm.makeTranslation(a[0] + dx * t + nx * 3.2, 6.6, a[1] + dz * t + nz * 3.2);
+          cols.setMatrixAt(k, cm);
+        }
+        cols.castShadow = true; scene.add(cols);
+        const ent = new THREE.Mesh(new THREE.BoxGeometry(span + 3, 2.6, 4.6), stone);
+        const mt = start + span / 2;
+        ent.position.set(a[0] + dx * mt + nx * 2.4, 14.5, a[1] + dz * mt + nz * 2.4);
+        ent.rotation.y = Math.atan2(dx, dz) + Math.PI / 2; ent.castShadow = true; scene.add(ent);
+        for (let k = 0; k <= nCol; k += Math.max(1, Math.floor(nCol / 10))) {
+          const t = start + (span * k) / nCol;
+          addCircle(a[0] + dx * t + nx * 3.2, a[1] + dz * t + nz * 3.2, 0.9);
+        }
+      }
+    }
+
+    // ---------------- 4. Roy Thomson Hall: sloped glass "tent" sized to the real footprint ----------------
+    if (landmarkFeet.royThomson) {
+      const P = landmarkFeet.royThomson;
+      const [cx, cz] = centroid(P);
+      const rBase = Math.min(...subdividePoly(P, 2).map(p => Math.hypot(p[0] - cx, p[1] - cz))) * 0.98;
+      const h = 22;
+      const netTex = canvasTex(512, 128, ctx => {
+        ctx.fillStyle = '#16222e'; ctx.fillRect(0, 0, 512, 128);
+        ctx.strokeStyle = '#6b7f90'; ctx.lineWidth = 2;
+        for (let x = -128; x < 640; x += 16) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 64, 128); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x + 64, 0); ctx.lineTo(x, 128); ctx.stroke(); }
+      }, ctx => {
+        const g = ctx.createLinearGradient(0, 128, 0, 0);
+        g.addColorStop(0, 'rgba(255,190,120,0.75)'); g.addColorStop(1, 'rgba(255,170,90,0.12)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 128);
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+        for (let x = -128; x < 640; x += 16) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 64, 128); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x + 64, 0); ctx.lineTo(x, 128); ctx.stroke(); }
+      });
+      netTex.t.repeat.set(6, 1); netTex.e.repeat.set(6, 1);
+      const tent = new THREE.Mesh(new THREE.CylinderGeometry(rBase * 0.58, rBase, h, 64, 1, true), new THREE.MeshStandardMaterial({
+        map: netTex.t, emissive: 0xffffff, emissiveMap: netTex.e, emissiveIntensity: 0.9, roughness: 0.15, metalness: 0.7, envMapIntensity: 0.8, side: THREE.DoubleSide
+      }));
+      tent.position.set(cx, h / 2, cz); tent.castShadow = true; scene.add(tent);
+      const top = new THREE.Mesh(new THREE.CircleGeometry(rBase * 0.58, 64), new THREE.MeshStandardMaterial({ color: 0x2d333b, roughness: 0.7 }));
+      top.rotation.x = -Math.PI / 2; top.position.set(cx, h, cz); scene.add(top);
+      const s = signMesh(['ROY THOMSON HALL'], 16, 2.2, { bg: '#111318', fg: '#e5e7eb', borderColor: '#9ca3af', size: 70 });
+      const toKing = unit(0, -1);
+      s.position.set(cx + toKing[0] * (rBase + 1.5), 2.6, cz + toKing[1] * (rBase + 1.5)); s.rotation.y = Math.atan2(toKing[0], toKing[1]);
+      scene.add(s);
+    }
+
+    // ---------------- 5. Gooderham Building: mansard roof + round turret at the prow ----------------
+    if (landmarkExtras.gooderham) {
+      const { poly, nose, apex } = landmarkExtras.gooderham;
+      const slate = new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.55, metalness: 0.3, side: THREE.DoubleSide });
+      const m = mansardGeo(poly, 20.6, 25, 0.86);
+      scene.add(new THREE.Mesh(m.geo, slate)); scene.add(new THREE.Mesh(capGeo(m.top, () => 25), slate));
+      const tx = (nose[0] + apex[0]) / 2, tz = (nose[1] + apex[1]) / 2;
+      const brick = new THREE.MeshStandardMaterial({ color: 0x8a3b2b, roughness: 0.8 });
+      const turret = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 25, 24), brick); turret.position.set(tx, 12.5, tz); turret.castShadow = true; scene.add(turret);
+      const cup = new THREE.Mesh(new THREE.ConeGeometry(4.0, 8, 24), new THREE.MeshStandardMaterial({ color: 0x4f8a72, roughness: 0.45, metalness: 0.5 }));
+      cup.position.set(tx, 29, tz); scene.add(cup);
+      addCircle(tx, tz, 3.5);
+      if (landmarkExtras.berczy && lotIsFree(landmarkExtras.berczy)) {
+        const park = landmarkExtras.berczy;
+        const grass = new THREE.Mesh(capGeo(park, () => 0.07), new THREE.MeshStandardMaterial({ color: 0x23361f, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+        grass.receiveShadow = true; scene.add(grass);
+        const [px, pz] = centroid(park);
+        const basin = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 4.1, 0.9, 32), new THREE.MeshStandardMaterial({ color: 0x55585e, roughness: 0.7 }));
+        basin.position.set(px, 0.45, pz); scene.add(basin);
+        const water = new THREE.Mesh(new THREE.CircleGeometry(3.5, 32), new THREE.MeshStandardMaterial({ color: 0x0b3a52, roughness: 0.05, metalness: 0.2, emissive: 0x0a4a6a, emissiveIntensity: 0.6 }));
+        water.rotation.x = -Math.PI / 2; water.position.set(px, 0.92, pz); scene.add(water);
+        addCircle(px, pz, 4.1);
+      }
+    }
+
+    // ---------------- 6. St. Lawrence Market: long gable roof + 1845 pediment frontispiece on Front St ----------------
+    if (landmarkExtras.market) {
+      const { rect, west, south, K, W, D } = landmarkExtras.market;
+      const [cx, cz] = centroid(rect);
+      const rot = Math.atan2(south[0], south[1]);
+      const prof = new THREE.Shape(); prof.moveTo(-W / 2 - 0.6, 0); prof.lineTo(W / 2 + 0.6, 0); prof.lineTo(0, 10); prof.closePath();
+      const gable = new THREE.ExtrudeGeometry(prof, { depth: D + 1.2, bevelEnabled: false });
+      gable.translate(0, 0, -(D + 1.2) / 2);
+      const roof = new THREE.Mesh(gable, new THREE.MeshStandardMaterial({ color: 0x4a4f55, roughness: 0.5, metalness: 0.4, envMapIntensity: 0.5 }));
+      roof.position.set(cx, 12.6, cz); roof.rotation.y = rot; roof.castShadow = true; scene.add(roof);
+      // clerestory glazing strip along the ridge
+      const glow = new THREE.Mesh(new THREE.BoxGeometry(3, 1.2, D - 6), new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0xffc070, emissiveIntensity: 0.55 }));
+      glow.position.set(cx, 21.9, cz); glow.rotation.y = rot; scene.add(glow);
+      // Pediment pavilion centred on the Front Street face
+      const fm = [K[0] + west[0] * W / 2, K[1] + west[1] * W / 2];
+      const stone = new THREE.MeshStandardMaterial({ color: 0xc9b99a, roughness: 0.7, envMapIntensity: 0.3 });
+      const pav = new THREE.Group(); pav.position.set(fm[0] - south[0] * 1.2, 0, fm[1] - south[1] * 1.2); pav.rotation.y = rot;
+      const block = new THREE.Mesh(new THREE.BoxGeometry(20, 17, 4), stone); block.position.y = 8.5; pav.add(block);
+      const tri = new THREE.Shape(); tri.moveTo(-10.5, 0); tri.lineTo(10.5, 0); tri.lineTo(0, 5.5); tri.closePath();
+      const ped = new THREE.Mesh(new THREE.ExtrudeGeometry(tri, { depth: 4.2, bevelEnabled: false }), stone); ped.position.set(0, 17, -2.1); pav.add(ped);
+      const clock = new THREE.Mesh(new THREE.CircleGeometry(1.5, 32), new THREE.MeshBasicMaterial({ color: 0xfff6dc, toneMapped: false })); clock.position.set(0, 19.2, -2.15); clock.rotation.y = Math.PI; pav.add(clock);
+      const door = new THREE.Mesh(new THREE.PlaneGeometry(6, 7), new THREE.MeshBasicMaterial({ color: 0xffc77a, toneMapped: false })); door.position.set(0, 3.5, -2.05); door.rotation.y = Math.PI; pav.add(door);
+      const s = signMesh(['ST. LAWRENCE MARKET'], 16, 2.0, { bg: '#1f2937', fg: '#fde68a', borderColor: '#d97706', size: 70 }); s.position.set(0, 13.2, -2.06); s.rotation.y = Math.PI; pav.add(s);
+      pav.traverse(o => { if (o.isMesh) o.castShadow = true; });
+      scene.add(pav);
     }
 
     // ---------- Street lamps (instanced) + pooled real lights ----------

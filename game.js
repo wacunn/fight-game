@@ -2945,18 +2945,7 @@ function animate(now) {
     updatePlayer(simDt);
     applyCarKnockback(simDt);
     updateEnemies(simDt);
-    if (traffic) {
-      traffic.update(simDt, trafficHooks);
-      if (traffic.isSafeCrossing) {
-        const crossStatus = traffic.isSafeCrossing(player.pos.x, player.pos.z);
-        if (crossStatus.inCrosswalk && crossStatus.isSafe && !state.wasInSafeCrossing) {
-          state.wasInSafeCrossing = true;
-          showAnnouncement(`🚶 WALK SIGNAL ACTIVE • SAFE TO CROSS ${crossStatus.street.toUpperCase()}`);
-        } else if (!crossStatus.inCrosswalk) {
-          state.wasInSafeCrossing = false;
-        }
-      }
-    }
+    if (traffic) traffic.update(simDt, trafficHooks);
     updatePickups(simDt);
     updateParticles(simDt);
     updateCombatTimers(simDt);
