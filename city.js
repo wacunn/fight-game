@@ -991,7 +991,7 @@
         : name.indexOf('Fairmont Royal York') >= 0 ? 'royalYork' : null;
       if (lmKey) {
         landmarkFeet[lmKey] = pts;
-        if (lmKey !== 'unionStation') {
+        if (lmKey !== 'unionStation' && lmKey !== 'royalYork') {
           addSolid({ type: 'poly', pts, h: b.h || 20, name });
         }
         return;
@@ -1938,6 +1938,7 @@
       baseWalls.castShadow = baseWalls.receiveShadow = true;
       scene.add(baseWalls);
       scene.add(new THREE.Mesh(capGeo(basePoly, () => 18), trimStone));
+      addSolid({ type: 'poly', pts: basePoly, h: 52, name: 'Fairmont Royal York' });
 
       // 2. Stepped-back Main Hotel Block + East/West Chateau Wings (18m -> 52m)
       const midMain = makeBoxPoly(0, 0, 118, 44);

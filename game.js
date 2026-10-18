@@ -2103,46 +2103,46 @@ populateEnemies();
 // ============================================================================
 const MISSION_LANDMARKS = [
   {
+    id: 'royalYork',
+    name: 'Fairmont Royal York',
+    sub: 'Château Front Entrance (Front St)',
+    coords: [176.0, -172.0]
+  },
+  {
     id: 'unionStation',
     name: 'Union Station',
-    sub: 'Front St Great Hall Colonnade',
-    coords: [265.4, -128.9]
+    sub: 'Sir John A. Macdonald Plaza',
+    coords: [262.0, -158.0]
   },
   {
     id: 'royThomson',
     name: 'Roy Thomson Hall',
-    sub: 'Simcoe & King St Plaza',
-    coords: [-229.0, -292.5]
+    sub: 'King Street West Plaza',
+    coords: [-229.0, -338.0]
   },
   {
     id: 'stLawrence',
     name: 'St. Lawrence Market',
-    sub: 'South Market Esplanade',
-    coords: [956.7, -534.9]
+    sub: 'Front Street Clock Pavilion',
+    coords: [956.0, -455.0]
   },
   {
     id: 'ripleys',
     name: "Ripley's Aquarium",
     sub: 'Bremner Marine Walkway',
-    coords: [-216.6, 171.4]
+    coords: [-216.0, 215.0]
   },
   {
     id: 'roundhouse',
     name: 'John St Roundhouse',
     sub: 'Railway Museum Locomotive Yard',
-    coords: [-203.9, 349.5]
-  },
-  {
-    id: 'royalYork',
-    name: 'Fairmont Royal York',
-    sub: 'Château Front Entrance',
-    coords: [178.2, -215.2]
+    coords: [-204.0, 335.0]
   },
   {
     id: 'gooderham',
     name: 'Gooderham Flatiron',
     sub: 'Wellington Apex Plaza',
-    coords: [749.3, -491.7]
+    coords: [765.0, -491.0]
   },
   {
     id: 'pecautSquare',
@@ -2153,8 +2153,8 @@ const MISSION_LANDMARKS = [
   {
     id: 'rogersCentre',
     name: 'Rogers Centre',
-    sub: 'Blue Jays Way Gate 9',
-    coords: [-459.9, 246.6]
+    sub: 'Bremner Boulevard Gate',
+    coords: [-460.0, 390.0]
   }
 ];
 
@@ -2296,9 +2296,12 @@ function startNextMission() {
   // Pick random color
   const nextColor = MISSION_COLORS[Math.floor(Math.random() * MISSION_COLORS.length)];
 
-  // Find walkable coordinate right next to the landmark
-  const lmCoords = (city.landmarks && city.landmarks[nextLm.id]) || nextLm.coords;
-  let spot = city.findOpenSpot(lmCoords[0], lmCoords[1], 6, 26, 2.0);
+  // Find walkable coordinate right at the landmark's designated outdoor entrance or plaza
+  const lmCoords = nextLm.coords;
+  let spot = city.findOpenSpot(lmCoords[0], lmCoords[1], 1, 6, 1.8);
+  if (!spot || !city.canMoveTo(spot.x, spot.z, 0.8)) {
+    spot = { x: lmCoords[0], z: lmCoords[1] };
+  }
   if (city.isInsidePeaceZone(spot.x, spot.z)) {
     // If inside peace zone, search outward so mission box is outside peace sanctuary
     spot = city.findOpenSpot(lmCoords[0], lmCoords[1], 62, 85, 2.0);
