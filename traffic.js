@@ -140,6 +140,11 @@
 
     if (kind === 'taxi') {
       add('sign', roundedBoxGeo(0.5, 0.2, 0.22, 0.05), C(0xffd34d), -0.35, 1.55, 0);
+      // Beck Taxi signature teal roof panel and side body stripes (#0d9488)
+      add('trim', roundedBoxGeo(1.28, 0.06, W * 0.82, 0.02), C(0x0d9488), -0.35, 1.43, 0);
+      [-1, 1].forEach(s => {
+        add('trim', roundedBoxGeo(L * 0.65, 0.08, 0.02, 0.01), C(0x0d9488), 0, rideH + 0.38, s * (W / 2 + 0.006));
+      });
     }
     return { P, L, W, H: kind === 'van' ? 2.0 : (kind === 'suv' || kind === 'pickup') ? 1.8 : 1.45, kind };
   }
@@ -479,7 +484,7 @@
     cars.forEach(c => {
       c.slot = slotCounter[c.kind] = (slotCounter[c.kind] === undefined ? 0 : slotCounter[c.kind] + 1);
       c.design = designs[c.kind];
-      c.paint = c.kind === 'taxi' ? new THREE.Color(0xe39a14) : pickPaint();
+      c.paint = c.kind === 'taxi' ? new THREE.Color(0xf97316) : pickPaint();
       meshes[c.kind].paint.setColorAt(c.slot, c.paint);
       if (meshes[c.kind].tail) meshes[c.kind].tail.setColorAt(c.slot, new THREE.Color(0.55, 0.55, 0.55));
       c.lenScale = 0.97 + rnd() * 0.06;

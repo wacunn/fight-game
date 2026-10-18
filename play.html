@@ -1854,11 +1854,15 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       // fascia + backlit sign
       ctx.fillStyle = '#18181b'; ctx.fillRect(x + 10, 0, BAY - 10, 30);
       if (rnd > 0.25) {
+        const torontoBrands = ['TIMMY\'S', 'LCBO', 'SHOPPERS', 'A&W', 'RABBA', 'PIZZA PIZZA', 'SECOND CUP'];
+        const brandName = torontoBrands[Math.floor(hash(rnd * 11) * torontoBrands.length)];
         const col = signCols[Math.floor(hash(rnd * 9) * signCols.length)];
-        const sw = 40 + hash(rnd * 5) * 60;
         [ctx, ectx].forEach(k => {
           k.fillStyle = col;
-          for (let l = 0; l < sw; l += 9) k.fillRect(x + 18 + l, 9, 6, 12); // blocky "lettering"
+          k.font = 'bold 13px "Chakra Petch", Arial, sans-serif';
+          k.textAlign = 'center';
+          k.textBaseline = 'middle';
+          k.fillText(brandName, x + BAY / 2, 15);
         });
       }
       if (rnd < 0.18) {
@@ -2737,6 +2741,22 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         const nose = [tipP[0] + inward[0] * 2.6, tipP[1] + inward[1] * 2.6];
         landmarkExtras.gooderham = { poly: P, apex: nose, nose };
         LM.gooderham = [c[0], c[1]];
+        // Berczy Park: the green triangular plaza immediately west of the Gooderham Building
+        landmarkExtras.berczy = [
+          [c[0] - 18, c[1] - 12],
+          [c[0] - 68, c[1] - 8],
+          [c[0] - 65, c[1] + 18],
+          [c[0] - 16, c[1] + 14]
+        ];
+      }
+      if (!landmarkExtras.berczy && LM.gooderham) {
+        const [gcx, gcz] = LM.gooderham;
+        landmarkExtras.berczy = [
+          [gcx - 18, gcz - 12],
+          [gcx - 68, gcz - 8],
+          [gcx - 65, gcz + 18],
+          [gcx - 16, gcz + 14]
+        ];
       }
       wells.forEach(w => [0, w.pts.length - 1].forEach(wi => {
         const wp = w.pts[wi];
@@ -3726,16 +3746,96 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       const cup = new THREE.Mesh(new THREE.ConeGeometry(4.0, 8, 24), new THREE.MeshStandardMaterial({ color: 0x4f8a72, roughness: 0.45, metalness: 0.5 }));
       cup.position.set(tx, 29, tz); scene.add(cup);
       addCircle(tx, tz, 3.5);
-      if (landmarkExtras.berczy && lotIsFree(landmarkExtras.berczy)) {
+
+      // The Flatiron Trompe-l'œil Mural (Derek Michael Besant) on the western back wall facing Berczy Park
+      let minX = Infinity, backP1 = null, backP2 = null;
+      for (let i = 0; i < poly.length; i++) {
+        const p1 = poly[i], p2 = poly[(i + 1) % poly.length];
+        const mx = (p1[0] + p2[0]) / 2;
+        if (mx < minX) { minX = mx; backP1 = p1; backP2 = p2; }
+      }
+      if (backP1 && backP2) {
+        const bw = Math.hypot(backP2[0] - backP1[0], backP2[1] - backP1[1]);
+        const bAng = Math.atan2(backP2[0] - backP1[0], backP2[1] - backP1[1]);
+        const [mc, mctx] = canvas2(512, 512);
+        mctx.fillStyle = '#8a3b2b'; mctx.fillRect(0, 0, 512, 512);
+        // Painted faux-windows reflecting the streetscape
+        mctx.fillStyle = '#1c2430';
+        for (let row = 0; row < 5; row++) {
+          for (let col = 0; col < 4; col++) {
+            mctx.fillRect(60 + col * 105, 50 + row * 90, 65, 60);
+            mctx.strokeStyle = '#e2d5c3'; mctx.lineWidth = 4;
+            mctx.strokeRect(60 + col * 105, 50 + row * 90, 65, 60);
+          }
+        }
+        // Fluttering pinned canvas border (trompe-l'œil effect)
+        mctx.strokeStyle = '#e5e7eb'; mctx.lineWidth = 6;
+        mctx.strokeRect(20, 20, 472, 472);
+        // Golden corner pins
+        [[30, 30], [482, 30], [482, 482], [30, 482]].forEach(([px, py]) => {
+          mctx.fillStyle = '#d97706'; mctx.beginPath(); mctx.arc(px, py, 12, 0, Math.PI * 2); mctx.fill();
+        });
+        const muralTex = new THREE.CanvasTexture(mc);
+        const muralMesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(Math.max(12, bw * 0.88), 16),
+          new THREE.MeshStandardMaterial({ map: muralTex, roughness: 0.8, side: THREE.DoubleSide })
+        );
+        const mx = (backP1[0] + backP2[0]) / 2, mz = (backP1[1] + backP2[1]) / 2;
+        muralMesh.position.set(mx - 0.2, 10.5, mz);
+        muralMesh.rotation.y = bAng + Math.PI / 2;
+        scene.add(muralMesh);
+      }
+
+      // Upgraded Berczy Park "Dog Fountain" & Golden Bone
+      if (landmarkExtras.berczy) {
         const park = landmarkExtras.berczy;
         const grass = new THREE.Mesh(capGeo(park, () => 0.07), new THREE.MeshStandardMaterial({ color: 0x23361f, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
         grass.receiveShadow = true; scene.add(grass);
         const [px, pz] = centroid(park);
-        const basin = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 4.1, 0.9, 32), new THREE.MeshStandardMaterial({ color: 0x55585e, roughness: 0.7 }));
+        // Granite fountain basin
+        const basin = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.6, 0.9, 32), new THREE.MeshStandardMaterial({ color: 0x55585e, roughness: 0.7 }));
         basin.position.set(px, 0.45, pz); scene.add(basin);
-        const water = new THREE.Mesh(new THREE.CircleGeometry(3.5, 32), new THREE.MeshStandardMaterial({ color: 0x0b3a52, roughness: 0.05, metalness: 0.2, emissive: 0x0a4a6a, emissiveIntensity: 0.6 }));
+        const water = new THREE.Mesh(new THREE.CircleGeometry(3.9, 32), new THREE.MeshStandardMaterial({ color: 0x0b3a52, roughness: 0.05, metalness: 0.2, emissive: 0x0a4a6a, emissiveIntensity: 0.6 }));
         water.rotation.x = -Math.PI / 2; water.position.set(px, 0.92, pz); scene.add(water);
-        addCircle(px, pz, 4.1);
+
+        // Center Pedestal & Golden Bone on top
+        const ped = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.3, 1.8, 16), new THREE.MeshStandardMaterial({ color: 0x47494e, roughness: 0.6 }));
+        ped.position.set(px, 1.8, pz); scene.add(ped);
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.85, roughness: 0.25 });
+        const boneShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.4, 12), goldMat);
+        boneShaft.rotation.z = Math.PI / 2; boneShaft.position.set(px, 2.85, pz); scene.add(boneShaft);
+        [[-0.65, 0.2], [-0.65, -0.2], [0.65, 0.2], [0.65, -0.2]].forEach(([bx, by]) => {
+          const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 12), goldMat);
+          bulb.position.set(px + bx, 2.85 + by, pz);
+          scene.add(bulb);
+        });
+
+        // 12 Dog sculptures around the rim spouting glowing cyan water arcs toward the center
+        const dogMat = new THREE.MeshStandardMaterial({ color: 0x2b2d31, roughness: 0.5 });
+        const streamMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.9, roughness: 0.1 });
+        const numDogs = 12;
+        for (let di = 0; di < numDogs; di++) {
+          const ang = (di / numDogs) * Math.PI * 2;
+          const dx = px + Math.cos(ang) * 3.7, dz = pz + Math.sin(ang) * 3.7;
+          const dogBody = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.65, 0.35), dogMat);
+          dogBody.position.set(dx, 1.25, dz);
+          dogBody.rotation.y = -ang - Math.PI / 2;
+          scene.add(dogBody);
+          const dogHead = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.38), dogMat);
+          dogHead.position.set(dx - Math.cos(ang) * 0.2, 1.6, dz - Math.sin(ang) * 0.2);
+          dogHead.rotation.y = -ang - Math.PI / 2;
+          scene.add(dogHead);
+
+          // Glowing water arc from dog mouth toward center
+          const arcCurve = new THREE.QuadraticBezierCurve3(
+            new THREE.Vector3(dx - Math.cos(ang) * 0.35, 1.55, dz - Math.sin(ang) * 0.35),
+            new THREE.Vector3((dx + px) / 2, 2.2, (dz + pz) / 2),
+            new THREE.Vector3(px + Math.cos(ang) * 0.8, 1.1, pz + Math.sin(ang) * 0.8)
+          );
+          const arcGeo = new THREE.TubeGeometry(arcCurve, 8, 0.045, 6, false);
+          scene.add(new THREE.Mesh(arcGeo, streamMat));
+        }
+        addCircle(px, pz, 4.6);
       }
     }
 
@@ -3900,6 +4000,352 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       addCircle(c.x, c.z, 0.2);
     });
 
+    // ---------- 1. Streetcar Tracks along King St, Queen St & Spadina Ave ----------
+    const streetcarRoads = groundRoads.filter(r => {
+      const n = (MAP.roads[r.id] || {}).n || '';
+      return n.indexOf('King Street') >= 0 || n.indexOf('Queen Street') >= 0 || n.indexOf('Spadina Avenue') >= 0;
+    });
+    const trackMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.35, metalness: 0.85 });
+    streetcarRoads.forEach(r => {
+      for (let i = 0; i < r.pts.length - 1; i++) {
+        const p1 = r.pts[i], p2 = r.pts[i + 1];
+        const dx = p2[0] - p1[0], dz = p2[1] - p1[1];
+        const len = Math.hypot(dx, dz);
+        if (len < 1.0) continue;
+        const nx = -dz / len, nz = dx / len;
+        [-0.72, 0.72].forEach(off => {
+          const rx1 = p1[0] + nx * off, rz1 = p1[1] + nz * off;
+          const rx2 = p2[0] + nx * off, rz2 = p2[1] + nz * off;
+          const midX = (rx1 + rx2) / 2, midZ = (rz1 + rz2) / 2;
+          const ang = Math.atan2(dx, dz);
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, len), trackMat);
+          rail.position.set(midX, (r.y || 0) + 0.04, midZ);
+          rail.rotation.y = ang;
+          scene.add(rail);
+        });
+      }
+    });
+
+    // ---------- 2. Red & White TTC Flexity Outlook Streetcars ----------
+    function buildTTCStreetcar(x, z, rotY, routeText = '504 KING') {
+      const carGroup = new THREE.Group();
+      const redMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.35, metalness: 0.45 });
+      const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4, metalness: 0.2 });
+      const darkGlass = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.1, metalness: 0.85 });
+      const roofMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.65 });
+      const chromeMat = new THREE.MeshStandardMaterial({ color: 0xcfd4dc, metalness: 0.85, roughness: 0.3 });
+
+      // Articulated low-floor body (L = 18m, W = 2.45m, H = 3.3m)
+      const body = new THREE.Mesh(new THREE.BoxGeometry(2.45, 2.2, 18.0), redMat);
+      body.position.y = 1.6;
+      body.castShadow = true;
+      carGroup.add(body);
+
+      // Signature crisp white waistline accent band
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.48, 0.55, 18.02), whiteMat);
+      stripe.position.y = 1.25;
+      carGroup.add(stripe);
+
+      // Dark panoramic side windows
+      [-1, 1].forEach(side => {
+        const win = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.95, 16.5), darkGlass);
+        win.position.set(side * 1.23, 2.1, 0);
+        carGroup.add(win);
+      });
+
+      // Front & Rear curved windshields
+      [-1, 1].forEach(side => {
+        const fWin = new THREE.Mesh(new THREE.BoxGeometry(2.35, 1.1, 0.06), darkGlass);
+        fWin.position.set(0, 2.05, side * 9.01);
+        carGroup.add(fWin);
+      });
+
+      // Roof HVAC pods & equipment covers
+      const roofPod = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.45, 15.0), roofMat);
+      roofPod.position.set(0, 2.85, 0);
+      carGroup.add(roofPod);
+
+      // Articulated Pantograph assembly on roof
+      const pantoBase = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.25, 1.8), chromeMat);
+      pantoBase.position.set(0, 3.15, 4.0);
+      carGroup.add(pantoBase);
+      const pantoArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.2, 8), chromeMat);
+      pantoArm.rotation.x = Math.PI / 4;
+      pantoArm.position.set(0, 3.8, 3.4);
+      carGroup.add(pantoArm);
+      const pantoHead = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 0.25), chromeMat);
+      pantoHead.position.set(0, 4.5, 2.6);
+      carGroup.add(pantoHead);
+
+      // Glowing Amber Route Destination LED signs ("504 KING" / "510 SPADINA")
+      const routeSign = signMesh([routeText], 2.2, 0.45, { bg: '#000000', fg: '#ff9900', borderColor: '#332200', size: 68 });
+      routeSign.position.set(0, 2.7, 9.04);
+      carGroup.add(routeSign);
+      const rearSign = signMesh([routeText], 2.2, 0.45, { bg: '#000000', fg: '#ff9900', borderColor: '#332200', size: 68 });
+      rearSign.position.set(0, 2.7, -9.04);
+      rearSign.rotation.y = Math.PI;
+      carGroup.add(rearSign);
+
+      // Dual front LED headlights
+      const headL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.08), new THREE.MeshBasicMaterial({ color: 0xfff3d6 }));
+      headL.position.set(-0.75, 0.9, 9.02); carGroup.add(headL);
+      const headR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.08), new THREE.MeshBasicMaterial({ color: 0xfff3d6 }));
+      headR.position.set(0.75, 0.9, 9.02); carGroup.add(headR);
+
+      carGroup.position.set(x, 0.05, z);
+      carGroup.rotation.y = rotY;
+      scene.add(carGroup);
+      addSolid({ type: 'poly', pts: [[x - 1.2, z - 9], [x + 1.2, z - 9], [x + 1.2, z + 9], [x - 1.2, z + 9]], h: 3.5, name: 'TTC Streetcar' });
+      return carGroup;
+    }
+
+    // Place iconic TTC Flexity Streetcars along King Street West/East and Spadina
+    buildTTCStreetcar(45.0, -450.0, 1.86, '504 KING');
+    buildTTCStreetcar(-220.0, -370.0, 1.86, '504 KING');
+    buildTTCStreetcar(450.0, -570.0, 1.86, '504 KING');
+    buildTTCStreetcar(-605.0, -180.0, 0.28, '510 SPADINA');
+
+    // ---------- 3. Green & White Bi-Level GO Transit Train in Corridor ----------
+    let goTrainGroup = null;
+    let goTrainProgress = 0.35;
+    {
+      goTrainGroup = new THREE.Group();
+      const goGreen = new THREE.MeshStandardMaterial({ color: 0x136f38, roughness: 0.4, metalness: 0.3 });
+      const goWhite = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.45, metalness: 0.15 });
+      const winMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1, metalness: 0.8 });
+      const roofMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.6 });
+
+      function buildBiLevelCoach(carLength, isCabCar = false) {
+        const car = new THREE.Group();
+        // Octagonal bi-level double-deck body (W = 3.0m, H = 4.6m)
+        const lowerBody = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.8, carLength), goGreen);
+        lowerBody.position.y = 1.35;
+        car.add(lowerBody);
+
+        const midWaist = new THREE.Mesh(new THREE.BoxGeometry(3.02, 1.1, carLength), goWhite);
+        midWaist.position.y = 2.8;
+        car.add(midWaist);
+
+        const upperBody = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.2, carLength), goGreen);
+        upperBody.position.y = 3.95;
+        car.add(upperBody);
+
+        // Curved roof
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.45, carLength), roofMat);
+        roof.position.y = 4.75;
+        car.add(roof);
+
+        // Double-decker window bands
+        [-1, 1].forEach(side => {
+          const lowWins = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.6, carLength * 0.85), winMat);
+          lowWins.position.set(side * 1.52, 1.7, 0);
+          car.add(lowWins);
+          const upWins = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.65, carLength * 0.85), winMat);
+          upWins.position.set(side * 1.47, 3.8, 0);
+          car.add(upWins);
+        });
+
+        if (isCabCar) {
+          const cabNose = new THREE.Mesh(new THREE.BoxGeometry(2.95, 3.2, 2.0), goGreen);
+          cabNose.position.set(0, 2.2, carLength / 2 + 1.0);
+          car.add(cabNose);
+          const fGlass = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.1, 0.1), winMat);
+          fGlass.position.set(0, 3.3, carLength / 2 + 2.02);
+          car.add(fGlass);
+          const lightMat = new THREE.MeshBasicMaterial({ color: 0xfffbeb });
+          [-0.9, 0.9].forEach(lx => {
+            const ditch = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 12), lightMat);
+            ditch.rotation.x = Math.PI / 2;
+            ditch.position.set(lx, 1.2, carLength / 2 + 2.03);
+            car.add(ditch);
+          });
+          const topHead = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.1, 12), lightMat);
+          topHead.rotation.x = Math.PI / 2;
+          topHead.position.set(0, 4.3, carLength / 2 + 1.95);
+          car.add(topHead);
+        }
+        return car;
+      }
+
+      const carLen = 20.0;
+      const cab = buildBiLevelCoach(carLen, true);
+      cab.position.z = 32.0;
+      goTrainGroup.add(cab);
+
+      for (let ci = 0; ci < 3; ci++) {
+        const coach = buildBiLevelCoach(carLen, false);
+        coach.position.z = 10.0 - ci * (carLen + 1.2);
+        goTrainGroup.add(coach);
+      }
+      goTrainGroup.position.set(-150, 0.1, -22);
+      scene.add(goTrainGroup);
+    }
+
+    // ---------- 4. Green P Parking Signs (Toronto Parking Authority) ----------
+    const [gpc, gpctx] = canvas2(256, 256);
+    gpctx.fillStyle = '#15803d'; // Green P emerald disc
+    gpctx.beginPath(); gpctx.arc(128, 128, 122, 0, Math.PI * 2); gpctx.fill();
+    gpctx.lineWidth = 10; gpctx.strokeStyle = '#ffffff'; gpctx.stroke();
+    gpctx.fillStyle = '#ffffff';
+    gpctx.font = '900 160px "Chakra Petch", Arial, sans-serif';
+    gpctx.textAlign = 'center'; gpctx.textBaseline = 'middle';
+    gpctx.fillText('P', 128, 134);
+    const greenPTex = new THREE.CanvasTexture(gpc);
+    const greenPDiscGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.08, 24); greenPDiscGeo.rotateX(Math.PI / 2);
+    const greenPMat = new THREE.MeshStandardMaterial({ map: greenPTex, roughness: 0.5, metalness: 0.3 });
+    const greenPSpots = [
+      [780, -280, 0.4], [960, -380, 1.2], [520, -360, 2.1], [340, -420, 0.8],
+      [110, -240, 1.9], [-160, -80, 0.6], [-380, -20, 1.5], [680, -560, 0.2],
+      [-520, -230, 2.4], [180, 120, 1.1]
+    ];
+    greenPSpots.forEach(([gx, gz, gang]) => {
+      const g = new THREE.Group();
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.4, 8), new THREE.MeshLambertMaterial({ color: 0x1f2937 }));
+      post.position.y = 1.7; g.add(post);
+      const disc = new THREE.Mesh(greenPDiscGeo, greenPMat);
+      disc.position.y = 3.3; g.add(disc);
+      g.position.set(gx, 0, gz); g.rotation.y = gang;
+      scene.add(g);
+      addCircle(gx, gz, 0.2);
+    });
+
+    // ---------- 5. Bike Share Toronto Docks (Tangerine Orange & Green Bikes) ----------
+    function buildBikeShareDock(x, z, rotY) {
+      const group = new THREE.Group();
+      const rackMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6, metalness: 0.5 });
+      const orangeMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.35, metalness: 0.3 });
+      const greenMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.4 });
+      const blackMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
+
+      // Ground dock station plate
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 10.0), rackMat);
+      plate.position.y = 0.06; group.add(plate);
+
+      // Solar-powered payment kiosk tower
+      const kiosk = new THREE.Mesh(new THREE.BoxGeometry(0.7, 2.2, 0.8), rackMat);
+      kiosk.position.set(0, 1.1, 4.5); group.add(kiosk);
+      const solar = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 0.9), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.8 }));
+      solar.position.set(0, 2.3, 4.5); solar.rotation.x = 0.25; group.add(solar);
+
+      // 7 Docked Bicycles
+      for (let bi = 0; bi < 7; bi++) {
+        const bz = 3.2 - bi * 1.15;
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.7, 1.2), orangeMat);
+        frame.position.set(0, 0.55, bz); group.add(frame);
+        const fender = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.25, 0.4), greenMat);
+        fender.position.set(0, 0.65, bz - 0.45); group.add(fender);
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.06, 0.06), blackMat);
+        bar.position.set(0, 0.95, bz + 0.4); group.add(bar);
+        [-0.45, 0.45].forEach(wz => {
+          const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.06, 12), blackMat);
+          wheel.rotation.z = Math.PI / 2;
+          wheel.position.set(0, 0.32, bz + wz);
+          group.add(wheel);
+        });
+      }
+      group.position.set(x, 0, z);
+      group.rotation.y = rotY;
+      scene.add(group);
+      addCircle(x, z, 1.2);
+    }
+    buildBikeShareDock(268, -145, 1.86); // Front St at Union Station
+    buildBikeShareDock(-205, 335, 0.25); // Roundhouse Park / Bremner
+    buildBikeShareDock(-240, -270, 1.86); // Roy Thomson / King St
+    buildBikeShareDock(715, -485, 0.4); // Berczy Park
+
+    // ---------- 6. PATH Underground Entrance Pavilions (Iconic 4-colour sign) ----------
+    function buildPathEntrance(x, z, rotY) {
+      const pGroup = new THREE.Group();
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.6 });
+      const glassMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.45, roughness: 0.1, metalness: 0.5 });
+      const stairMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.8 });
+
+      // Steel canopy frame
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.2, 4.0), frameMat);
+      roof.position.y = 3.1; pGroup.add(roof);
+      [-2.1, 2.1].forEach(fx => {
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.0, 8), frameMat);
+        col.position.set(fx, 1.5, 1.9); pGroup.add(col);
+      });
+      // Glass enclosure walls
+      const glassBack = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2.8, 0.05), glassMat);
+      glassBack.position.set(0, 1.5, -1.95); pGroup.add(glassBack);
+      [-2.1, 2.1].forEach(side => {
+        const sideG = new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.8, 3.8), glassMat);
+        sideG.position.set(side, 1.5, 0); pGroup.add(sideG);
+      });
+      // Stairwell descent
+      const stairs = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.1, 3.4), stairMat);
+      stairs.position.set(0, 0.05, 0); pGroup.add(stairs);
+
+      // Multi-colour illuminated "P A T H" sign (Red P, Orange A, Blue T, Yellow H)
+      const [pc, pctx] = canvas2(512, 128);
+      pctx.fillStyle = '#0f172a'; pctx.fillRect(0, 0, 512, 128);
+      const pathLetters = [
+        { char: 'P', col: '#ef4444' }, // Red
+        { char: 'A', col: '#f97316' }, // Orange
+        { char: 'T', col: '#0284c7' }, // Blue
+        { char: 'H', col: '#eab308' }  // Yellow
+      ];
+      pctx.font = '900 78px "Chakra Petch", Arial, sans-serif';
+      pctx.textAlign = 'center'; pctx.textBaseline = 'middle';
+      pathLetters.forEach((l, i) => {
+        pctx.fillStyle = l.col;
+        pctx.fillText(l.char, 110 + i * 95, 64);
+      });
+      const pathTex = new THREE.CanvasTexture(pc);
+      const pSign = new THREE.Mesh(
+        new THREE.PlaneGeometry(3.8, 0.8),
+        new THREE.MeshStandardMaterial({ map: pathTex, roughness: 0.3, emissive: 0xffffff, emissiveMap: pathTex, emissiveIntensity: 0.65 })
+      );
+      pSign.position.set(0, 3.1, 2.02);
+      pGroup.add(pSign);
+
+      pGroup.position.set(x, 0, z);
+      pGroup.rotation.y = rotY;
+      scene.add(pGroup);
+      addCircle(x, z, 2.2);
+    }
+    buildPathEntrance(240, -180, 0.3); // Bay & Front (Union / Royal Bank Plaza)
+    buildPathEntrance(180, -475, 1.86); // King & Bay (Financial District core)
+    buildPathEntrance(-130, -370, 1.86); // King & University (St. Andrew)
+    buildPathEntrance(100, -290, 0.28); // Wellington & York (TD Centre)
+
+    // ---------- 7. Toronto Blue Bins & Construction Pylons ----------
+    const binSpots = [
+      [-260, 140], [-230, 160], [250, -160], [170, -210], [-210, -280],
+      [45, -450], [740, -480], [940, -520], [-190, 330], [270, 60]
+    ];
+    const binBlue = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.5 });
+    const binGrey = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.6 });
+    binSpots.forEach(([bx, bz]) => {
+      const g = new THREE.Group();
+      const bSide = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.1, 0.5), binBlue);
+      bSide.position.set(-0.36, 0.55, 0); g.add(bSide);
+      const gSide = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.1, 0.5), binGrey);
+      gSide.position.set(0.36, 0.55, 0); g.add(gSide);
+      g.position.set(bx, 0, bz);
+      scene.add(g);
+      addCircle(bx, bz, 0.5);
+    });
+
+    const pylonMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 });
+    const pylonBlack = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6 });
+    const pylonSpots = [
+      [220, -510], [222, -508], [224, -506],
+      [-50, -420], [-48, -418], [-46, -416],
+      [120, -110], [122, -108]
+    ];
+    pylonSpots.forEach(([px, pz]) => {
+      const pGroup = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.4), pylonBlack);
+      base.position.y = 0.025; pGroup.add(base);
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.75, 12), pylonMat);
+      cone.position.y = 0.4; pGroup.add(cone);
+      pGroup.position.set(px, 0, pz);
+      scene.add(pGroup);
+    });
+
     // ---------- Minimap pre-render ----------
     const MM_SCALE = 0.6; // px per metre
     const mmCanvas = document.createElement('canvas');
@@ -3941,6 +4387,15 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       // CN Tower colour-cycling LED lighting
       towerHue.setHSL((t * 0.02) % 1, 0.9, 0.5);
       towerMat.emissive.copy(towerHue);
+
+      // Animate GO Transit Train rolling through Union Station rail corridor
+      if (goTrainGroup) {
+        goTrainProgress = (goTrainProgress + dt * 0.022) % 1.0;
+        const gx = -420 + goTrainProgress * 920;
+        const gz = -14.0 - (gx - 100) * 0.16;
+        goTrainGroup.position.set(gx, 0.1, gz);
+        goTrainGroup.rotation.y = -Math.atan2(0.16, 1.0) + Math.PI / 2;
+      }
 
       // Animate Peace Zone Sanctuary
       if (peaceIconGroup) {
@@ -4373,6 +4828,11 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
 
     if (kind === 'taxi') {
       add('sign', roundedBoxGeo(0.5, 0.2, 0.22, 0.05), C(0xffd34d), -0.35, 1.55, 0);
+      // Beck Taxi signature teal roof panel and side body stripes (#0d9488)
+      add('trim', roundedBoxGeo(1.28, 0.06, W * 0.82, 0.02), C(0x0d9488), -0.35, 1.43, 0);
+      [-1, 1].forEach(s => {
+        add('trim', roundedBoxGeo(L * 0.65, 0.08, 0.02, 0.01), C(0x0d9488), 0, rideH + 0.38, s * (W / 2 + 0.006));
+      });
     }
     return { P, L, W, H: kind === 'van' ? 2.0 : (kind === 'suv' || kind === 'pickup') ? 1.8 : 1.45, kind };
   }
@@ -4712,7 +5172,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     cars.forEach(c => {
       c.slot = slotCounter[c.kind] = (slotCounter[c.kind] === undefined ? 0 : slotCounter[c.kind] + 1);
       c.design = designs[c.kind];
-      c.paint = c.kind === 'taxi' ? new THREE.Color(0xe39a14) : pickPaint();
+      c.paint = c.kind === 'taxi' ? new THREE.Color(0xf97316) : pickPaint();
       meshes[c.kind].paint.setColorAt(c.slot, c.paint);
       if (meshes[c.kind].tail) meshes[c.kind].tail.setColorAt(c.slot, new THREE.Color(0.55, 0.55, 0.55));
       c.lenScale = 0.97 + rnd() * 0.06;
@@ -6394,10 +6854,10 @@ const crateLocations = [
   { x: -6, z: -10, loot: 'HOOK', desc: 'BRASS KNUCKLES! UNLOCKED THUNDER HOOK [2]' },
   { x: 8, z: -10, loot: 'KICK', desc: 'COMBAT BOOTS! UNLOCKED MIGHTY KICK [3 / E]' },
   { x: 0, z: -30, loot: 'SLAM', desc: 'METEOR GAUNTLET! UNLOCKED JUMP SLAM [4 / JUMP+ATTACK]' },
-  { x: -28, z: -26, loot: 'HEALTH', desc: 'SUPER BERSERK STIMPACK! (+50 HP)' },
-  { x: 28, z: -26, loot: 'ARMOR', desc: 'SECURITY VEST! (+50 SHIELD)' },
+  { x: -28, z: -26, loot: 'HEALTH', desc: 'DOUBLE-DOUBLE & HONEY CRULLER! (+50 HP)' },
+  { x: 28, z: -26, loot: 'ARMOR', desc: 'LEAFS VINTAGE GOALIE PADS! (+50 SHIELD)' },
   { x: -28, z: 26, loot: 'SLAM', desc: 'METEOR ENERGY RECHARGED! (+150 SCORE)' },
-  { x: 28, z: 26, loot: 'HEALTH', desc: 'BERSERK STIMPACK! (+50 HP)' },
+  { x: 28, z: 26, loot: 'HEALTH', desc: 'STREET MEAT HOT DOG & POUTINE! (+50 HP)' },
   { x: 0, z: 20, loot: 'KICK', desc: 'REINFORCED STEEL BOOTS!' }
 ];
 
@@ -6419,10 +6879,10 @@ function spawnCrates() {
       { x: pzX + (pzR + 15), z: pzZ + 5, loot: 'HOOK', desc: 'BRASS KNUCKLES! UNLOCKED THUNDER HOOK [2]' },
       { x: pzX - (pzR + 15), z: pzZ - 5, loot: 'KICK', desc: 'COMBAT BOOTS! UNLOCKED MIGHTY KICK [3 / E]' },
       { x: pzX + 10, z: pzZ + (pzR + 18), loot: 'SLAM', desc: 'METEOR GAUNTLET! UNLOCKED JUMP SLAM [4 / JUMP+ATTACK]' },
-      { x: pzX - 10, z: pzZ - (pzR + 18), loot: 'HEALTH', desc: 'SUPER BERSERK STIMPACK! (+50 HP)' },
-      { x: -160, z: -55, loot: 'ARMOR', desc: 'SECURITY VEST! (+50 SHIELD)' },
+      { x: pzX - 10, z: pzZ - (pzR + 18), loot: 'HEALTH', desc: 'DOUBLE-DOUBLE & HONEY CRULLER! (+50 HP)' },
+      { x: -160, z: -55, loot: 'ARMOR', desc: 'LEAFS VINTAGE GOALIE PADS! (+50 SHIELD)' },
       { x: -220, z: -70, loot: 'SLAM', desc: 'METEOR ENERGY RECHARGED! (+150 SCORE)' },
-      { x: -140, z: 120, loot: 'HEALTH', desc: 'BERSERK STIMPACK! (+50 HP)' },
+      { x: -140, z: 120, loot: 'HEALTH', desc: 'STREET MEAT HOT DOG & POUTINE! (+50 HP)' },
       { x: 40, z: 130, loot: 'KICK', desc: 'REINFORCED STEEL BOOTS!' }
     ];
 
@@ -8532,6 +8992,38 @@ setupPostFX();
 let fpsCount = 0;
 let fpsTimer = 0;
 
+function updateNeighborhood() {
+  if (!city || !city.landmarks) return;
+  const p = player.pos;
+  const lms = city.landmarks;
+  let name = "DOWNTOWN TORONTO";
+
+  if (city.isInsidePeaceZone(p.x, p.z)) {
+    name = "CN TOWER PLAZA";
+  } else if (lms.roundhouse && Math.hypot(p.x - lms.roundhouse[0], p.z - lms.roundhouse[1]) < 65) {
+    name = "ROUNDHOUSE PARK";
+  } else if (lms.unionStation && Math.hypot(p.x - lms.unionStation[0], p.z - lms.unionStation[1]) < 85) {
+    name = "UNION STATION / CORE";
+  } else if (lms.royThomson && Math.hypot(p.x - lms.royThomson[0], p.z - lms.royThomson[1]) < 70) {
+    name = "ENTERTAINMENT DISTRICT";
+  } else if (lms.stLawrence && Math.hypot(p.x - lms.stLawrence[0], p.z - lms.stLawrence[1]) < 80) {
+    name = "ST. LAWRENCE MARKET";
+  } else if (lms.gooderham && Math.hypot(p.x - lms.gooderham[0], p.z - lms.gooderham[1]) < 65) {
+    name = "BERCZY PARK / FLATIRON";
+  } else if (p.z > 360) {
+    name = "HARBOURFRONT / QUAY";
+  } else if (p.x > 50 && p.x < 420 && p.z > -350 && p.z < 50) {
+    name = "FINANCIAL DISTRICT";
+  } else if (p.x < -200 && p.z < -100) {
+    name = "ENTERTAINMENT DISTRICT";
+  }
+
+  const locEl = document.getElementById('minimap-location');
+  if (locEl && locEl.innerText !== name) {
+    locEl.innerText = name;
+  }
+}
+
 function animate(now) {
   requestAnimationFrame(animate);
 
@@ -8615,6 +9107,7 @@ function animate(now) {
     }
     if (traffic) traffic.cars.forEach(c => dots.push({ x: c.vx, z: c.vz, c: '#e5e7eb', r: 2 }));
     city.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
+    updateNeighborhood();
 
     // 1. Distance & status to CN Tower (Peace Sanctuary)
     const towerDist = Math.round(Math.hypot(player.pos.x - city.landmarks.cnTower[0], player.pos.z - city.landmarks.cnTower[1]));

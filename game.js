@@ -1318,10 +1318,10 @@ const crateLocations = [
   { x: -6, z: -10, loot: 'HOOK', desc: 'BRASS KNUCKLES! UNLOCKED THUNDER HOOK [2]' },
   { x: 8, z: -10, loot: 'KICK', desc: 'COMBAT BOOTS! UNLOCKED MIGHTY KICK [3 / E]' },
   { x: 0, z: -30, loot: 'SLAM', desc: 'METEOR GAUNTLET! UNLOCKED JUMP SLAM [4 / JUMP+ATTACK]' },
-  { x: -28, z: -26, loot: 'HEALTH', desc: 'SUPER BERSERK STIMPACK! (+50 HP)' },
-  { x: 28, z: -26, loot: 'ARMOR', desc: 'SECURITY VEST! (+50 SHIELD)' },
+  { x: -28, z: -26, loot: 'HEALTH', desc: 'DOUBLE-DOUBLE & HONEY CRULLER! (+50 HP)' },
+  { x: 28, z: -26, loot: 'ARMOR', desc: 'LEAFS VINTAGE GOALIE PADS! (+50 SHIELD)' },
   { x: -28, z: 26, loot: 'SLAM', desc: 'METEOR ENERGY RECHARGED! (+150 SCORE)' },
-  { x: 28, z: 26, loot: 'HEALTH', desc: 'BERSERK STIMPACK! (+50 HP)' },
+  { x: 28, z: 26, loot: 'HEALTH', desc: 'STREET MEAT HOT DOG & POUTINE! (+50 HP)' },
   { x: 0, z: 20, loot: 'KICK', desc: 'REINFORCED STEEL BOOTS!' }
 ];
 
@@ -1343,10 +1343,10 @@ function spawnCrates() {
       { x: pzX + (pzR + 15), z: pzZ + 5, loot: 'HOOK', desc: 'BRASS KNUCKLES! UNLOCKED THUNDER HOOK [2]' },
       { x: pzX - (pzR + 15), z: pzZ - 5, loot: 'KICK', desc: 'COMBAT BOOTS! UNLOCKED MIGHTY KICK [3 / E]' },
       { x: pzX + 10, z: pzZ + (pzR + 18), loot: 'SLAM', desc: 'METEOR GAUNTLET! UNLOCKED JUMP SLAM [4 / JUMP+ATTACK]' },
-      { x: pzX - 10, z: pzZ - (pzR + 18), loot: 'HEALTH', desc: 'SUPER BERSERK STIMPACK! (+50 HP)' },
-      { x: -160, z: -55, loot: 'ARMOR', desc: 'SECURITY VEST! (+50 SHIELD)' },
+      { x: pzX - 10, z: pzZ - (pzR + 18), loot: 'HEALTH', desc: 'DOUBLE-DOUBLE & HONEY CRULLER! (+50 HP)' },
+      { x: -160, z: -55, loot: 'ARMOR', desc: 'LEAFS VINTAGE GOALIE PADS! (+50 SHIELD)' },
       { x: -220, z: -70, loot: 'SLAM', desc: 'METEOR ENERGY RECHARGED! (+150 SCORE)' },
-      { x: -140, z: 120, loot: 'HEALTH', desc: 'BERSERK STIMPACK! (+50 HP)' },
+      { x: -140, z: 120, loot: 'HEALTH', desc: 'STREET MEAT HOT DOG & POUTINE! (+50 HP)' },
       { x: 40, z: 130, loot: 'KICK', desc: 'REINFORCED STEEL BOOTS!' }
     ];
 
@@ -3456,6 +3456,38 @@ setupPostFX();
 let fpsCount = 0;
 let fpsTimer = 0;
 
+function updateNeighborhood() {
+  if (!city || !city.landmarks) return;
+  const p = player.pos;
+  const lms = city.landmarks;
+  let name = "DOWNTOWN TORONTO";
+
+  if (city.isInsidePeaceZone(p.x, p.z)) {
+    name = "CN TOWER PLAZA";
+  } else if (lms.roundhouse && Math.hypot(p.x - lms.roundhouse[0], p.z - lms.roundhouse[1]) < 65) {
+    name = "ROUNDHOUSE PARK";
+  } else if (lms.unionStation && Math.hypot(p.x - lms.unionStation[0], p.z - lms.unionStation[1]) < 85) {
+    name = "UNION STATION / CORE";
+  } else if (lms.royThomson && Math.hypot(p.x - lms.royThomson[0], p.z - lms.royThomson[1]) < 70) {
+    name = "ENTERTAINMENT DISTRICT";
+  } else if (lms.stLawrence && Math.hypot(p.x - lms.stLawrence[0], p.z - lms.stLawrence[1]) < 80) {
+    name = "ST. LAWRENCE MARKET";
+  } else if (lms.gooderham && Math.hypot(p.x - lms.gooderham[0], p.z - lms.gooderham[1]) < 65) {
+    name = "BERCZY PARK / FLATIRON";
+  } else if (p.z > 360) {
+    name = "HARBOURFRONT / QUAY";
+  } else if (p.x > 50 && p.x < 420 && p.z > -350 && p.z < 50) {
+    name = "FINANCIAL DISTRICT";
+  } else if (p.x < -200 && p.z < -100) {
+    name = "ENTERTAINMENT DISTRICT";
+  }
+
+  const locEl = document.getElementById('minimap-location');
+  if (locEl && locEl.innerText !== name) {
+    locEl.innerText = name;
+  }
+}
+
 function animate(now) {
   requestAnimationFrame(animate);
 
@@ -3539,6 +3571,7 @@ function animate(now) {
     }
     if (traffic) traffic.cars.forEach(c => dots.push({ x: c.vx, z: c.vz, c: '#e5e7eb', r: 2 }));
     city.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
+    updateNeighborhood();
 
     // 1. Distance & status to CN Tower (Peace Sanctuary)
     const towerDist = Math.round(Math.hypot(player.pos.x - city.landmarks.cnTower[0], player.pos.z - city.landmarks.cnTower[1]));
