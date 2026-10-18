@@ -636,6 +636,13 @@
       }
     }
 
+    // Inject the walkable plaza passages around CN Tower & East of Ripley's Aquarium to Lower Simcoe & Bremner
+    MAP.roads.push(
+      { t: 'pedestrian', w: 10, p: [-252.0, 120.0, -250.0, 185.0, -255.0, 259.0], n: 'CN Tower East Passage' },
+      { t: 'pedestrian', w: 10, p: [-160.0, 115.0, -155.0, 165.0, -150.1, 207.9], n: 'Aquarium East Plaza' },
+      { t: 'tertiary',   w: 9,  p: [-351.7, 369.4, -339.9, 343.5, -307.3, 313.8], n: 'Bremner Boulevard' }
+    );
+
     MAP.roads.forEach((r, ri) => {
       const pts = toPairs(r.p);
       if (pts.length < 2) return;
@@ -953,16 +960,36 @@
       const [cx, cz] = centroid(pts);
       const name = b.n || '';
 
-      // Hand-built landmarks get custom high-detail architectural models
-      if (Math.hypot(cx - LM.cnTower[0], cz - LM.cnTower[1]) < 40 && (name.indexOf('CN Tower') === 0 || (b.h && b.h > 300))) return;
-      if (name === 'CN Tower tickets') return;
-      // Custom-modelled landmarks keep their REAL footprint (for placement + collision)
+      // 1. Skip CN Tower, base plaza terraces, and elevated skywalks that trap the player
+      if (Math.hypot(cx - LM.cnTower[0], cz - LM.cnTower[1]) < 45 && (name.indexOf('CN Tower') === 0 || (b.h && b.h > 300))) return;
+      if (name === 'CN Tower tickets' || name === 'Skywalk') return;
+      // Skip the unnamed OSM CN Tower base plaza polygon & small pod that seal off the CN Tower / Aquarium passage
+      if (!name && cx > -365 && cx < -245 && cz > 100 && cz < 190) return;
+      // Skip the unnamed elevated Skywalk polygon east of the Aquarium that blocks Lower Simcoe / Bremner
+      if (!name && cx > -185 && cx < -50 && cz > -15 && cz < 110 && area < 3500) return;
+      // Skip the duplicate unnamed podium polygon that Z-fights with Fairmont Royal York Hotel
+      if (!name && Math.hypot(cx - LM.royalYork[0], cz - LM.royalYork[1]) < 35) return;
+      // Skip the unnamed northern attachment on Scotiabank Arena so the rail corridor gap is clean
+      if (!name && cx > 340 && cx < 410 && cz > -35 && cz < 15) return;
+
+      // 2. Shrink Ripley's Aquarium & Rogers Centre footprints slightly to guarantee a wide, walkable
+      // eastern passage between CN Tower and Ripley's Aquarium and around Rogers Centre
+      if (name.indexOf("Ripley's Aquarium") >= 0) {
+        pts = pts.map(p => [cx + (p[0] - cx) * 0.86 + 6.0, cz + (p[1] - cz) * 0.88]);
+      }
+
+      // Custom-modelled landmarks keep their footprint (for placement + collision)
       const lmKey = name.indexOf("Ripley's Aquarium") >= 0 ? 'ripleys'
         : name.indexOf('John Street Roundhouse') >= 0 ? 'roundhouse'
-        : name.indexOf('Roy Thomson') >= 0 ? 'royThomson' : null;
+        : name.indexOf('Roy Thomson') >= 0 ? 'royThomson'
+        : name === 'Union Station' ? 'unionStation'
+        : name === 'Scotiabank Arena' ? 'scotiabank'
+        : name.indexOf('Fairmont Royal York') >= 0 ? 'royalYork' : null;
       if (lmKey) {
         landmarkFeet[lmKey] = pts;
-        addSolid({ type: 'poly', pts, h: b.h || 10, name });
+        if (lmKey !== 'unionStation') {
+          addSolid({ type: 'poly', pts, h: b.h || 20, name });
+        }
         return;
       }
 
@@ -971,8 +998,6 @@
         // unknown height: plausible downtown default scaled by footprint
         h = 9 + hash(bi * 1.37) * (area > 2000 ? 40 : 18);
       }
-      if (name === 'Union Station') h = 26;
-      if (name.indexOf('Fairmont Royal York') >= 0) { h = 50; landmarkFeet.royalYork = pts; } // chateau roof added later
       // Gooderham & St. Lawrence Market: real footprint, roofs/turret/pediment added later
       const isGooderham = name.indexOf('Gooderham Building') === 0;
       const isMarket = name === 'St. Lawrence Market South' || (name === 'St. Lawrence Market' && !landmarkFeet.market);
@@ -981,7 +1006,7 @@
       h = Math.max(4, Math.min(h, 320));
 
       let style;
-      if (name === 'Union Station' || name.indexOf('Royal York') >= 0 || name.indexOf('Dominion Public') >= 0 || name.indexOf('Hockey Hall') >= 0) style = 'stone';
+      if (name.indexOf('Dominion Public') >= 0 || name.indexOf('Hockey Hall') >= 0) style = 'stone';
       else if (name.indexOf('Rogers Centre') === 0) style = 'concrete';
       else if (h > 90) style = hash(bi) > 0.45 ? 'glass' : 'dark';
       else if (h > 40) style = ['glass', 'office', 'dark'][Math.floor(hash(bi * 3.3) * 3)];
@@ -991,7 +1016,6 @@
         rogersPoly = { pts, cx, cz };
         h = 32; // walls; dome added separately
       }
-      if (name === 'Union Station') unionPoly = { pts, cx, cz, h };
 
       if (isGooderham || isMarket) style = 'brick';
       const tb = 0.78 + hash(bi * 2.71) * 0.4;
@@ -1516,28 +1540,6 @@
     peaceLight.position.set(peaceCenter[0], 8, peaceCenter[1]);
     scene.add(peaceLight);
 
-    // ---------- Union Station sign ----------
-    if (unionPoly) {
-      // northern-most edge = Front St facade
-      let best = 0, bestZ = Infinity;
-      const p = unionPoly.pts;
-      for (let i = 0; i < p.length; i++) {
-        const q = p[(i + 1) % p.length];
-        const len = Math.hypot(q[0] - p[i][0], q[1] - p[i][1]);
-        const mz = (p[i][1] + q[1]) / 2;
-        if (len > 30 && mz < bestZ) { bestZ = mz; best = i; }
-      }
-      const a = p[best], b = p[(best + 1) % p.length];
-      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      const nx = (b[1] - a[1]) / len, nz = -(b[0] - a[0]) / len;
-      const sign = new THREE.Mesh(
-        new THREE.PlaneGeometry(36, 5),
-        new THREE.MeshBasicMaterial({ map: makeLabelTexture(['UNION STATION'], { bg: '#1b1b1b', fg: '#ffe9b8', borderColor: '#c9a35b', size: 74, w: 1024, h: 140 }), side: THREE.DoubleSide })
-      );
-      sign.position.set((a[0] + b[0]) / 2 + nx * 0.6, 16, (a[1] + b[1]) / 2 + nz * 0.6);
-      sign.rotation.y = Math.atan2(nx, nz);
-      scene.add(sign);
-    }
 
     // ==========================================================================
     // HAND-BUILT LANDMARKS — modelled on their REAL OpenStreetMap footprints so
@@ -1889,65 +1891,167 @@
       }
     }
 
-    // ---------------- 3. Fairmont Royal York: green copper chateau roof on the real footprint ----------------
+    // ---------------- 3. Fairmont Royal York: stepped limestone massing + copper chateau roof ----------------
     if (landmarkFeet.royalYork) {
-      const P = landmarkFeet.royalYork, y0 = 51, y1 = 63;
-      const copper = new THREE.MeshStandardMaterial({ color: 0x4f8a72, roughness: 0.5, metalness: 0.45, envMapIntensity: 0.6, side: THREE.DoubleSide });
-      const m = mansardGeo(P, y0, y1, 0.78);
-      const roof = new THREE.Mesh(m.geo, copper); roof.castShadow = true; scene.add(roof);
-      scene.add(new THREE.Mesh(capGeo(m.top, () => y1), copper));
-      // central spire-like ridge cap
-      const [cx, cz] = centroid(P), d = principalDir(P);
-      const ridge = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 7), copper);
-      ridge.position.set(cx, y1 + 2, cz); ridge.rotation.y = Math.atan2(d[0], d[1]) + Math.PI / 2; scene.add(ridge);
-      // lit dormer windows on the mansard
-      const dorm = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.4, 2.0), new THREE.MeshBasicMaterial({ color: 0xffd9a0, toneMapped: false }), 80);
-      let di = 0; const dm = new THREE.Matrix4(), dq = new THREE.Quaternion(), dv = new THREE.Vector3(), dsc = new THREE.Vector3(1, 1, 1), upv = new THREE.Vector3(0, 1, 0);
-      for (let i = 0; i < P.length && di < 80; i++) {
-        const a = P[i], b = P[(i + 1) % P.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        const nx = (b[1] - a[1]) / L, nz = -(b[0] - a[0]) / L;
-        for (let t = 4; t < L - 3 && di < 80; t += 7) {
-          if (hash(i * 13 + t) < 0.35) continue;
-          const f = t / L, k = 0.93; // a little way up the slope
-          const px = cx + (a[0] + (b[0] - a[0]) * f - cx) * k, pz = cz + (a[1] + (b[1] - a[1]) * f - cz) * k;
-          dq.setFromAxisAngle(upv, Math.atan2(nx, nz));
-          dm.compose(dv.set(px + nx * 0.6, y0 + 3, pz + nz * 0.6), dq, dsc); dorm.setMatrixAt(di++, dm);
-        }
-      }
-      dorm.count = di; scene.add(dorm);
+      const P = landmarkFeet.royalYork;
+      const [cx, cz] = centroid(P);
+      const ax = principalDir(P); // East-West direction along Front St
+      const nx = -ax[1], nz = ax[0]; // North-South perpendicular
+      const stoneMat = facadeMats.stone;
+      const trimStone = new THREE.MeshStandardMaterial({ color: 0xc8bba0, roughness: 0.75, envMapIntensity: 0.25 });
+      const copper = new THREE.MeshStandardMaterial({ color: 0x437c66, roughness: 0.45, metalness: 0.45, envMapIntensity: 0.6, side: THREE.DoubleSide });
+
+      // Helper to build an oriented box footprint centered at (ox, oz) in Royal York local coords
+      const makeBoxPoly = (uOff, vOff, w, d) => {
+        const hw = w / 2, hd = d / 2;
+        const pts = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([u, v]) => [
+          cx + (u + uOff) * ax[0] + (v + vOff) * nx,
+          cz + (u + uOff) * ax[1] + (v + vOff) * nz
+        ]);
+        if (polyArea(pts) < 0) pts.reverse();
+        return pts;
+      };
+
+      // 1. Grand Beaux-Arts Podium Base (0 -> 18m)
+      const basePoly = makeBoxPoly(0, 0, 128, 56);
+      const baseWalls = new THREE.Mesh(wallsGeo(basePoly, 0, () => 18, TILE_W, TILE_H), stoneMat);
+      baseWalls.castShadow = baseWalls.receiveShadow = true;
+      scene.add(baseWalls);
+      scene.add(new THREE.Mesh(capGeo(basePoly, () => 18), trimStone));
+
+      // 2. Stepped-back Main Hotel Block + East/West Chateau Wings (18m -> 52m)
+      const midMain = makeBoxPoly(0, 0, 118, 44);
+      const midWalls = new THREE.Mesh(wallsGeo(midMain, 18, () => 52, TILE_W, TILE_H), stoneMat);
+      midWalls.castShadow = midWalls.receiveShadow = true;
+      scene.add(midWalls);
+      scene.add(new THREE.Mesh(capGeo(midMain, () => 52), trimStone));
+
+      // 3. Central Chateau Tower (52m -> 74m) + Steep Copper Mansard Roof (74m -> 88m)
+      const towerPoly = makeBoxPoly(0, 0, 68, 28);
+      const towerWalls = new THREE.Mesh(wallsGeo(towerPoly, 52, () => 74, TILE_W, TILE_H), stoneMat);
+      towerWalls.castShadow = towerWalls.receiveShadow = true;
+      scene.add(towerWalls);
+
+      const mRoof = mansardGeo(towerPoly, 74, 88, 0.55);
+      const roofMeshRY = new THREE.Mesh(mRoof.geo, copper);
+      roofMeshRY.castShadow = true;
+      scene.add(roofMeshRY);
+      scene.add(new THREE.Mesh(capGeo(mRoof.top, () => 88), copper));
+
+      // Two smaller copper hip roofs on the East & West wings
+      [-42, 42].forEach(uWing => {
+        const wingPoly = makeBoxPoly(uWing, 0, 28, 40);
+        const wm = mansardGeo(wingPoly, 52, 60, 0.65);
+        scene.add(new THREE.Mesh(wm.geo, copper));
+        scene.add(new THREE.Mesh(capGeo(wm.top, () => 60), copper));
+      });
+
+      // Illuminated "FAIRMONT ROYAL YORK" rooftop & entrance signage facing Union Station
+      const rySign = signMesh(['FAIRMONT ROYAL YORK'], 28, 3.6, { bg: '#16241f', fg: '#fde68a', borderColor: '#437c66', size: 64 });
+      signOnEdge(basePoly, LM.unionStation, rySign, 19.8, 30);
     }
 
-    // ---------------- Union Station: Front Street colonnade, aligned to the real facade ----------------
-    if (unionPoly) {
-      const p = unionPoly.pts;
-      let bi = -1, bestZ = Infinity;
-      for (let i = 0; i < p.length; i++) {
-        const q = p[(i + 1) % p.length], len = Math.hypot(q[0] - p[i][0], q[1] - p[i][1]);
-        const nz = -(q[0] - p[i][0]) / len;
-        if (len > 40 && nz < -0.6 && (p[i][1] + q[1]) / 2 < bestZ) { bestZ = (p[i][1] + q[1]) / 2; bi = i; }
+    // ---------------- 3b. Union Station: Setback Beaux-Arts Headhouse + Low Train Shed ----------------
+    if (landmarkFeet.unionStation) {
+      const rawP = landmarkFeet.unionStation;
+      const [ucx, ucz] = centroid(rawP);
+      // Direction along Front Street West (~17 deg grid)
+      const fDir = unit(398.4 - 126.4, -150.2 - (-136.7)); // East along Front St
+      // Perpendicular pointing SOUTH (away from Front St toward the tracks)
+      let sDir = [-fDir[1], fDir[0]];
+      if (sDir[1] < 0) sDir = [-sDir[0], -sDir[1]];
+
+      // Build the recessed Headhouse (set back 16m south of Front St curb to form Sir John A. Macdonald Plaza)
+      const SETBACK = 16.0;
+      const HEAD_W = 246.0, HEAD_D = 36.0, HEAD_H = 26.0;
+      // Anchor on Front Street edge center (~262, -168) and push south by SETBACK
+      const frontAnchor = [262.0 + sDir[0] * SETBACK, -168.0 + sDir[1] * SETBACK];
+      const headPoly = [
+        [frontAnchor[0] - fDir[0] * (HEAD_W / 2), frontAnchor[1] - fDir[1] * (HEAD_W / 2)],
+        [frontAnchor[0] + fDir[0] * (HEAD_W / 2), frontAnchor[1] + fDir[1] * (HEAD_W / 2)],
+        [frontAnchor[0] + fDir[0] * (HEAD_W / 2) + sDir[0] * HEAD_D, frontAnchor[1] + fDir[1] * (HEAD_W / 2) + sDir[1] * HEAD_D],
+        [frontAnchor[0] - fDir[0] * (HEAD_W / 2) + sDir[0] * HEAD_D, frontAnchor[1] - fDir[1] * (HEAD_W / 2) + sDir[1] * HEAD_D]
+      ];
+      if (polyArea(headPoly) < 0) headPoly.reverse();
+
+      const uStone = new THREE.MeshStandardMaterial({ color: 0xcdbf9f, roughness: 0.72, envMapIntensity: 0.3 });
+      const headMesh = new THREE.Mesh(wallsGeo(headPoly, 0, () => HEAD_H, TILE_W, TILE_H), facadeMats.stone);
+      headMesh.castShadow = headMesh.receiveShadow = true;
+      scene.add(headMesh);
+      scene.add(new THREE.Mesh(capGeo(headPoly, () => HEAD_H), uStone));
+      addSolid({ type: 'poly', pts: headPoly, h: HEAD_H, name: 'Union Station' });
+
+      // Beaux-Arts Colonnade along the recessed North Facade (facing the Plaza & Royal York)
+      const span = 140, nCol = 22;
+      const cols = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.8, 0.9, 14.0, 14), uStone, nCol + 1);
+      const cm = new THREE.Matrix4();
+      for (let k = 0; k <= nCol; k++) {
+        const u = -span / 2 + (span * k) / nCol;
+        const cxCol = frontAnchor[0] + fDir[0] * u - sDir[0] * 2.8;
+        const czCol = frontAnchor[1] + fDir[1] * u - sDir[1] * 2.8;
+        cm.makeTranslation(cxCol, 7.0, czCol);
+        cols.setMatrixAt(k, cm);
+        if (k % 2 === 0) addCircle(cxCol, czCol, 0.9);
       }
-      if (bi >= 0) {
-        const a = p[bi], b = p[(bi + 1) % p.length], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        const dx = (b[0] - a[0]) / len, dz = (b[1] - a[1]) / len, nx = dz, nz = -dx;
-        const stone = new THREE.MeshStandardMaterial({ color: 0xcdbf9f, roughness: 0.7, envMapIntensity: 0.3 });
-        const span = Math.min(len * 0.8, 150), start = (len - span) / 2, nCol = Math.floor(span / 5.4);
-        const cols = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.75, 0.85, 13.2, 14), stone, nCol + 1);
-        const cm = new THREE.Matrix4();
-        for (let k = 0; k <= nCol; k++) {
-          const t = start + (span * k) / nCol;
-          cm.makeTranslation(a[0] + dx * t + nx * 3.2, 6.6, a[1] + dz * t + nz * 3.2);
-          cols.setMatrixAt(k, cm);
-        }
-        cols.castShadow = true; scene.add(cols);
-        const ent = new THREE.Mesh(new THREE.BoxGeometry(span + 3, 2.6, 4.6), stone);
-        const mt = start + span / 2;
-        ent.position.set(a[0] + dx * mt + nx * 2.4, 14.5, a[1] + dz * mt + nz * 2.4);
-        ent.rotation.y = Math.atan2(dx, dz) + Math.PI / 2; ent.castShadow = true; scene.add(ent);
-        for (let k = 0; k <= nCol; k += Math.max(1, Math.floor(nCol / 10))) {
-          const t = start + (span * k) / nCol;
-          addCircle(a[0] + dx * t + nx * 3.2, a[1] + dz * t + nz * 3.2, 0.9);
-        }
-      }
+      cols.castShadow = true;
+      scene.add(cols);
+
+      // Union Station Sign on the recessed entablature
+      const uSign = signMesh(['UNION STATION'], 36, 4.8, { bg: '#1b1b1b', fg: '#ffe9b8', borderColor: '#c9a35b', size: 74 });
+      uSign.position.set(frontAnchor[0] - sDir[0] * 3.2, 17.5, frontAnchor[1] - sDir[1] * 3.2);
+      uSign.rotation.y = Math.atan2(-sDir[0], -sDir[1]);
+      scene.add(uSign);
+
+      // Low Train Shed + Glass Atrium South of the Headhouse (leaves a clear 25m corridor before Scotiabank Arena)
+      const shedStart = [frontAnchor[0] + sDir[0] * (HEAD_D + 2), frontAnchor[1] + sDir[1] * (HEAD_D + 2)];
+      const SHED_W = 230.0, SHED_D = 72.0, SHED_H = 11.5;
+      const shedPoly = [
+        [shedStart[0] - fDir[0] * (SHED_W / 2), shedStart[1] - fDir[1] * (SHED_W / 2)],
+        [shedStart[0] + fDir[0] * (SHED_W / 2), shedStart[1] + fDir[1] * (SHED_W / 2)],
+        [shedStart[0] + fDir[0] * (SHED_W / 2) + sDir[0] * SHED_D, shedStart[1] + fDir[1] * (SHED_W / 2) + sDir[1] * SHED_D],
+        [shedStart[0] - fDir[0] * (SHED_W / 2) + sDir[0] * SHED_D, shedStart[1] - fDir[1] * (SHED_W / 2) + sDir[1] * SHED_D]
+      ];
+      if (polyArea(shedPoly) < 0) shedPoly.reverse();
+      const shedMat = new THREE.MeshStandardMaterial({ color: 0x3b4d44, roughness: 0.5, metalness: 0.4, envMapIntensity: 0.4 });
+      scene.add(new THREE.Mesh(wallsGeo(shedPoly, 0, () => SHED_H, 16, 12), shedMat));
+      scene.add(new THREE.Mesh(capGeo(shedPoly, () => SHED_H), shedMat));
+      // Glass atrium skylight crown over the train shed
+      const [scx, scz] = centroid(shedPoly);
+      const atrium = new THREE.Mesh(
+        new THREE.BoxGeometry(110, 5.5, 28),
+        new THREE.MeshStandardMaterial({ color: 0x88ccee, emissive: 0x1e4e68, emissiveIntensity: 0.7, roughness: 0.2, metalness: 0.6 })
+      );
+      atrium.position.set(scx, SHED_H + 2.75, scz);
+      atrium.rotation.y = Math.atan2(fDir[0], fDir[1]) + Math.PI / 2;
+      scene.add(atrium);
+      addSolid({ type: 'poly', pts: shedPoly, h: SHED_H, name: 'Union Station Train Shed' });
+    }
+
+    // ---------------- 3c. Scotiabank Arena: Modern Curved Glass/Cladding Bowl + Domed Roof ----------------
+    if (landmarkFeet.scotiabank) {
+      const P = landmarkFeet.scotiabank;
+      const [cx, cz] = centroid(P);
+      const H = 28;
+      const arenaMat = new THREE.MeshStandardMaterial({
+        color: 0x4b5563, roughness: 0.4, metalness: 0.45, envMapIntensity: 0.5, side: THREE.DoubleSide
+      });
+      const walls = new THREE.Mesh(wallsGeo(P, 0, () => H, 16, 16), arenaMat);
+      walls.castShadow = walls.receiveShadow = true;
+      scene.add(walls);
+      scene.add(new THREE.Mesh(capGeo(P, () => H), new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.7 })));
+
+      // Elliptical arched arena roof dome
+      const arenaDome = new THREE.Mesh(
+        new THREE.SphereGeometry(52, 36, 14, 0, Math.PI * 2, 0, Math.PI / 2),
+        new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.45, metalness: 0.35 })
+      );
+      arenaDome.scale.set(1.15, 0.32, 0.95);
+      arenaDome.position.set(cx + 8, H, cz + 12);
+      scene.add(arenaDome);
+
+      // Glowing Scotiabank Arena signage facing Maple Leaf Square (west) and Bay St (east)
+      const sbaSignW = signMesh(['SCOTIABANK ARENA'], 26, 3.6, { bg: '#7f1d1d', fg: '#ffffff', borderColor: '#ef4444', size: 68 });
+      signOnEdge(P, [cx - 100, cz + 20], sbaSignW, 16, 18);
     }
 
     // ---------------- 4. Roy Thomson Hall: sloped glass "tent" sized to the real footprint ----------------
