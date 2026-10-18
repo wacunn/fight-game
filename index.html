@@ -133,17 +133,40 @@
     <!-- Tourist Telescope Fullscreen Overlay -->
     <div id="telescope-overlay" class="hidden">
       <div class="telescope-vignette"></div>
+      
+      <!-- Top Telemetry Header -->
+      <div class="telescope-telemetry-top" id="tele-telemetry">
+        <span class="tele-item" id="tele-compass">🧭 BEARING: 180° S</span>
+        <span class="tele-sep">•</span>
+        <span class="tele-item">ALTITUDE: 348m</span>
+        <span class="tele-sep">•</span>
+        <span class="tele-item" id="tele-zoom-label">MAGNIFICATION: 5X WIDE</span>
+      </div>
+
+      <!-- Precision Optical Reticle -->
       <div class="telescope-reticle">
         <div class="crosshair-h"></div>
         <div class="crosshair-v"></div>
         <div class="reticle-circle-1"></div>
         <div class="reticle-circle-2"></div>
+        <div class="reticle-ticks-h"></div>
+        <div class="reticle-ticks-v"></div>
       </div>
+
+      <!-- Bottom Interactive Info & Zoom Card -->
       <div class="telescope-card">
         <div class="telescope-dir" id="telescope-dir">🔭 SOUTH LOOKOUT • 180°</div>
         <div class="telescope-name" id="telescope-name">LAKE ONTARIO & TORONTO ISLANDS</div>
         <div class="telescope-desc" id="telescope-desc">Panoramic southern vista across Toronto Harbour, Billy Bishop Airport, and the Toronto Islands.</div>
-        <div class="telescope-exit-hint">PRESS [V] OR MOVE TO EXIT TELESCOPE VIEW</div>
+        
+        <div class="telescope-zoom-controls">
+          <button class="tele-zoom-btn active" id="tele-zoom-btn-0" onclick="setTelescopeZoom(0)">5X WIDE</button>
+          <button class="tele-zoom-btn" id="tele-zoom-btn-1" onclick="setTelescopeZoom(1)">10X MEDIUM</button>
+          <button class="tele-zoom-btn" id="tele-zoom-btn-2" onclick="setTelescopeZoom(2)">20X EXTREME</button>
+          <button class="tele-exit-btn" id="tele-exit-btn" onclick="exitTelescope()">✕ EXIT VIEWFINDER [ESC]</button>
+        </div>
+        
+        <div class="telescope-exit-hint">SWIVEL MOUSE TO AIM • CLICK / SCROLL TO ZOOM • [E] / [V] / [ESC] TO EXIT</div>
       </div>
     </div>
 

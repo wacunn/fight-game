@@ -1409,7 +1409,25 @@
     // Level 2: 348m - Main 360° Indoor Lookout Deck & Telescopes
     // ======================================================================
 
-    // Glass & architectural materials for observation deck
+    // Helper canvas banner generator for crisp architectural signage
+    function makeMarqueeCanvasMesh(text, width, height, glowColor) {
+      const [c, ctx] = canvas2(512, 128);
+      ctx.fillStyle = '#050c18';
+      ctx.fillRect(0, 0, 512, 128);
+      ctx.strokeStyle = glowColor || '#38bdf8';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(4, 4, 504, 120);
+      ctx.fillStyle = glowColor || '#38bdf8';
+      ctx.font = 'bold 26px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 256, 64);
+      const tex = new THREE.CanvasTexture(c);
+      const mat = new THREE.MeshBasicMaterial({ map: tex, fog: false });
+      return new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
+    }
+
+    // Glass & architectural materials for observation deck & 360 restaurant
     const deckGlassMat = new THREE.MeshStandardMaterial({
       color: 0x9be8ff, roughness: 0.03, metalness: 0.88,
       transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false
@@ -1418,122 +1436,186 @@
       color: 0x50d4ff, roughness: 0.05, metalness: 0.82,
       transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false
     });
-    const deckFloor1Mat = new THREE.MeshStandardMaterial({ color: 0x1f242d, roughness: 0.5, metalness: 0.3 });
+    const deckFloor1Mat = new THREE.MeshStandardMaterial({ color: 0x1e242c, roughness: 0.6, metalness: 0.25 }); // slate / granite
     const deckFloor2Mat = new THREE.MeshStandardMaterial({ color: 0xd6d1c4, roughness: 0.25, metalness: 0.15 }); // polished warm terrazzo
+    const concreteCoreMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.72, metalness: 0.12 }); // solid reinforced concrete core
+    const stainlessMat = new THREE.MeshStandardMaterial({ color: 0xcfd8dc, roughness: 0.2, metalness: 0.85 });
+    const woodFloorMat = new THREE.MeshStandardMaterial({ color: 0x3e2723, roughness: 0.45, metalness: 0.05 });
+    const burgundyCarpetMat = new THREE.MeshStandardMaterial({ color: 0x581c24, roughness: 0.88, metalness: 0.02 });
+    const whiteLinenMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.75, metalness: 0.02 });
+    const amberCandleMat = new THREE.MeshBasicMaterial({ color: 0xffb703, fog: false });
+    const wineBottleMat = new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.12, metalness: 0.4, transparent: true, opacity: 0.85 });
+    const brassGoldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.25, metalness: 0.85 });
     const steelDarkMat = new THREE.MeshStandardMaterial({ color: 0x161a22, roughness: 0.35, metalness: 0.85 });
     const chromeRailMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.15, metalness: 0.95 });
     const glowingRingMat = new THREE.MeshBasicMaterial({ color: 0xfff0c8, fog: false });
     const neonCyanMat = new THREE.MeshBasicMaterial({ color: 0x00f5ff, fog: false });
     const neonGoldMat = new THREE.MeshBasicMaterial({ color: 0xffb703, fog: false });
 
+    // Procedural caution hazard stripes for Glass Floor perimeter
+    function makeHazardTapeCanvas() {
+      const [cv, ctx] = canvas2(256, 32);
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(0, 0, 256, 32);
+      ctx.fillStyle = '#18181b';
+      for (let x = -32; x < 288; x += 32) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x + 16, 0);
+        ctx.lineTo(x + 32, 32);
+        ctx.lineTo(x + 16, 32);
+        ctx.closePath();
+        ctx.fill();
+      }
+      const tex = new THREE.CanvasTexture(cv);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(12, 1);
+      return tex;
+    }
+    const hazardStripeMat = new THREE.MeshBasicMaterial({ map: makeHazardTapeCanvas() });
+
     // 1. Pod lower cone (openEnded: true so looking straight down through the glass floor looks through empty air to Toronto!)
-    const podLower = new THREE.Mesh(new THREE.CylinderGeometry(22.2, 7, 14, 32, 1, true), podMat);
+    const podLower = new THREE.Mesh(new THREE.CylinderGeometry(23.5, 7.5, 15, 32, 1, true), podMat);
     podLower.position.y = 333;
     tower.add(podLower);
 
     // Outer architectural glowing rings (preserves iconic illuminated pod silhouette from street level)
-    [340.8, 347.0, 353.4].forEach(ry => {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(22.5, 0.32, 8, 36), glowingRingMat);
+    [340.8, 346.8, 352.8, 358.5].forEach(ry => {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(23.8, 0.32, 8, 36), glowingRingMat);
       ring.rotation.x = Math.PI / 2;
       ring.position.y = ry;
       tower.add(ring);
     });
 
-    // 2. 360° Panoramic Floor-to-Ceiling Glass Band (wraps both observation floors)
-    const podGlassBand = new THREE.Mesh(new THREE.CylinderGeometry(22.5, 22.5, 12.6, 48, 1, true), deckGlassMat);
-    podGlassBand.position.y = 347.0;
+    // 2. 360° Panoramic Floor-to-Ceiling Glass Band (wraps all 3 observation & restaurant floors)
+    const podGlassBand = new THREE.Mesh(new THREE.CylinderGeometry(23.6, 23.6, 18.0, 48, 1, true), deckGlassMat);
+    podGlassBand.position.y = 349.5;
     tower.add(podGlassBand);
 
     // 48 slim vertical architectural mullions around perimeter
-    const mullionGeo = new THREE.BoxGeometry(0.18, 12.6, 0.35);
+    const mullionGeo = new THREE.BoxGeometry(0.18, 18.0, 0.35);
     for (let i = 0; i < 48; i++) {
       const ma = (i * Math.PI * 2) / 48;
       const mullion = new THREE.Mesh(mullionGeo, steelDarkMat);
-      mullion.position.set(Math.cos(ma) * 22.45, 347.0, Math.sin(ma) * 22.45);
+      mullion.position.set(Math.cos(ma) * 23.55, 349.5, Math.sin(ma) * 23.55);
       mullion.rotation.y = -ma;
       tower.add(mullion);
     }
 
     // 3. Pod upper roof and mechanical levels
-    const podMid = new THREE.Mesh(new THREE.CylinderGeometry(21, 22.5, 6, 32, 1, true), podMat);
-    podMid.position.y = 356.5;
+    const podMid = new THREE.Mesh(new THREE.CylinderGeometry(21.5, 23.6, 6, 32, 1, true), podMat);
+    podMid.position.y = 361.5;
     tower.add(podMid);
-    const podTop = new THREE.Mesh(new THREE.CylinderGeometry(9, 21, 10, 32), podMat);
-    podTop.position.y = 364.5;
+    const podTop = new THREE.Mesh(new THREE.CylinderGeometry(9, 21.5, 10, 32), podMat);
+    podTop.position.y = 369.5;
     tower.add(podTop);
 
     // ----------------------------------------------------------------------
-    // LEVEL 1: 342m - THE ICONIC GLASS FLOOR & OUTDOOR SKYTERRACE
+    // SOLID CENTRAL ELEVATOR CORE (Hexagonal concrete core r = 6.6m, y = 338 to 362m)
+    // In the real CN Tower, the middle is 100% solid concrete containing 6 elevator shafts!
+    // ----------------------------------------------------------------------
+    const coreMesh = new THREE.Mesh(new THREE.CylinderGeometry(6.6, 6.6, 24, 6), concreteCoreMat);
+    coreMesh.position.y = 350;
+    tower.add(coreMesh);
+
+    // Architectural stainless steel corner pilasters on central core
+    for (let i = 0; i < 6; i++) {
+      const ca = (i * Math.PI * 2) / 6;
+      const pilaster = new THREE.Mesh(new THREE.BoxGeometry(0.35, 24, 0.35), stainlessMat);
+      pilaster.position.set(Math.cos(ca) * 6.55, 350, Math.sin(ca) * 6.55);
+      pilaster.rotation.y = -ca;
+      tower.add(pilaster);
+    }
+
+    // ----------------------------------------------------------------------
+    // LEVEL 1: 342m - THE AUTHENTIC SOUTH GLASS FLOOR & OUTDOOR SKYTERRACE
+    // In the real CN Tower, the Glass Floor is on the South section only!
     // ----------------------------------------------------------------------
     const level1Group = new THREE.Group();
     level1Group.position.y = 342.0;
 
-    // A) Inner solid deck walkway (r: 4.8 to 9.8)
-    const f1InnerGeo = new THREE.RingGeometry(4.8, 9.8, 36);
-    f1InnerGeo.rotateX(-Math.PI / 2);
-    const f1Inner = new THREE.Mesh(f1InnerGeo, deckFloor1Mat);
-    level1Group.add(f1Inner);
+    // A) Solid Dark Granite / Slate Promenade Floor (North, East, West arc from -0.25pi to 1.25pi)
+    const f1SolidGeo = new THREE.RingGeometry(6.6, 23.2, 48, 1, -Math.PI * 0.25, Math.PI * 1.5);
+    f1SolidGeo.rotateX(-Math.PI / 2);
+    const f1SolidMesh = new THREE.Mesh(f1SolidGeo, deckFloor1Mat);
+    level1Group.add(f1SolidMesh);
 
-    // B) THE GLASS FLOOR RING (r: 9.8 to 16.2)
-    // Looking through this ring gives an unbroken 342-meter straight vertical drop to Toronto below!
-    const glassFloorGeo = new THREE.RingGeometry(9.8, 16.2, 48);
+    // In South quadrant (z < 0): solid walkways wrap inner and outer edges of Glass Floor
+    // Inner solid walkway (r: 6.6 to 9.5)
+    const f1SouthInnerGeo = new THREE.RingGeometry(6.6, 9.5, 24, 1, -Math.PI * 0.75, Math.PI * 0.5);
+    f1SouthInnerGeo.rotateX(-Math.PI / 2);
+    level1Group.add(new THREE.Mesh(f1SouthInnerGeo, deckFloor1Mat));
+    // Outer SkyTerrace walkway (r: 17.5 to 23.2)
+    const f1SouthOuterGeo = new THREE.RingGeometry(17.5, 23.2, 24, 1, -Math.PI * 0.75, Math.PI * 0.5);
+    f1SouthOuterGeo.rotateX(-Math.PI / 2);
+    level1Group.add(new THREE.Mesh(f1SouthOuterGeo, deckFloor1Mat));
+
+    // B) THE ICONIC GLASS FLOOR (South Section Only: r = 9.5 to 17.5, a = -0.75pi to -0.25pi)
+    // 12 individual 2.5-inch thick laminated glass panes with direct 342m drop through open cone!
+    const glassFloorGeo = new THREE.RingGeometry(9.5, 17.5, 24, 1, -Math.PI * 0.75, Math.PI * 0.5);
     glassFloorGeo.rotateX(-Math.PI / 2);
     const glassFloorMesh = new THREE.Mesh(glassFloorGeo, glassFloorMat);
     level1Group.add(glassFloorMesh);
 
-    // Supporting structural steel radial grid under the glass floor
-    const steelBeamGeo = new THREE.BoxGeometry(0.14, 0.16, 6.4);
-    for (let i = 0; i < 24; i++) {
-      const ba = (i * Math.PI * 2) / 24;
-      const beam = new THREE.Mesh(steelBeamGeo, steelDarkMat);
-      beam.position.set(Math.cos(ba) * 13.0, -0.08, Math.sin(ba) * 13.0);
-      beam.rotation.y = -ba + Math.PI / 2;
-      level1Group.add(beam);
+    // Supporting structural steel radial joists under the glass floor
+    const joistGeo = new THREE.BoxGeometry(0.16, 0.2, 8.2);
+    for (let i = 0; i < 9; i++) {
+      const ba = -Math.PI * 0.75 + (i * Math.PI * 0.5) / 8;
+      const joist = new THREE.Mesh(joistGeo, steelDarkMat);
+      joist.position.set(Math.cos(ba) * 13.5, -0.1, Math.sin(ba) * 13.5);
+      joist.rotation.y = -ba + Math.PI / 2;
+      level1Group.add(joist);
     }
-    // Concentric steel support rings
-    [11.4, 13.0, 14.6].forEach(r => {
-      const cr = new THREE.Mesh(new THREE.TorusGeometry(r, 0.07, 6, 36), steelDarkMat);
-      cr.rotation.x = Math.PI / 2;
-      cr.position.y = -0.08;
-      level1Group.add(cr);
+    // Concentric steel support arcs under glass floor
+    [11.5, 13.5, 15.5].forEach(r => {
+      const arcGeo = new THREE.TorusGeometry(r, 0.08, 6, 24, Math.PI * 0.5);
+      const arcMesh = new THREE.Mesh(arcGeo, steelDarkMat);
+      arcMesh.rotation.x = Math.PI / 2;
+      arcMesh.rotation.z = -Math.PI * 0.75;
+      arcMesh.position.y = -0.1;
+      level1Group.add(arcMesh);
     });
 
-    // Yellow warning border rings for Glass Floor
-    [9.8, 16.2].forEach(r => {
-      const warnRing = new THREE.Mesh(new THREE.TorusGeometry(r, 0.08, 6, 36), neonGoldMat);
-      warnRing.rotation.x = Math.PI / 2;
-      warnRing.position.y = 0.02;
-      level1Group.add(warnRing);
+    // Yellow & Black Diagonal Caution Hazard Border around Glass Floor perimeter
+    [9.5, 17.5].forEach(r => {
+      const hazardBorder = new THREE.Mesh(new THREE.TorusGeometry(r, 0.1, 6, 32, Math.PI * 0.5), hazardStripeMat);
+      hazardBorder.rotation.x = Math.PI / 2;
+      hazardBorder.rotation.z = -Math.PI * 0.75;
+      hazardBorder.position.y = 0.03;
+      level1Group.add(hazardBorder);
     });
 
-    // C) Outdoor SkyTerrace perimeter deck (r: 16.2 to 22.0)
-    const f1OuterGeo = new THREE.RingGeometry(16.2, 22.0, 48);
-    f1OuterGeo.rotateX(-Math.PI / 2);
-    const f1Outer = new THREE.Mesh(f1OuterGeo, deckFloor1Mat);
-    level1Group.add(f1Outer);
+    // Authentic Brass Warning Plaque mounted next to the Glass Floor
+    const glassFloorSign = makeMarqueeCanvasMesh(
+      'CN TOWER GLASS FLOOR • 2.5 INCH SOLID LAMINATED GLASS • 342m VERTICAL DROP • CAN HOLD 35 MOOSE',
+      4.2, 0.55, '#facc15'
+    );
+    glassFloorSign.position.set(0, 0.5, -9.2);
+    glassFloorSign.rotation.x = -Math.PI / 4;
+    level1Group.add(glassFloorSign);
 
-    // Perimeter safety railing along r = 21.8
+    // C) Outdoor SkyTerrace perimeter safety cable fence along r = 23.0
     const railPostGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.4, 8);
-    for (let i = 0; i < 36; i++) {
-      const pa = (i * Math.PI * 2) / 36;
+    for (let i = 0; i < 40; i++) {
+      const pa = (i * Math.PI * 2) / 40;
       const post = new THREE.Mesh(railPostGeo, chromeRailMat);
-      post.position.set(Math.cos(pa) * 21.8, 0.7, Math.sin(pa) * 21.8);
+      post.position.set(Math.cos(pa) * 23.0, 0.7, Math.sin(pa) * 23.0);
       level1Group.add(post);
     }
-    const railTopRing = new THREE.Mesh(new THREE.TorusGeometry(21.8, 0.06, 8, 48), chromeRailMat);
+    const railTopRing = new THREE.Mesh(new THREE.TorusGeometry(23.0, 0.06, 8, 48), chromeRailMat);
     railTopRing.rotation.x = Math.PI / 2;
     railTopRing.position.y = 1.4;
     level1Group.add(railTopRing);
 
-    // Level 1 Elevator Doorway Portal at local (7.85, 0, -3.51)
+    // Level 1 Elevator Doorway Portal at local (6.4, 0, -2.8)
     const f1ElevPortal = new THREE.Group();
-    f1ElevPortal.position.set(7.85, 0, -3.51);
+    f1ElevPortal.position.set(6.4, 0, -2.8);
     const elevFrameGeo = new THREE.BoxGeometry(3.6, 2.8, 0.25);
-    const f1ElevFrame = new THREE.Mesh(elevFrameGeo, steelDarkMat);
+    const f1ElevFrame = new THREE.Mesh(elevFrameGeo, stainlessMat);
     f1ElevFrame.position.set(0, 1.4, 0);
     f1ElevPortal.add(f1ElevFrame);
-    // Level 1 Sign
-    const f1Sign = makeMarqueeCanvasMesh('LEVEL 1 • 342m • GLASS FLOOR & SKYTERRACE', 3.4, 0.5, '#0ea5e9');
+    const f1Sign = makeMarqueeCanvasMesh('LEVEL 1 • 342m • GLASS FLOOR & OUTDOOR SKYTERRACE', 3.6, 0.5, '#0ea5e9');
     f1Sign.position.set(0, 2.7, 0.15);
     f1ElevPortal.add(f1Sign);
     level1Group.add(f1ElevPortal);
@@ -1541,26 +1623,25 @@
     tower.add(level1Group);
 
     // ----------------------------------------------------------------------
-    // TWIN CURVED GRAND STAIRCASES (Connect Level 1: 342m to Level 2: 348m)
+    // LOWER TWIN GRAND STAIRCASES (Connect Level 1: 342m to Level 2: 348m)
     // North Staircase: a = 1.25 to 1.75 rad | South Staircase: a = 3.85 to 4.35 rad
     // ----------------------------------------------------------------------
-    const stairArcs = [
+    const lowerStairArcs = [
       { startA: 1.25, endA: 1.75 },
       { startA: 3.85, endA: 4.35 }
     ];
-    stairArcs.forEach(arc => {
+    lowerStairArcs.forEach(arc => {
       const stepsCount = 12;
       for (let s = 0; s < stepsCount; s++) {
         const t = (s + 0.5) / stepsCount;
         const sa = arc.startA + (arc.endA - arc.startA) * t;
         const sy = 342.0 + (s + 1) * (6.0 / stepsCount);
-        const stepR = 11.2;
+        const stepR = 10.5;
         const step = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.45, 1.2), deckFloor2Mat);
         step.position.set(Math.cos(sa) * stepR, sy - 0.22, Math.sin(sa) * stepR);
         step.rotation.y = -sa + Math.PI / 2;
         tower.add(step);
 
-        // Glowing cyan balustrade light along step outer edge
         const stepLed = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1.1), neonCyanMat);
         stepLed.position.set(Math.cos(sa) * (stepR + 1.18), sy, Math.sin(sa) * (stepR + 1.18));
         stepLed.rotation.y = -sa + Math.PI / 2;
@@ -1574,32 +1655,14 @@
     const level2Group = new THREE.Group();
     level2Group.position.y = 348.0;
 
-    // A) Level 2 Floor Disc (r: 12.5 to 22.2) in polished warm terrazzo
-    const f2FloorGeo = new THREE.RingGeometry(12.5, 22.2, 48);
+    // A) Level 2 Floor Disc (r: 6.6 to 23.2) in polished warm terrazzo
+    const f2FloorGeo = new THREE.RingGeometry(6.6, 23.2, 48);
     f2FloorGeo.rotateX(-Math.PI / 2);
     const f2Floor = new THREE.Mesh(f2FloorGeo, deckFloor2Mat);
     level2Group.add(f2Floor);
 
-    // Two connecting bridges from inner core (r: 5.0) to outer ring (r: 12.5)
-    [0.0, Math.PI].forEach(ba => {
-      const bridge = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.25, 7.6), deckFloor2Mat);
-      bridge.position.set(Math.cos(ba) * 8.8, -0.12, Math.sin(ba) * 8.8);
-      bridge.rotation.y = -ba + Math.PI / 2;
-      level2Group.add(bridge);
-    });
-
-    // B) Curved Mezzanine Glass Railing along r = 12.5 (looking down into Floor 1)
-    const mezzRailGeo = new THREE.CylinderGeometry(12.5, 12.5, 1.1, 48, 1, true);
-    const mezzRail = new THREE.Mesh(mezzRailGeo, deckGlassMat);
-    mezzRail.position.y = 0.55;
-    level2Group.add(mezzRail);
-    const mezzTopRing = new THREE.Mesh(new THREE.TorusGeometry(12.5, 0.05, 8, 48), chromeRailMat);
-    mezzTopRing.rotation.x = Math.PI / 2;
-    mezzTopRing.position.y = 1.1;
-    level2Group.add(mezzTopRing);
-
-    // C) Illuminated Ceiling Soffit at y = 353.5
-    const ceilingGeo = new THREE.RingGeometry(5.0, 22.2, 36);
+    // Illuminated Ceiling Soffit at y = 353.5
+    const ceilingGeo = new THREE.RingGeometry(6.6, 23.2, 36);
     ceilingGeo.rotateX(Math.PI / 2);
     const ceilingMesh = new THREE.Mesh(ceilingGeo, steelDarkMat);
     ceilingMesh.position.y = 5.4;
@@ -1614,40 +1677,40 @@
       level2Group.add(spot);
     }
 
-    // D) Level 2 Elevator Portal
+    // Level 2 Elevator Portal
     const f2ElevPortal = new THREE.Group();
-    f2ElevPortal.position.set(7.85, 0, -3.51);
-    const f2ElevFrame = new THREE.Mesh(elevFrameGeo, steelDarkMat);
+    f2ElevPortal.position.set(6.4, 0, -2.8);
+    const f2ElevFrame = new THREE.Mesh(elevFrameGeo, stainlessMat);
     f2ElevFrame.position.set(0, 1.4, 0);
     f2ElevPortal.add(f2ElevFrame);
-    const f2Sign = makeMarqueeCanvasMesh('LEVEL 2 • 348m • 360° MAIN LOOKOUT', 3.4, 0.5, '#f59e0b');
+    const f2Sign = makeMarqueeCanvasMesh('LEVEL 2 • 348m • MAIN 360° INDOOR LOOKOUT', 3.6, 0.5, '#f59e0b');
     f2Sign.position.set(0, 2.7, 0.15);
     f2ElevPortal.add(f2Sign);
     level2Group.add(f2ElevPortal);
 
-    // E) 4 Tourist Telescopes / Viewfinders with Scenic Sightline Vistas
+    // 4 High-Powered Tourist Telescopes with Scenic Sightline Vistas
     const viewfinders = [
       {
         id: 'south', name: 'LAKE ONTARIO & ISLANDS',
-        pos: [0, -20.6], yaw: Math.PI,
+        pos: [0, -20.8], yaw: Math.PI,
         pitch: -0.15,
         desc: 'Panoramic southern vista across Toronto Harbour, Billy Bishop Airport, and the Toronto Islands.'
       },
       {
         id: 'east', name: 'BAY ST FINANCIAL DISTRICT',
-        pos: [20.6, 0], yaw: -Math.PI / 2,
+        pos: [20.8, 0], yaw: -Math.PI / 2,
         pitch: -0.12,
         desc: 'Towering skyscrapers of First Canadian Place, Scotia Plaza, TD Centre, and Union Station.'
       },
       {
         id: 'north', name: 'DOWNTOWN CORE & CITY HALL',
-        pos: [0, 20.6], yaw: 0,
+        pos: [0, 20.8], yaw: 0,
         pitch: -0.14,
         desc: 'Looking north along University Ave toward Nathan Phillips Square, City Hall, and Midtown Toronto.'
       },
       {
         id: 'west', name: 'ROGERS CENTRE SKYDOME',
-        pos: [-20.6, 0], yaw: Math.PI / 2,
+        pos: [-20.8, 0], yaw: Math.PI / 2,
         pitch: -0.22,
         desc: 'Direct aerial view into the Rogers Centre SkyDome, CityPlace high-rises, and Lakefront Rail Corridor.'
       }
@@ -1660,27 +1723,27 @@
       scope.rotation.y = vf.yaw;
 
       // Base pedestal & coin box
-      const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 1.0, 12), chromeRailMat);
-      ped.position.y = 0.5;
+      const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.38, 1.05, 12), chromeRailMat);
+      ped.position.y = 0.52;
       scope.add(ped);
 
       // Swivel binocular optical head
-      const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.28, 0.55), steelDarkMat);
-      head.position.set(0, 1.15, 0);
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.3, 0.58), steelDarkMat);
+      head.position.set(0, 1.2, 0);
       scope.add(head);
 
-      const lens1 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.2, 12), neonCyanMat);
+      const lens1 = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.22, 12), neonCyanMat);
       lens1.rotation.x = Math.PI / 2;
-      lens1.position.set(-0.14, 1.15, 0.32);
+      lens1.position.set(-0.15, 1.2, 0.34);
       scope.add(lens1);
-      const lens2 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.2, 12), neonCyanMat);
+      const lens2 = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.22, 12), neonCyanMat);
       lens2.rotation.x = Math.PI / 2;
-      lens2.position.set(0.14, 1.15, 0.32);
+      lens2.position.set(0.15, 1.2, 0.34);
       scope.add(lens2);
 
-      // Plaque sign
-      const tag = makeMarqueeCanvasMesh(vf.name, 1.4, 0.3, '#38bdf8');
-      tag.position.set(0, 0.9, -0.25);
+      // Interactive plaque sign
+      const tag = makeMarqueeCanvasMesh(vf.name, 1.6, 0.35, '#38bdf8');
+      tag.position.set(0, 0.95, -0.28);
       tag.rotation.y = Math.PI;
       scope.add(tag);
 
@@ -1688,19 +1751,16 @@
     });
     level2Group.add(telescopeGroup);
 
-    // F) Sky Showdown Interactive Holographic Arena Terminal on Floor 2
+    // Sky Showdown Interactive Holographic Arena Terminal on Floor 2
     const showdownTerminal = new THREE.Group();
     showdownTerminal.position.set(-14.5, 0, 4.5);
-    // Glowing cyan floor beacon
     const beaconRing = new THREE.Mesh(new THREE.RingGeometry(1.6, 2.1, 32), neonCyanMat);
     beaconRing.rotation.x = -Math.PI / 2;
     beaconRing.position.y = 0.02;
     showdownTerminal.add(beaconRing);
-    // Pedestal
     const termPed = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 1.1, 8), steelDarkMat);
     termPed.position.y = 0.55;
     showdownTerminal.add(termPed);
-    // Holographic display screen
     const termScreen = makeMarqueeCanvasMesh('CN TOWER SKY SHOWDOWN • PRESS [G]', 2.2, 0.55, '#f43f5e');
     termScreen.position.set(0, 1.35, 0);
     termScreen.rotation.y = Math.PI / 4;
@@ -1710,20 +1770,187 @@
     tower.add(level2Group);
 
     // ----------------------------------------------------------------------
+    // UPPER TWIN GRAND STAIRCASES (Connect Level 2: 348m to Level 3: 354m)
+    // ENE Staircase: a = 0.45 to 0.95 rad | WSW Staircase: a = 2.45 to 2.95 rad
+    // ----------------------------------------------------------------------
+    const upperStairArcs = [
+      { startA: 0.45, endA: 0.95 },
+      { startA: 2.45, endA: 2.95 }
+    ];
+    upperStairArcs.forEach(arc => {
+      const stepsCount = 12;
+      for (let s = 0; s < stepsCount; s++) {
+        const t = (s + 0.5) / stepsCount;
+        const sa = arc.startA + (arc.endA - arc.startA) * t;
+        const sy = 348.0 + (s + 1) * (6.0 / stepsCount);
+        const stepR = 10.5;
+        const step = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.45, 1.2), woodFloorMat);
+        step.position.set(Math.cos(sa) * stepR, sy - 0.22, Math.sin(sa) * stepR);
+        step.rotation.y = -sa + Math.PI / 2;
+        tower.add(step);
+
+        const stepLed = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1.1), neonGoldMat);
+        stepLed.position.set(Math.cos(sa) * (stepR + 1.18), sy, Math.sin(sa) * (stepR + 1.18));
+        stepLed.rotation.y = -sa + Math.PI / 2;
+        tower.add(stepLed);
+      }
+    });
+
+    // ----------------------------------------------------------------------
+    // LEVEL 3: 354m - THE WORLD-FAMOUS "360 THE RESTAURANT AT THE CN TOWER"
+    // Features a stationary central reception hub and a revolving outer dining floor!
+    // ----------------------------------------------------------------------
+    const level3Group = new THREE.Group();
+    level3Group.position.y = 354.0;
+
+    // A) Stationary Central Restaurant Hub (r: 6.6 to 11.2) in dark walnut parquet
+    const f3CenterGeo = new THREE.RingGeometry(6.6, 11.2, 36);
+    f3CenterGeo.rotateX(-Math.PI / 2);
+    const f3Center = new THREE.Mesh(f3CenterGeo, woodFloorMat);
+    level3Group.add(f3Center);
+
+    // Level 3 Elevator Portal
+    const f3ElevPortal = new THREE.Group();
+    f3ElevPortal.position.set(6.4, 0, -2.8);
+    const f3ElevFrame = new THREE.Mesh(elevFrameGeo, brassGoldMat);
+    f3ElevFrame.position.set(0, 1.4, 0);
+    f3ElevPortal.add(f3ElevFrame);
+    const f3Sign = makeMarqueeCanvasMesh('LEVEL 3 • 354m • 360 ROTATING RESTAURANT', 3.6, 0.5, '#f59e0b');
+    f3Sign.position.set(0, 2.7, 0.15);
+    f3ElevPortal.add(f3Sign);
+    level3Group.add(f3ElevPortal);
+
+    // Maitre D' Reception Podium
+    const podium = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.1, 0.6), woodFloorMat);
+    podium.position.set(0, 0.55, -7.8);
+    level3Group.add(podium);
+    const goldMenu = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.06, 0.35), brassGoldMat);
+    goldMenu.position.set(0, 1.12, -7.8);
+    level3Group.add(goldMenu);
+
+    // World's Highest Wine Cellar (Curved backlit display cabinet, r = 8.6, a = 1.2 to 2.4 rad)
+    const wineCellarGroup = new THREE.Group();
+    for (let w = 0; w < 12; w++) {
+      const wa = 1.25 + (w * 1.1) / 11;
+      const wx = Math.cos(wa) * 8.6;
+      const wz = Math.sin(wa) * 8.6;
+      const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.4, 0.25), woodFloorMat);
+      shelf.position.set(wx, 1.2, wz);
+      shelf.rotation.y = -wa + Math.PI / 2;
+      wineCellarGroup.add(shelf);
+
+      // Backlit amber glow
+      const shelfLight = new THREE.Mesh(new THREE.BoxGeometry(0.7, 2.2, 0.04), amberCandleMat);
+      shelfLight.position.set(wx, 1.2, wz);
+      shelfLight.rotation.y = -wa + Math.PI / 2;
+      wineCellarGroup.add(shelfLight);
+
+      // Wine bottles
+      for (let b = 0; b < 3; b++) {
+        const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.28, 8), wineBottleMat);
+        bottle.position.set(wx + (b - 1) * 0.18 * Math.sin(wa), 0.5 + (w % 4) * 0.5, wz - (b - 1) * 0.18 * Math.cos(wa));
+        wineCellarGroup.add(bottle);
+      }
+    }
+    level3Group.add(wineCellarGroup);
+
+    // Cocktail Bar Counter (Stationary hub, r = 8.6, a = -1.2 to 0.2 rad)
+    const barGeo = new THREE.CylinderGeometry(8.6, 8.6, 1.1, 16, 1, true, -1.2, 1.4);
+    const barMesh = new THREE.Mesh(barGeo, woodFloorMat);
+    barMesh.position.y = 0.55;
+    level3Group.add(barMesh);
+
+    // Bar Stools
+    for (let s = 0; s < 5; s++) {
+      const sa = -1.0 + s * 0.26;
+      const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.8, 10), burgundyCarpetMat);
+      stool.position.set(Math.cos(sa) * 9.6, 0.4, Math.sin(sa) * 9.6);
+      level3Group.add(stool);
+    }
+
+    // B) THE REVOLVING OUTER DINING FLOOR RING (r: 11.2 to 23.2)
+    // Revolves smoothly around the stationary core!
+    const rotatingRestaurantRing = new THREE.Group();
+
+    // Floor disc in plush burgundy restaurant carpet with dark cherry wood outer border
+    const f3RotateGeo = new THREE.RingGeometry(11.2, 23.2, 48);
+    f3RotateGeo.rotateX(-Math.PI / 2);
+    const f3RotateFloor = new THREE.Mesh(f3RotateGeo, burgundyCarpetMat);
+    rotatingRestaurantRing.add(f3RotateFloor);
+
+    // 16 Dining Table Settings placed radially along the revolving ring
+    for (let t = 0; t < 16; t++) {
+      const ta = (t * Math.PI * 2) / 16;
+      const tr = 17.5; // mid-ring dining radius
+      const tableGroup = new THREE.Group();
+      tableGroup.position.set(Math.cos(ta) * tr, 0, Math.sin(ta) * tr);
+      tableGroup.rotation.y = -ta + Math.PI / 2;
+
+      // Circular Dining Table with draped white tablecloth
+      const tableCloth = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.25, 0.76, 16), whiteLinenMat);
+      tableCloth.position.y = 0.38;
+      tableGroup.add(tableCloth);
+
+      // Glowing table candle lamp
+      const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.22, 8), amberCandleMat);
+      lamp.position.set(0, 0.86, 0);
+      tableGroup.add(lamp);
+
+      // Wine glasses and plates
+      [-0.45, 0.45].forEach(ox => {
+        const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.03, 12), whiteLinenMat);
+        plate.position.set(ox, 0.77, 0);
+        tableGroup.add(plate);
+
+        const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.02, 0.14, 8), deckGlassMat);
+        glass.position.set(ox + 0.12, 0.83, 0.16);
+        tableGroup.add(glass);
+      });
+
+      // 4 Padded Dining Chairs around table
+      [
+        [0, -1.2, 0], [0, 1.2, Math.PI],
+        [-1.2, 0, -Math.PI / 2], [1.2, 0, Math.PI / 2]
+      ].forEach(([cx, cz, crot]) => {
+        const chair = new THREE.Group();
+        chair.position.set(cx, 0, cz);
+        chair.rotation.y = crot;
+        // Seat cushion
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.12, 0.55), burgundyCarpetMat);
+        seat.position.y = 0.44;
+        chair.add(seat);
+        // Chair back
+        const back = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.08), woodFloorMat);
+        back.position.set(0, 0.72, -0.24);
+        chair.add(back);
+        // Legs
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.44, 6), woodFloorMat);
+        leg.position.y = 0.22;
+        chair.add(leg);
+        tableGroup.add(chair);
+      });
+
+      rotatingRestaurantRing.add(tableGroup);
+    }
+
+    level3Group.add(rotatingRestaurantRing);
+    tower.add(level3Group);
+
+    // ----------------------------------------------------------------------
     // EXTERIOR VERTICAL ELEVATOR GUIDE RAILS & GROUND ENTRANCE PAVILION
     // ----------------------------------------------------------------------
-    // Guide rails run up the east tower shaft from y = 0 to y = 350
+    // Guide rails run up the east tower shaft from y = 0 to y = 365
     const railX = LM.cnTower[0] + 7.85;
     const railZ = LM.cnTower[1] - 3.51;
-    const railsMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 350, 0.3), steelDarkMat);
-    railsMesh.position.set(railX, 175, railZ - 1.4);
+    const railsMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 365, 0.3), steelDarkMat);
+    railsMesh.position.set(railX, 182.5, railZ - 1.4);
     scene.add(railsMesh);
-    const railsMesh2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 350, 0.3), steelDarkMat);
-    railsMesh2.position.set(railX, 175, railZ + 1.4);
+    const railsMesh2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 365, 0.3), steelDarkMat);
+    railsMesh2.position.set(railX, 182.5, railZ + 1.4);
     scene.add(railsMesh2);
 
     // Outrigger anchor struts connecting rails to CN Tower shaft every 25m
-    for (let y = 20; y <= 340; y += 25) {
+    for (let y = 20; y <= 355; y += 25) {
       const strut = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.25, 3.2), steelDarkMat);
       strut.position.set(railX - 1.0, y, railZ);
       scene.add(strut);
@@ -3463,16 +3690,18 @@
       bounds: PLAY,
       landmarks: LM,
       attribution: MAP.attribution,
-      // CN Tower Glass Elevator & 2-Floor Observation Deck reference
+      // CN Tower Glass Elevator, Observation Decks & 360 Restaurant reference
       cnElevator: {
         cab: elevatorCab,
         doors: [cabDoorLeft, cabDoorRight],
+        rotatingRestaurantRing: rotatingRestaurantRing,
         pos: {
           x: railX,
           z: railZ,
           groundY: 2.0,
           floor1Y: 342.0,
-          floor2Y: 348.0
+          floor2Y: 348.0,
+          floor3Y: 354.0
         },
         entrancePavilion: {
           x: pavX,
