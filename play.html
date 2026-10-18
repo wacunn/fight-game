@@ -856,6 +856,126 @@ kbd {
 }
 
 /* ==========================================================================
+   CITY EXPLORATION MISSIONS HUD
+   ========================================================================== */
+#mission-tracker {
+  position: absolute;
+  top: 56px;
+  left: 18px;
+  min-width: 250px;
+  max-width: 320px;
+  background: rgba(11, 14, 20, 0.90);
+  border: 1px solid rgba(56, 189, 248, 0.40);
+  border-left: 4px solid #ef4444;
+  border-radius: 12px;
+  padding: 9px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.75), 0 0 16px rgba(239, 68, 68, 0.25);
+  backdrop-filter: blur(10px);
+  z-index: 25;
+  pointer-events: none;
+  user-select: none;
+  transition: border-left-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.mission-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'Chakra Petch', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.mission-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+  animation: missionPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes missionPulse {
+  0% { transform: scale(0.85); opacity: 0.6; }
+  50% { transform: scale(1.35); opacity: 1; }
+  100% { transform: scale(0.85); opacity: 0.6; }
+}
+
+.mission-label {
+  color: #94a3b8;
+  flex: 1;
+}
+
+.mission-score-tag {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.mission-title {
+  font-family: 'Teko', sans-serif;
+  font-size: 23px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.35);
+}
+
+.mission-sub {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #38bdf8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mission-meta {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 2px;
+  font-family: 'Chakra Petch', monospace;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mission-dist {
+  color: #f1f5f9;
+}
+
+.mission-dir {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.mission-status-pill {
+  color: #ef4444;
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+#mission-tracker.completed {
+  border-left-color: #10b981 !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.75), 0 0 20px rgba(16, 185, 129, 0.4);
+}
+
+/* ==========================================================================
    TORONTO GPS RADAR & PEACE SANCTUARY HUD
    ========================================================================== */
 #minimap-container {
@@ -1193,6 +1313,22 @@ kbd {
       </div>
     </header>
  
+    <!-- City Exploration Mission Objective HUD -->
+    <div id="mission-tracker">
+      <div class="mission-badge">
+        <span class="mission-pulse" id="mission-pulse"></span>
+        <span class="mission-label">CITY OBJECTIVE</span>
+        <span id="mission-score-tag" class="mission-score-tag">+1500 PTS</span>
+      </div>
+      <div id="mission-title" class="mission-title">RETRIEVE THE RED BOX</div>
+      <div id="mission-location" class="mission-sub">📍 Union Station Colonnade</div>
+      <div class="mission-meta">
+        <span id="mission-distance" class="mission-dist">📐 245m</span>
+        <span id="mission-dir" class="mission-dir">↗ NE</span>
+        <span id="mission-status-pill" class="mission-status-pill">⚔️ 3 GUARDS</span>
+      </div>
+    </div>
+
     <!-- Toronto GPS Minimap & Sanctuary Radar -->
     <div id="minimap-container">
       <div id="minimap-header">
@@ -3709,12 +3845,57 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       ctx.textAlign = 'center';
       ctx.fillText('☮ PEACE', pzx, pzz + 3);
 
+      let missionDot = null;
       dots.forEach(d => {
+        if (d.isMission) {
+          missionDot = d;
+          return;
+        }
         const dx = (d.x - player.x) * s, dz = (d.z - player.z) * s;
         if (dx * dx + dz * dz > (size / 2 - 4) ** 2) return;
         ctx.fillStyle = d.c;
         ctx.beginPath(); ctx.arc(dx, dz, d.r || 3, 0, Math.PI * 2); ctx.fill();
       });
+
+      // Draw active Mission Objective Beacon on radar (clamps to radar rim if far away)
+      if (missionDot) {
+        const mdx = (missionDot.x - player.x) * s;
+        const mdz = (missionDot.z - player.z) * s;
+        const mdist = Math.hypot(mdx, mdz);
+        const radiusLimit = size / 2 - 9;
+        let px = mdx, pz = mdz;
+        if (mdist > radiusLimit) {
+          px = (mdx / mdist) * radiusLimit;
+          pz = (mdz / mdist) * radiusLimit;
+        }
+
+        ctx.save();
+        ctx.translate(px, pz);
+        const pulse = Math.sin(Date.now() * 0.007) * 0.5 + 0.5;
+
+        // Outer pulsing ring
+        ctx.beginPath();
+        ctx.arc(0, 0, 7.5 + pulse * 5, 0, Math.PI * 2);
+        ctx.strokeStyle = missionDot.c || '#ef4444';
+        ctx.lineWidth = 2.0;
+        ctx.stroke();
+
+        // Inner glowing diamond
+        ctx.rotate(Date.now() * 0.002);
+        ctx.fillStyle = missionDot.c || '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(0, -6.5);
+        ctx.lineTo(6.5, 0);
+        ctx.lineTo(0, 6.5);
+        ctx.lineTo(-6.5, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+
+        ctx.restore();
+      }
       // Iconic Toronto Landmarks direction and position badges on radar
       const radarLandmarks = [
         { code: 'CN', pos: LM.cnTower, col: '#ff3b4a' },
@@ -4883,6 +5064,24 @@ class EnhancedRetroAudio {
       gain.connect(this.ctx.destination);
       osc.start(t + idx * 0.05);
       osc.stop(t + idx * 0.05 + 0.19);
+    });
+  }
+
+  playMissionFanfare() {
+    if (!this.ctx || this.isMuted) return;
+    const t = this.ctx.currentTime;
+    const chords = [523.25, 659.25, 783.99, 1046.50];
+    chords.forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.08);
+      gain.gain.setValueAtTime(0.35, t + idx * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + idx * 0.08 + 0.35);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t + idx * 0.08);
+      osc.stop(t + idx * 0.08 + 0.38);
     });
   }
 
@@ -6500,26 +6699,30 @@ function create3DHumanFighter(x, z, archetypeIndex) {
   };
 }
 
-function spawnEnemy(x, z, archIdx = 0) {
+function spawnEnemy(x, z, archIdx = 0, isGuard = false, guardTitle = null) {
   const fighterRig = create3DHumanFighter(x, z, archIdx);
   const arch = fighterRig.arch;
   const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
 
-  const maxHp = Math.round(arch.hp * cfg.hpMult);
+  const maxHp = Math.round(arch.hp * cfg.hpMult * (isGuard ? 1.25 : 1.0));
+  const enemyName = guardTitle || arch.name;
+  if (isGuard) {
+    fighterRig.arch.name = enemyName;
+  }
   fighterRig.updateNameplate(maxHp, maxHp, false);
 
-  enemies.push({
+  const enemyObj = {
     rig: fighterRig,
     sprite: fighterRig.root, // alias for position compatibility
-    name: arch.name,
+    name: enemyName,
     hp: maxHp,
     maxHp: maxHp,
-    speed: arch.speed * cfg.speedMult,
-    damage: Math.round(arch.damage * cfg.damageMult),
+    speed: arch.speed * cfg.speedMult * (isGuard ? 1.1 : 1.0),
+    damage: Math.round(arch.damage * cfg.damageMult * (isGuard ? 1.2 : 1.0)),
     attackCooldown: 1.1 / cfg.attackCooldownMult,
     attackTimer: 0.5 + Math.random() * 0.5,
     attackProg: 0,
-    aggroDist: cfg.aggroDist,
+    aggroDist: isGuard ? 42 : cfg.aggroDist,
     isPunching: false,
     punchArm: 'right',
     punchHasDealtDamage: false,
@@ -6531,8 +6734,13 @@ function spawnEnemy(x, z, archIdx = 0) {
     isKnockedOut: false,
     koProgress: 0,
     vx: 0,
-    vz: 0
-  });
+    vz: 0,
+    isMissionGuard: isGuard,
+    guardAnchor: isGuard ? { x, z } : null
+  };
+
+  enemies.push(enemyObj);
+  return enemyObj;
 }
 
 // Street patrol targets distributed across Downtown Toronto sectors
@@ -6581,37 +6789,37 @@ const ALL_TORONTO_STREET_TARGETS = [
 ];
 
 function populateEnemies() {
-  // Clear any existing enemies
-  enemies.forEach(e => {
-    if (e.rig && e.rig.root) scene.remove(e.rig.root);
-  });
-  enemies.length = 0;
+  // Clear any existing ambient enemies (preserve alive mission guards if any)
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    if (!e.isMissionGuard) {
+      if (e.rig && e.rig.root) scene.remove(e.rig.root);
+      enemies.splice(i, 1);
+    }
+  }
 
   const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
 
   if (city) {
-    const targets = ALL_TORONTO_STREET_TARGETS;
+    const pX = player.pos.x;
+    const pZ = player.pos.z;
+
+    // Sort targets by proximity to the player's CURRENT location!
+    // Exclude targets that are too close (< 25m) so they don't pop up immediately on the player
+    const sortedTargets = ALL_TORONTO_STREET_TARGETS.slice().map(t => {
+      return { ...t, dist: Math.hypot(t.x - pX, t.z - pZ) };
+    }).filter(t => t.dist >= 25).sort((a, b) => a.dist - b.dist);
+
     let spawnedCount = 0;
-
-    for (let i = 0; i < targets.length && spawnedCount < cfg.targetEnemies; i++) {
-      const target = targets[i];
-      let spot = city.findOpenSpot(target.x, target.z, 0, 30, 2.0);
-      const playerX = player.pos.x;
-      const playerZ = player.pos.z;
-      let fromPlayer = Math.hypot(spot.x - playerX, spot.z - playerZ);
-      let fromStart = Math.hypot(spot.x - city.start.x, spot.z - city.start.z);
-
-      if (fromPlayer < 25 || fromStart < 25) {
-        spot = city.findOpenSpot(target.x, target.z, 25, 45, 2.0);
-        fromPlayer = Math.hypot(spot.x - playerX, spot.z - playerZ);
-        fromStart = Math.hypot(spot.x - city.start.x, spot.z - city.start.z);
-      }
-
+    for (let i = 0; i < sortedTargets.length && spawnedCount < cfg.targetEnemies; i++) {
+      const target = sortedTargets[i];
+      let spot = city.findOpenSpot(target.x, target.z, 0, 25, 2.0);
+      let fromPlayer = Math.hypot(spot.x - pX, spot.z - pZ);
       const fromPeace = Math.hypot(spot.x - city.peaceZone.x, spot.z - city.peaceZone.z);
+
       if (!city.isInsidePeaceZone(spot.x, spot.z) &&
-        fromPeace >= city.peaceZone.radius + 20 &&
-        fromPlayer >= 25 &&
-        fromStart >= 25) {
+        fromPeace >= city.peaceZone.radius + 15 &&
+        fromPlayer >= 22) {
         spawnEnemy(spot.x, spot.z, target.idx);
         spawnedCount++;
       }
@@ -6619,8 +6827,9 @@ function populateEnemies() {
 
     // If still need more to satisfy target count (e.g. Impossible 88)
     while (spawnedCount < cfg.targetEnemies) {
-      spawnSingleReinforcement();
-      spawnedCount++;
+      const spawned = spawnSingleReinforcement();
+      if (spawned) spawnedCount++;
+      else break;
     }
   } else {
     const spawns = [
@@ -6631,23 +6840,38 @@ function populateEnemies() {
   }
 }
 
-function spawnSingleReinforcement() {
-  if (!city) return;
-  const pX = player.pos.x;
-  const pZ = player.pos.z;
-  const angle = Math.random() * Math.PI * 2;
-  const dist = 35 + Math.random() * 65;
-  const tx = pX + Math.cos(angle) * dist;
-  const tz = pZ + Math.sin(angle) * dist;
+function spawnSingleReinforcement(originX, originZ) {
+  if (!city) return null;
+  const pX = (originX !== undefined) ? originX : player.pos.x;
+  const pZ = (originZ !== undefined) ? originZ : player.pos.z;
 
-  const spot = city.findOpenSpot(tx, tz, 5, 25, 2.0);
-  const fromPeace = Math.hypot(spot.x - city.peaceZone.x, spot.z - city.peaceZone.z);
-  const fromPlayer = Math.hypot(spot.x - pX, spot.z - pZ);
+  // Try several angles to ensure finding an open walkable street
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 32 + Math.random() * 45; // 32m to 77m away
+    const tx = pX + Math.cos(angle) * dist;
+    const tz = pZ + Math.sin(angle) * dist;
 
-  if (!city.isInsidePeaceZone(spot.x, spot.z) && fromPeace >= city.peaceZone.radius + 15 && fromPlayer >= 25) {
-    const archIdx = Math.floor(Math.random() * 4);
-    spawnEnemy(spot.x, spot.z, archIdx);
+    // Check world bounds
+    if (city.bounds) {
+      if (tx < city.bounds.minX + 15 || tx > city.bounds.maxX - 15 ||
+          tz < city.bounds.minZ + 15 || tz > city.bounds.maxZ - 15) {
+        continue;
+      }
+    }
+
+    const spot = city.findOpenSpot(tx, tz, 2, 18, 2.0);
+    const fromPeace = Math.hypot(spot.x - city.peaceZone.x, spot.z - city.peaceZone.z);
+    const fromPlayer = Math.hypot(spot.x - player.pos.x, spot.z - player.pos.z);
+
+    if (!city.isInsidePeaceZone(spot.x, spot.z) &&
+        fromPeace >= city.peaceZone.radius + 15 &&
+        fromPlayer >= 24 && fromPlayer <= 90) {
+      const archIdx = Math.floor(Math.random() * 4);
+      return spawnEnemy(spot.x, spot.z, archIdx);
+    }
   }
+  return null;
 }
 
 function spawnAdditionalEnemies(count) {
@@ -6723,6 +6947,411 @@ function cycleDifficulty(dir) {
 }
 
 populateEnemies();
+
+// ============================================================================
+// CITY EXPLORATION MISSIONS (BOXES, GUARDS & LANDMARK GOALS)
+// ============================================================================
+const MISSION_LANDMARKS = [
+  {
+    id: 'unionStation',
+    name: 'Union Station',
+    sub: 'Front St Great Hall Colonnade',
+    coords: [265.4, -128.9]
+  },
+  {
+    id: 'royThomson',
+    name: 'Roy Thomson Hall',
+    sub: 'Simcoe & King St Plaza',
+    coords: [-229.0, -292.5]
+  },
+  {
+    id: 'stLawrence',
+    name: 'St. Lawrence Market',
+    sub: 'South Market Esplanade',
+    coords: [956.7, -534.9]
+  },
+  {
+    id: 'ripleys',
+    name: "Ripley's Aquarium",
+    sub: 'Bremner Marine Walkway',
+    coords: [-216.6, 171.4]
+  },
+  {
+    id: 'roundhouse',
+    name: 'John St Roundhouse',
+    sub: 'Railway Museum Locomotive Yard',
+    coords: [-203.9, 349.5]
+  },
+  {
+    id: 'royalYork',
+    name: 'Fairmont Royal York',
+    sub: 'Château Front Entrance',
+    coords: [178.2, -215.2]
+  },
+  {
+    id: 'gooderham',
+    name: 'Gooderham Flatiron',
+    sub: 'Wellington Apex Plaza',
+    coords: [749.3, -491.7]
+  },
+  {
+    id: 'pecautSquare',
+    name: 'David Pecaut Square',
+    sub: 'Metro Hall Civic Green',
+    coords: [-245.0, -240.0]
+  },
+  {
+    id: 'rogersCentre',
+    name: 'Rogers Centre',
+    sub: 'Blue Jays Way Gate 9',
+    coords: [-459.9, 246.6]
+  }
+];
+
+const MISSION_COLORS = [
+  { id: 'red', name: 'Red Box', title: 'RUBY CONTAINER', hex: '#ef4444', threeHex: 0xef4444, glow: 'rgba(239, 68, 68, 0.4)' },
+  { id: 'blue', name: 'Blue Box', title: 'SAPPHIRE CONTAINER', hex: '#3b82f6', threeHex: 0x3b82f6, glow: 'rgba(59, 130, 246, 0.4)' },
+  { id: 'green', name: 'Green Box', title: 'EMERALD CONTAINER', hex: '#10b981', threeHex: 0x10b981, glow: 'rgba(16, 185, 129, 0.4)' },
+  { id: 'yellow', name: 'Yellow Box', title: 'AMBER CONTAINER', hex: '#f59e0b', threeHex: 0xf59e0b, glow: 'rgba(245, 158, 11, 0.4)' },
+  { id: 'purple', name: 'Purple Box', title: 'AMETHYST CONTAINER', hex: '#a855f7', threeHex: 0xa855f7, glow: 'rgba(168, 85, 247, 0.4)' },
+  { id: 'cyan', name: 'Cyan Box', title: 'DIAMOND CONTAINER', hex: '#06b6d4', threeHex: 0x06b6d4, glow: 'rgba(6, 182, 212, 0.4)' },
+  { id: 'orange', name: 'Orange Box', title: 'TOPAZ CONTAINER', hex: '#f97316', threeHex: 0xf97316, glow: 'rgba(249, 115, 22, 0.4)' }
+];
+
+const missionState = {
+  active: false,
+  landmark: null,
+  color: null,
+  boxObj: null,
+  pos: { x: 0, y: 0.9, z: 0 },
+  guards: [],
+  completedCount: 0,
+  state: 'ready' // 'ready', 'active', 'completed', 'cooldown'
+};
+
+function createMissionCrateMesh(color) {
+  const group = new THREE.Group();
+
+  // 1. Outer high-tech carbon crate frame
+  const frameGeo = new THREE.BoxGeometry(1.6, 1.6, 1.6);
+  const frameMat = new THREE.MeshStandardMaterial({
+    color: 0x1e293b,
+    metalness: 0.85,
+    roughness: 0.35
+  });
+  const frameMesh = new THREE.Mesh(frameGeo, frameMat);
+  frameMesh.castShadow = true;
+  group.add(frameMesh);
+
+  // 2. Glowing inner core crystal
+  const coreGeo = new THREE.BoxGeometry(1.22, 1.22, 1.22);
+  const coreMat = new THREE.MeshStandardMaterial({
+    color: color.threeHex,
+    emissive: color.threeHex,
+    emissiveIntensity: 1.8,
+    metalness: 0.2,
+    roughness: 0.2
+  });
+  const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+  group.add(coreMesh);
+
+  // 3. Neon trim bands
+  const bandMat = new THREE.MeshBasicMaterial({ color: color.threeHex });
+  const band1 = new THREE.Mesh(new THREE.BoxGeometry(1.64, 0.22, 1.64), bandMat);
+  const band2 = new THREE.Mesh(new THREE.BoxGeometry(1.64, 1.64, 0.22), bandMat);
+  group.add(band1);
+  group.add(band2);
+
+  // 4. Ground Pulse Ring
+  const ringGeo = new THREE.RingGeometry(0.8, 2.4, 32);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: color.threeHex,
+    transparent: true,
+    opacity: 0.55,
+    side: THREE.DoubleSide
+  });
+  const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+  ringMesh.rotation.x = -Math.PI / 2;
+  ringMesh.position.y = -0.78;
+  group.add(ringMesh);
+
+  // 5. Sky Beacon Beam (180m high light beam visible across downtown!)
+  const beamGeo = new THREE.CylinderGeometry(0.4, 3.5, 180, 16, 1, true);
+  const beamMat = new THREE.MeshBasicMaterial({
+    color: color.threeHex,
+    transparent: true,
+    opacity: 0.35,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  const beamMesh = new THREE.Mesh(beamGeo, beamMat);
+  beamMesh.position.y = 90;
+  group.add(beamMesh);
+
+  // 6. Point light casting dynamic colored illumination
+  const light = new THREE.PointLight(color.threeHex, 2.8, 24);
+  light.position.y = 1.0;
+  group.add(light);
+
+  return {
+    group,
+    coreMesh,
+    ringMesh,
+    beamMesh,
+    light
+  };
+}
+
+function spawnMissionGuards(targetPos, color) {
+  const guards = [];
+  const guardCount = 3;
+
+  for (let i = 0; i < guardCount; i++) {
+    const angle = (i / guardCount) * Math.PI * 2 + Math.random() * 0.3;
+    const dist = 5.5 + Math.random() * 3.5; // 5.5m to 9m around box
+    let gx = targetPos.x + Math.cos(angle) * dist;
+    let gz = targetPos.z + Math.sin(angle) * dist;
+
+    if (city) {
+      const open = city.findOpenSpot(gx, gz, 0, 8, 1.8);
+      gx = open.x;
+      gz = open.z;
+    }
+
+    const archIdx = 1 + (i % 3);
+    const guardTitle = `[SENTRY] ${color.name.toUpperCase()} GUARD`;
+    const guard = spawnEnemy(gx, gz, archIdx, true, guardTitle);
+    if (guard) {
+      guards.push(guard);
+    }
+  }
+
+  return guards;
+}
+
+function startNextMission() {
+  if (!city) return;
+
+  // Clean up any existing mission visuals
+  if (missionState.boxObj && missionState.boxObj.group) {
+    scene.remove(missionState.boxObj.group);
+    missionState.boxObj = null;
+  }
+
+  // Filter out the most recent landmark to avoid consecutive repeats
+  const availableLandmarks = MISSION_LANDMARKS.filter(lm => !missionState.landmark || lm.id !== missionState.landmark.id);
+  const nextLm = availableLandmarks[Math.floor(Math.random() * availableLandmarks.length)];
+
+  // Pick random color
+  const nextColor = MISSION_COLORS[Math.floor(Math.random() * MISSION_COLORS.length)];
+
+  // Find walkable coordinate right next to the landmark
+  const lmCoords = (city.landmarks && city.landmarks[nextLm.id]) || nextLm.coords;
+  let spot = city.findOpenSpot(lmCoords[0], lmCoords[1], 6, 26, 2.0);
+  if (city.isInsidePeaceZone(spot.x, spot.z)) {
+    spot = city.findOpenSpot(lmCoords[0], lmCoords[1], 25, 45, 2.0);
+  }
+
+  const boxPos = { x: spot.x, y: 0.9, z: spot.z };
+  const boxObj = createMissionCrateMesh(nextColor);
+  boxObj.group.position.set(boxPos.x, boxPos.y, boxPos.z);
+  scene.add(boxObj.group);
+
+  // Spawn sentry squad guarding the box
+  const guards = spawnMissionGuards(boxPos, nextColor);
+
+  missionState.active = true;
+  missionState.landmark = nextLm;
+  missionState.color = nextColor;
+  missionState.boxObj = boxObj;
+  missionState.pos = boxPos;
+  missionState.guards = guards;
+  missionState.state = 'active';
+
+  // Update HUD
+  updateMissionHUD();
+
+  // Announce mission
+  showAnnouncement(`🎯 NEW MISSION: GET THE ${nextColor.name.toUpperCase()} AT ${nextLm.name.toUpperCase()}! 🎯`);
+  audio.playPickup();
+}
+
+function completeMission() {
+  if (!missionState.active || missionState.state !== 'active') return;
+
+  missionState.state = 'completed';
+  missionState.active = false;
+  missionState.completedCount++;
+
+  const lmName = missionState.landmark.name;
+  const colName = missionState.color.name;
+  const colHex = missionState.color.threeHex;
+  const mPos = missionState.pos;
+
+  // Visual celebrations: colored fireworks & debris
+  spawnDebris(mPos.x, 1.2, mPos.z, colHex, 45, 12);
+  spawnDebris(mPos.x, 1.8, mPos.z, 0xffffff, 25, 8);
+
+  // Audio fanfare
+  audio.playMissionFanfare();
+  audio.playCrateSmash();
+
+  // Rewards: +1500 score, vitality heal, shield, rage
+  state.score += 1500;
+  state.health = Math.min(100, state.health + 40);
+  state.armor = Math.min(100, state.armor + 40);
+  state.rage = Math.min(100, state.rage + 35);
+  updateHealthBar();
+  updateArmorBar();
+  updateRageBar();
+  const hudScore = document.getElementById('hud-score');
+  if (hudScore) hudScore.innerText = state.score;
+
+  showAnnouncement(`🏆 MISSION ACCOMPLISHED! RETRIEVED THE ${colName.toUpperCase()} AT ${lmName.toUpperCase()}! (+1500 PTS) 🏆`);
+
+  // Remove box mesh from scene
+  if (missionState.boxObj && missionState.boxObj.group) {
+    scene.remove(missionState.boxObj.group);
+    missionState.boxObj = null;
+  }
+
+  // Release surviving guards so they become standard roamers
+  missionState.guards.forEach(g => {
+    if (g && !g.isDead) {
+      g.isMissionGuard = false;
+    }
+  });
+  missionState.guards = [];
+
+  // Update HUD to show victory and next mission timer
+  const trackerEl = document.getElementById('mission-tracker');
+  if (trackerEl) trackerEl.classList.add('completed');
+  const titleEl = document.getElementById('mission-title');
+  if (titleEl) titleEl.innerText = `✅ ${colName.toUpperCase()} SECURED!`;
+  const locEl = document.getElementById('mission-location');
+  if (locEl) locEl.innerText = `+1500 PTS • HEALTH & SHIELD RESTORED!`;
+  const statusPill = document.getElementById('mission-status-pill');
+  if (statusPill) statusPill.innerText = `NEXT MISSION IN 4s...`;
+
+  setTimeout(() => {
+    if (trackerEl) trackerEl.classList.remove('completed');
+    startNextMission();
+  }, 4000);
+}
+
+function updateMission(dt) {
+  if (!missionState.active || !missionState.boxObj) return;
+
+  const bGroup = missionState.boxObj.group;
+  const time = Date.now() * 0.003;
+
+  // Bob & spin box
+  bGroup.rotation.y += dt * 1.6;
+  bGroup.position.y = 0.9 + Math.sin(time) * 0.16;
+
+  // Pulse ground ring
+  if (missionState.boxObj.ringMesh) {
+    const ringScale = 1.0 + Math.sin(time * 2.0) * 0.18;
+    missionState.boxObj.ringMesh.scale.set(ringScale, ringScale, ringScale);
+  }
+
+  // Distance from player to box
+  const dist = Math.hypot(player.pos.x - missionState.pos.x, player.pos.z - missionState.pos.z);
+
+  // Proximity collection check (< 2.4 meters)
+  if (dist < 2.4) {
+    completeMission();
+    return;
+  }
+
+  // Guard behavior: if player is within 42m of box, alert all guards to aggressively rush player
+  if (dist < 42) {
+    missionState.guards.forEach(g => {
+      if (g && !g.isDead && !g.isKnockedOut) {
+        g.aggroDist = 65;
+      }
+    });
+  }
+
+  // Update HUD distance & compass direction
+  updateMissionHUD(dist);
+}
+
+function updateMissionHUD(dist) {
+  const trackerEl = document.getElementById('mission-tracker');
+  if (!trackerEl) return;
+
+  if (!missionState.active || !missionState.landmark || !missionState.color) {
+    if (missionState.state !== 'completed') {
+      trackerEl.style.display = 'none';
+    }
+    return;
+  }
+  trackerEl.style.display = 'flex';
+
+  const d = (dist !== undefined) ? dist : Math.hypot(player.pos.x - missionState.pos.x, player.pos.z - missionState.pos.z);
+  const roundedDist = Math.round(d);
+
+  trackerEl.style.borderLeftColor = missionState.color.hex;
+  trackerEl.style.boxShadow = `0 8px 28px rgba(0, 0, 0, 0.75), 0 0 16px ${missionState.color.glow || 'rgba(0, 240, 255, 0.15)'}`;
+  const pulseEl = document.getElementById('mission-pulse');
+  if (pulseEl) {
+    pulseEl.style.background = missionState.color.hex;
+    pulseEl.style.boxShadow = `0 0 8px ${missionState.color.hex}`;
+  }
+
+  const titleEl = document.getElementById('mission-title');
+  if (titleEl) {
+    titleEl.innerText = `GET THE ${missionState.color.name.toUpperCase()}`;
+    titleEl.style.color = '#ffffff';
+  }
+
+  const locEl = document.getElementById('mission-location');
+  if (locEl) {
+    locEl.innerText = `📍 ${missionState.landmark.name} (${missionState.landmark.sub})`;
+  }
+
+  const distEl = document.getElementById('mission-distance');
+  if (distEl) {
+    distEl.innerText = `📐 ${roundedDist}m`;
+  }
+
+  const dirEl = document.getElementById('mission-dir');
+  if (dirEl) {
+    const dx = missionState.pos.x - player.pos.x;
+    const dz = missionState.pos.z - player.pos.z;
+    const worldAngle = Math.atan2(dx, dz);
+    const relAngle = worldAngle - player.yaw;
+
+    let norm = (relAngle + Math.PI) % (Math.PI * 2) - Math.PI;
+    let arrow = '↑ AHEAD';
+    if (norm > Math.PI * 0.75 || norm < -Math.PI * 0.75) arrow = '↓ BEHIND';
+    else if (norm > Math.PI * 0.25) arrow = '→ RIGHT';
+    else if (norm < -Math.PI * 0.25) arrow = '← LEFT';
+    else if (norm > 0.1) arrow = '↗ AHEAD-R';
+    else if (norm < -0.1) arrow = '↖ AHEAD-L';
+
+    dirEl.innerText = arrow;
+  }
+
+  const statusPill = document.getElementById('mission-status-pill');
+  if (statusPill) {
+    const aliveGuards = missionState.guards.filter(g => g && !g.isDead && !g.isKnockedOut).length;
+    if (aliveGuards > 0) {
+      statusPill.innerText = `⚔️ ${aliveGuards} GUARD${aliveGuards > 1 ? 'S' : ''}`;
+      statusPill.style.color = '#ef4444';
+    } else {
+      statusPill.innerText = `🔓 UNGUARDED`;
+      statusPill.style.color = '#10b981';
+    }
+  }
+}
+
+// Start first city exploration objective
+if (city) {
+  startNextMission();
+}
 
 // ============================================================================
 // CONTROLS & POINTER LOCK MANAGEMENT (NEVER TRAPS CURSOR!)
@@ -6985,6 +7614,12 @@ function executeMeteorSlam() {
         const dist = crate.mesh.position.distanceTo(player.pos);
         if (dist <= atk.range) damageCrate(crate, 300);
       });
+
+      // Check Mission Crate Slam
+      if (missionState.active && missionState.state === 'active' && missionState.boxObj) {
+        const dist = Math.hypot(missionState.pos.x - player.pos.x, missionState.pos.z - player.pos.z);
+        if (dist <= atk.range + 1.2) completeMission();
+      }
     }
   }, 25);
 }
@@ -7015,6 +7650,15 @@ function executeGloryKill(enemy) {
 
 function checkMeleeHits(atk) {
   let hitSomething = false;
+
+  // Check Active Mission Crate
+  if (missionState.active && missionState.state === 'active' && missionState.boxObj) {
+    const distToMission = Math.hypot(missionState.pos.x - camera.position.x, missionState.pos.z - camera.position.z);
+    if (distToMission <= atk.range + 1.2) {
+      completeMission();
+      hitSomething = true;
+    }
+  }
 
   // Check Crates
   crates.forEach(crate => {
@@ -7169,8 +7813,18 @@ function killEnemy(enemy, isGlory = false) {
   setTimeout(() => {
     if (enemy.rig && enemy.rig.root) scene.remove(enemy.rig.root);
 
-    // Respawn next wave of fighters when all are KO'd
-    if (enemies.every(e => e.isDead)) {
+    // If an ambient enemy was defeated, schedule a reinforcement near the player
+    if (!enemy.isMissionGuard) {
+      const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
+      const aliveAmbient = enemies.filter(e => !e.isDead && !e.isMissionGuard).length;
+      if (aliveAmbient < cfg.targetEnemies) {
+        setTimeout(() => spawnSingleReinforcement(), 2400);
+      }
+    }
+
+    // Respawn next wave of fighters when all ambient foes are KO'd
+    const ambientEnemies = enemies.filter(e => !e.isMissionGuard);
+    if (ambientEnemies.length > 0 && ambientEnemies.every(e => e.isDead)) {
       showAnnouncement("🔥 ARENA CLEARED! NEXT RIVAL FIGHTERS INCOMING! 🔥");
       setTimeout(() => populateEnemies(), 2200);
     }
@@ -7618,6 +8272,7 @@ function animate(now) {
     updatePickups(simDt);
     updateParticles(simDt);
     updateCombatTimers(simDt);
+    updateMission(simDt);
   }
 
   if (traffic && (!state.inGame || state.isPaused || state.isDead)) traffic.silence();
@@ -7652,6 +8307,16 @@ function animate(now) {
         });
       }
     });
+    // Active exploration mission objective waypoint
+    if (missionState.active && missionState.color && missionState.state === 'active') {
+      dots.push({
+        x: missionState.pos.x,
+        z: missionState.pos.z,
+        c: missionState.color.hex,
+        r: 6,
+        isMission: true
+      });
+    }
     if (traffic) traffic.cars.forEach(c => dots.push({ x: c.vx, z: c.vz, c: '#e5e7eb', r: 2 }));
     city.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
 
@@ -7839,6 +8504,33 @@ function updateEnemies(dt) {
   let minDist = 4.0;
   const playerInPeace = city ? city.isInsidePeaceZone(player.pos.x, player.pos.z) : false;
 
+  // Dynamic Roaming Distance Culling & Local Neighborhood Respawn
+  // If player runs away into the city (> 110m away), despawn distant ambient enemies
+  // and spawn fresh enemies near the player's new position!
+  state.enemyRoamingTimer = (state.enemyRoamingTimer || 0) + dt;
+  if (state.enemyRoamingTimer >= 1.2) {
+    state.enemyRoamingTimer = 0;
+    const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      if (e.isDead || e.isKnockedOut || e.isMissionGuard) continue;
+
+      const d = e.rig.root.position.distanceTo(player.pos);
+      if (d > 115) {
+        if (e.rig && e.rig.root) scene.remove(e.rig.root);
+        enemies.splice(i, 1);
+        spawnSingleReinforcement();
+      }
+    }
+
+    // Maintain ambient target count
+    const aliveAmbient = enemies.filter(e => !e.isDead && !e.isMissionGuard).length;
+    if (aliveAmbient < cfg.targetEnemies) {
+      spawnSingleReinforcement();
+    }
+  }
+
   enemies.forEach(enemy => {
     // 1. Knockout knockdown animation
     if (enemy.isKnockedOut) {
@@ -7952,6 +8644,18 @@ function updateEnemies(dt) {
         enemy.rig.rightLegPivot.rotation.x = -0.15;
         enemy.rig.rightCalfPivot.rotation.x = 0.1;
         enemy.rig.torsoPivot.position.y = 0.98 + Math.sin(Date.now() * 0.005) * 0.02;
+
+        // If this is a mission guard and player has disengaged far away, patrol back toward the mission box
+        if (enemy.isMissionGuard && enemy.guardAnchor && distToPlayer >= aggroLimit) {
+          const dAnchor = Math.hypot(enemy.guardAnchor.x - enemy.rig.root.position.x, enemy.guardAnchor.z - enemy.rig.root.position.z);
+          if (dAnchor > 6.0) {
+            const gdx = (enemy.guardAnchor.x - enemy.rig.root.position.x) / dAnchor;
+            const gdz = (enemy.guardAnchor.z - enemy.rig.root.position.z) / dAnchor;
+            enemy.rig.root.position.x += gdx * (enemy.speed * 0.6) * dt;
+            enemy.rig.root.position.z += gdz * (enemy.speed * 0.6) * dt;
+            enemy.rig.root.rotation.y = Math.atan2(gdx, gdz);
+          }
+        }
       }
 
       // Punch Attack / Boxer Guard Animation
@@ -8244,6 +8948,7 @@ function resetGame() {
   }
   populateEnemies();
   spawnCrates();
+  startNextMission();
   updateHUDHealth();
 }
 

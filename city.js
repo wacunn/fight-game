@@ -2288,12 +2288,57 @@
       ctx.textAlign = 'center';
       ctx.fillText('☮ PEACE', pzx, pzz + 3);
 
+      let missionDot = null;
       dots.forEach(d => {
+        if (d.isMission) {
+          missionDot = d;
+          return;
+        }
         const dx = (d.x - player.x) * s, dz = (d.z - player.z) * s;
         if (dx * dx + dz * dz > (size / 2 - 4) ** 2) return;
         ctx.fillStyle = d.c;
         ctx.beginPath(); ctx.arc(dx, dz, d.r || 3, 0, Math.PI * 2); ctx.fill();
       });
+
+      // Draw active Mission Objective Beacon on radar (clamps to radar rim if far away)
+      if (missionDot) {
+        const mdx = (missionDot.x - player.x) * s;
+        const mdz = (missionDot.z - player.z) * s;
+        const mdist = Math.hypot(mdx, mdz);
+        const radiusLimit = size / 2 - 9;
+        let px = mdx, pz = mdz;
+        if (mdist > radiusLimit) {
+          px = (mdx / mdist) * radiusLimit;
+          pz = (mdz / mdist) * radiusLimit;
+        }
+
+        ctx.save();
+        ctx.translate(px, pz);
+        const pulse = Math.sin(Date.now() * 0.007) * 0.5 + 0.5;
+
+        // Outer pulsing ring
+        ctx.beginPath();
+        ctx.arc(0, 0, 7.5 + pulse * 5, 0, Math.PI * 2);
+        ctx.strokeStyle = missionDot.c || '#ef4444';
+        ctx.lineWidth = 2.0;
+        ctx.stroke();
+
+        // Inner glowing diamond
+        ctx.rotate(Date.now() * 0.002);
+        ctx.fillStyle = missionDot.c || '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(0, -6.5);
+        ctx.lineTo(6.5, 0);
+        ctx.lineTo(0, 6.5);
+        ctx.lineTo(-6.5, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+
+        ctx.restore();
+      }
       // Iconic Toronto Landmarks direction and position badges on radar
       const radarLandmarks = [
         { code: 'CN', pos: LM.cnTower, col: '#ff3b4a' },
