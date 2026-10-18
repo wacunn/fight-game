@@ -2300,7 +2300,8 @@ function startNextMission() {
   const lmCoords = (city.landmarks && city.landmarks[nextLm.id]) || nextLm.coords;
   let spot = city.findOpenSpot(lmCoords[0], lmCoords[1], 6, 26, 2.0);
   if (city.isInsidePeaceZone(spot.x, spot.z)) {
-    spot = city.findOpenSpot(lmCoords[0], lmCoords[1], 25, 45, 2.0);
+    // If inside peace zone, search outward so mission box is outside peace sanctuary
+    spot = city.findOpenSpot(lmCoords[0], lmCoords[1], 62, 85, 2.0);
   }
 
   const boxPos = { x: spot.x, y: 0.9, z: spot.z };
@@ -2334,31 +2335,35 @@ function completeMission() {
   missionState.active = false;
   missionState.completedCount++;
 
-  const lmName = missionState.landmark.name;
-  const colName = missionState.color.name;
-  const colHex = missionState.color.threeHex;
-  const mPos = missionState.pos;
+  const lmName = missionState.landmark ? missionState.landmark.name : 'LANDMARK';
+  const colName = missionState.color ? missionState.color.name : 'CONTAINER';
+  const colHex = missionState.color ? missionState.color.threeHex : 0x00f0ff;
+  const mPos = { x: missionState.pos.x, y: missionState.pos.y, z: missionState.pos.z };
 
-  // Visual celebrations: colored fireworks & debris
-  spawnDebris(mPos.x, 1.2, mPos.z, colHex, 45, 12);
-  spawnDebris(mPos.x, 1.8, mPos.z, 0xffffff, 25, 8);
+  try {
+    // Visual celebrations: colored fireworks & debris
+    spawnDebris(mPos.x, 1.2, mPos.z, colHex, 50, 14);
+    spawnDebris(mPos.x, 1.8, mPos.z, 0xffffff, 30, 9);
+    triggerScreenShake(20);
 
-  // Audio fanfare
-  audio.playMissionFanfare();
-  audio.playCrateSmash();
+    // Audio fanfare
+    audio.playMissionFanfare();
+    audio.playCrateSmash();
 
-  // Rewards: +1500 score, vitality heal, shield, rage
-  state.score += 1500;
-  state.health = Math.min(100, state.health + 40);
-  state.armor = Math.min(100, state.armor + 40);
-  state.rage = Math.min(100, state.rage + 35);
-  updateHealthBar();
-  updateArmorBar();
-  updateRageBar();
-  const hudScore = document.getElementById('hud-score');
-  if (hudScore) hudScore.innerText = state.score;
+    // Rewards: +1500 score, vitality heal, shield, rage
+    state.score += 1500;
+    state.health = Math.min(state.maxHealth || 100, state.health + 40);
+    state.armor = Math.min(state.maxArmor || 100, state.armor + 40);
+    state.rage = Math.min(100, state.rage + 35);
+    updateHUDHealth();
+    updateRageBar();
+    const hudScore = document.getElementById('hud-score');
+    if (hudScore) hudScore.innerText = state.score;
 
-  showAnnouncement(`🏆 MISSION ACCOMPLISHED! RETRIEVED THE ${colName.toUpperCase()} AT ${lmName.toUpperCase()}! (+1500 PTS) 🏆`);
+    showAnnouncement(`🏆 MISSION ACCOMPLISHED! RETRIEVED THE ${colName.toUpperCase()} AT ${lmName.toUpperCase()}! (+1500 PTS) 🏆`);
+  } catch (err) {
+    console.error('Error during mission celebration:', err);
+  }
 
   // Remove box mesh from scene
   if (missionState.boxObj && missionState.boxObj.group) {
@@ -2367,12 +2372,14 @@ function completeMission() {
   }
 
   // Release surviving guards so they become standard roamers
-  missionState.guards.forEach(g => {
-    if (g && !g.isDead) {
-      g.isMissionGuard = false;
-    }
-  });
-  missionState.guards = [];
+  if (missionState.guards) {
+    missionState.guards.forEach(g => {
+      if (g && !g.isDead) {
+        g.isMissionGuard = false;
+      }
+    });
+    missionState.guards = [];
+  }
 
   // Update HUD to show victory and next mission timer
   const trackerEl = document.getElementById('mission-tracker');
@@ -2409,8 +2416,8 @@ function updateMission(dt) {
   // Distance from player to box
   const dist = Math.hypot(player.pos.x - missionState.pos.x, player.pos.z - missionState.pos.z);
 
-  // Proximity collection check (< 2.4 meters)
-  if (dist < 2.4) {
+  // Proximity collection check (< 3.8 meters - walking into the glowing aura)
+  if (dist < 3.8) {
     completeMission();
     return;
   }
@@ -2487,13 +2494,18 @@ function updateMissionHUD(dist) {
 
   const statusPill = document.getElementById('mission-status-pill');
   if (statusPill) {
-    const aliveGuards = missionState.guards.filter(g => g && !g.isDead && !g.isKnockedOut).length;
-    if (aliveGuards > 0) {
-      statusPill.innerText = `⚔️ ${aliveGuards} GUARD${aliveGuards > 1 ? 'S' : ''}`;
-      statusPill.style.color = '#ef4444';
+    if (roundedDist <= 6.5) {
+      statusPill.innerText = `🎯 HIT / WALK OVER CRATE!`;
+      statusPill.style.color = '#facc15';
     } else {
-      statusPill.innerText = `🔓 UNGUARDED`;
-      statusPill.style.color = '#10b981';
+      const aliveGuards = missionState.guards.filter(g => g && !g.isDead && !g.isKnockedOut).length;
+      if (aliveGuards > 0) {
+        statusPill.innerText = `⚔️ ${aliveGuards} GUARD${aliveGuards > 1 ? 'S' : ''}`;
+        statusPill.style.color = '#ef4444';
+      } else {
+        statusPill.innerText = `🔓 UNGUARDED`;
+        statusPill.style.color = '#10b981';
+      }
     }
   }
 }
@@ -2528,10 +2540,25 @@ document.addEventListener('pointerlockchange', () => {
   }
 });
 
-// Canvas Click: NEVER traps pointer automatically; executes attacks during gameplay
-container.addEventListener('click', (e) => {
+// Canvas Click & Mousedown: Executes attacks during gameplay with zero dropped inputs
+container.addEventListener('mousedown', (e) => {
   if (!state.inGame || state.isPaused || state.isDead) return;
   if (e.button === 0) {
+    // If near the active mission box, instantly crack it open!
+    if (missionState.active && missionState.state === 'active' && missionState.boxObj) {
+      const dBox = Math.hypot(missionState.pos.x - player.pos.x, missionState.pos.z - player.pos.z);
+      if (dBox <= 6.5) {
+        completeMission();
+        return;
+      }
+    }
+    triggerAttack();
+  }
+});
+
+container.addEventListener('click', (e) => {
+  if (!state.inGame || state.isPaused || state.isDead) return;
+  if (e.button === 0 && state.attackTimer <= 0) {
     triggerAttack();
   }
 });
@@ -2570,6 +2597,15 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     cycleDifficulty(1);
     return;
+  }
+
+  // Quick box smash if standing right near the mission container
+  if ((e.code === 'KeyF' || e.code === 'KeyE') && missionState.active && missionState.state === 'active' && missionState.boxObj) {
+    const dBox = Math.hypot(missionState.pos.x - player.pos.x, missionState.pos.z - player.pos.z);
+    if (dBox <= 6.5) {
+      completeMission();
+      return;
+    }
   }
 
   if (e.code === 'KeyF') triggerAttack();
@@ -2658,7 +2694,21 @@ const IMPACT_FRACTION = { punch: 0.3, heavy: 0.42, kick: 0.4, slam: 0.5 };
 function triggerAttack() {
   if (state.attackTimer > 0 || state.isDead || state.isPaused) return;
 
-  // Peace Sanctuary: No fighting allowed
+  // Immediate Mission Crate Hit Check (works anywhere, even in peace sanctuary!)
+  if (missionState.active && missionState.state === 'active' && missionState.boxObj) {
+    const dBox = Math.hypot(missionState.pos.x - player.pos.x, missionState.pos.z - player.pos.z);
+    if (dBox <= 6.5) {
+      completeMission();
+      state.attackTimer = 0.25;
+      state.attackDuration = 0.25;
+      state.isAttacking = true;
+      state.currentAnimType = 'punch';
+      audio.playPunch(1.2, state.isBerserk);
+      return;
+    }
+  }
+
+  // Peace Sanctuary: No fighting allowed against humans
   if (city && city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
     showAnnouncement("🕊️ PEACE SANCTUARY: NO COMBAT PERMITTED");
     audio.playPeaceChime?.();
@@ -2696,7 +2746,21 @@ function triggerAttack() {
 function triggerQuickKick() {
   if (state.attackTimer > 0 || state.isDead || state.isPaused) return;
 
-  // Peace Sanctuary: No fighting allowed
+  // Immediate Mission Crate Hit Check
+  if (missionState.active && missionState.state === 'active' && missionState.boxObj) {
+    const dBox = Math.hypot(missionState.pos.x - player.pos.x, missionState.pos.z - player.pos.z);
+    if (dBox <= 6.5) {
+      completeMission();
+      state.attackTimer = 0.32;
+      state.attackDuration = 0.32;
+      state.isAttacking = true;
+      state.currentAnimType = 'kick';
+      audio.playPunch(1.4, state.isBerserk);
+      return;
+    }
+  }
+
+  // Peace Sanctuary: No fighting allowed against humans
   if (city && city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
     showAnnouncement("🕊️ PEACE SANCTUARY: NO COMBAT PERMITTED");
     audio.playPeaceChime?.();
@@ -2718,8 +2782,14 @@ function triggerQuickKick() {
 }
 
 function executeMeteorSlam() {
-  // Peace Sanctuary: No fighting allowed
-  if (city && city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
+  // If near mission box, allow meteor slam even in peace sanctuary to smash the crate
+  let allowSlamInPeace = false;
+  if (missionState.active && missionState.state === 'active' && missionState.boxObj) {
+    const dBox = Math.hypot(missionState.pos.x - player.pos.x, missionState.pos.z - player.pos.z);
+    if (dBox <= 8.0) allowSlamInPeace = true;
+  }
+
+  if (!allowSlamInPeace && city && city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
     showAnnouncement("🕊️ PEACE SANCTUARY: NO COMBAT PERMITTED");
     audio.playPeaceChime?.();
     return;
@@ -2768,7 +2838,7 @@ function executeMeteorSlam() {
       // Check Mission Crate Slam
       if (missionState.active && missionState.state === 'active' && missionState.boxObj) {
         const dist = Math.hypot(missionState.pos.x - player.pos.x, missionState.pos.z - player.pos.z);
-        if (dist <= atk.range + 1.2) completeMission();
+        if (dist <= atk.range + 3.0) completeMission();
       }
     }
   }, 25);
@@ -2803,8 +2873,8 @@ function checkMeleeHits(atk) {
 
   // Check Active Mission Crate
   if (missionState.active && missionState.state === 'active' && missionState.boxObj) {
-    const distToMission = Math.hypot(missionState.pos.x - camera.position.x, missionState.pos.z - camera.position.z);
-    if (distToMission <= atk.range + 1.2) {
+    const distToMission = Math.hypot(missionState.pos.x - player.pos.x, missionState.pos.z - player.pos.z);
+    if (distToMission <= 6.5) {
       completeMission();
       hitSomething = true;
     }
@@ -3678,6 +3748,37 @@ function canMoveTo(x, z) {
     }
   }
 
+  // --- Solid Fighter & Guard Physical Body Blocking ---
+  // Player CANNOT run right through alive fighters or guards!
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i];
+    if (e.isDead || e.isKnockedOut) continue;
+    const ePos = e.rig ? e.rig.root.position : (e.sprite ? e.sprite.position : null);
+    if (!ePos) continue;
+
+    const dNew = Math.hypot(x - ePos.x, z - ePos.z);
+    const minFighterDist = 1.35; // combined physical collision radius
+    if (dNew < minFighterDist) {
+      // In Canadian Berserker Mode: player can bulldoze and shove fighters out of the way!
+      if (state.isBerserk) {
+        const pushX = ePos.x - player.pos.x;
+        const pushZ = ePos.z - player.pos.z;
+        const pLen = Math.hypot(pushX, pushZ) || 1;
+        e.vx += (pushX / pLen) * 16;
+        e.vz += (pushZ / pLen) * 16;
+        e.flinchTimer = 0.25;
+        triggerScreenShake(4);
+        return true;
+      }
+
+      // If moving closer to enemy body, physically block the player!
+      const dCurr = Math.hypot(player.pos.x - ePos.x, player.pos.z - ePos.z);
+      if (dNew < dCurr) {
+        return false;
+      }
+    }
+  }
+
   return true;
 }
 
@@ -3802,12 +3903,17 @@ function updateEnemies(dt) {
     // AI Chasing, Footwork & Punch Attacks (Enemies CANNOT pursue into or attack inside Peace Sanctuary)
     if (!enemy.isStaggered) {
       const aggroLimit = enemy.aggroDist || 45;
-      const isMoving = !playerInPeace && distToPlayer > 2.0 && distToPlayer < aggroLimit;
+      const isMoving = !playerInPeace && distToPlayer > 1.35 && distToPlayer < aggroLimit;
 
       if (isMoving) {
         const dir = player.pos.clone().sub(enemy.rig.root.position).normalize();
-        enemy.rig.root.position.x += dir.x * enemy.speed * dt;
-        enemy.rig.root.position.z += dir.z * enemy.speed * dt;
+        const nextEx = enemy.rig.root.position.x + dir.x * enemy.speed * dt;
+        const nextEz = enemy.rig.root.position.z + dir.z * enemy.speed * dt;
+        const nextDist = Math.hypot(nextEx - player.pos.x, nextEz - player.pos.z);
+        if (nextDist >= 1.30) {
+          enemy.rig.root.position.x = nextEx;
+          enemy.rig.root.position.z = nextEz;
+        }
 
         // Human walk cycle animation
         enemy.walkPhase += dt * enemy.speed * 3.8;
@@ -3838,6 +3944,15 @@ function updateEnemies(dt) {
             enemy.rig.root.rotation.y = Math.atan2(gdx, gdz);
           }
         }
+      }
+
+      // Keep enemy body from clipping inside player camera/body
+      if (distToPlayer < 1.30 && distToPlayer > 0.05) {
+        const overlap = 1.30 - distToPlayer;
+        const pushX = (enemy.rig.root.position.x - player.pos.x) / distToPlayer;
+        const pushZ = (enemy.rig.root.position.z - player.pos.z) / distToPlayer;
+        enemy.rig.root.position.x += pushX * overlap;
+        enemy.rig.root.position.z += pushZ * overlap;
       }
 
       // Punch Attack / Boxer Guard Animation
@@ -3895,6 +4010,34 @@ function updateEnemies(dt) {
       }
     }
   });
+
+  // Mutual enemy-enemy physical body blocking (sentry guards & crowd spacing)
+  for (let i = 0; i < enemies.length; i++) {
+    const e1 = enemies[i];
+    if (e1.isDead || e1.isKnockedOut || !e1.rig || !e1.rig.root) continue;
+    const p1 = e1.rig.root.position;
+
+    for (let j = i + 1; j < enemies.length; j++) {
+      const e2 = enemies[j];
+      if (e2.isDead || e2.isKnockedOut || !e2.rig || !e2.rig.root) continue;
+      const p2 = e2.rig.root.position;
+
+      const sepDx = p2.x - p1.x;
+      const sepDz = p2.z - p1.z;
+      const sepDist = Math.hypot(sepDx, sepDz);
+      const minSep = 1.25;
+
+      if (sepDist < minSep && sepDist > 0.01) {
+        const push = (minSep - sepDist) * 0.5;
+        const nx = sepDx / sepDist;
+        const nz = sepDz / sepDist;
+        p2.x += nx * push;
+        p2.z += nz * push;
+        p1.x -= nx * push;
+        p1.z -= nz * push;
+      }
+    }
+  }
 
   // Glory Kill Prompt Visibility
   state.gloryTarget = nearestStaggered;
