@@ -2300,85 +2300,134 @@
         ctx.beginPath(); ctx.arc(dx, dz, d.r || 3, 0, Math.PI * 2); ctx.fill();
       });
 
-      // Draw active Mission Objective Beacon on radar (clamps to radar rim if far away)
+      // ======================================================================
+      // THE TWO CRITICAL RADAR LANDMARKS: 1) CN TOWER & 2) ACTIVE GOAL
+      // ======================================================================
+      const radiusLimit = size / 2 - 10;
+
+      // 1. CN TOWER (PEACE SANCTUARY)
+      const cnx = (peaceCenter[0] - player.x) * s;
+      const cnz = (peaceCenter[1] - player.z) * s;
+      const cnDist = Math.hypot(cnx, cnz);
+      let cnBadgeX = cnx;
+      let cnBadgeY = cnz;
+      const cnOffScreen = cnDist > radiusLimit;
+
+      if (cnOffScreen) {
+        cnBadgeX = (cnx / cnDist) * radiusLimit;
+        cnBadgeY = (cnz / cnDist) * radiusLimit;
+
+        // Pointer chevron pointing outward toward CN Tower
+        ctx.save();
+        ctx.translate(cnBadgeX, cnBadgeY);
+        const cnAngle = Math.atan2(cnz, cnx);
+        ctx.rotate(cnAngle + Math.PI / 2);
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.moveTo(0, -9);
+        ctx.lineTo(-5, 0);
+        ctx.lineTo(5, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // CN Tower Badge
+      ctx.save();
+      ctx.translate(cnBadgeX, cnBadgeY);
+      ctx.rotate(-yaw);
+      ctx.beginPath();
+      ctx.arc(0, 0, 7.5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+      ctx.fill();
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      ctx.fillStyle = '#34d399';
+      ctx.font = 'bold 8px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('🕊️', 0, 3);
+      ctx.restore();
+
+      // 2. ACTIVE MISSION GOAL POINTER
       if (missionDot) {
         const mdx = (missionDot.x - player.x) * s;
         const mdz = (missionDot.z - player.z) * s;
         const mdist = Math.hypot(mdx, mdz);
-        const radiusLimit = size / 2 - 9;
-        let px = mdx, pz = mdz;
-        if (mdist > radiusLimit) {
-          px = (mdx / mdist) * radiusLimit;
-          pz = (mdz / mdist) * radiusLimit;
+        const goalCol = missionDot.c || '#ef4444';
+        const goalOffScreen = mdist > radiusLimit;
+        let gpx = mdx;
+        let gpz = mdz;
+
+        if (goalOffScreen) {
+          gpx = (mdx / mdist) * radiusLimit;
+          gpz = (mdz / mdist) * radiusLimit;
+
+          // Subtle tracer line from player toward goal pointer
+          ctx.save();
+          ctx.strokeStyle = goalCol;
+          ctx.lineWidth = 1.2;
+          ctx.setLineDash([3, 4]);
+          ctx.globalAlpha = 0.45;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(gpx * 0.82, gpz * 0.82);
+          ctx.stroke();
+          ctx.restore();
+
+          // Outward navigation pointer chevron pointing directly to goal
+          ctx.save();
+          ctx.translate(gpx, gpz);
+          const goalAngle = Math.atan2(mdz, mdx);
+          ctx.rotate(goalAngle + Math.PI / 2);
+          ctx.fillStyle = goalCol;
+          ctx.beginPath();
+          ctx.moveTo(0, -10);
+          ctx.lineTo(-6, 1);
+          ctx.lineTo(6, 1);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+          ctx.restore();
         }
 
+        // Mission Goal Badge & Pulsing Beacon
         ctx.save();
-        ctx.translate(px, pz);
+        ctx.translate(gpx, gpz);
         const pulse = Math.sin(Date.now() * 0.007) * 0.5 + 0.5;
 
-        // Outer pulsing ring
+        // Pulsing target ring
         ctx.beginPath();
-        ctx.arc(0, 0, 7.5 + pulse * 5, 0, Math.PI * 2);
-        ctx.strokeStyle = missionDot.c || '#ef4444';
+        ctx.arc(0, 0, 8.5 + pulse * 6, 0, Math.PI * 2);
+        ctx.strokeStyle = goalCol;
         ctx.lineWidth = 2.0;
         ctx.stroke();
 
-        // Inner glowing diamond
-        ctx.rotate(Date.now() * 0.002);
-        ctx.fillStyle = missionDot.c || '#ef4444';
+        ctx.rotate(-yaw);
+
+        // Badge pill
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        ctx.strokeStyle = goalCol;
+        ctx.lineWidth = 1.6;
         ctx.beginPath();
-        ctx.moveTo(0, -6.5);
-        ctx.lineTo(6.5, 0);
-        ctx.lineTo(0, 6.5);
-        ctx.lineTo(-6.5, 0);
-        ctx.closePath();
+        if (ctx.roundRect) {
+          ctx.roundRect(-20, -7, 40, 14, 7);
+        } else {
+          ctx.rect(-20, -7, 40, 14);
+        }
         ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.4;
         ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 8px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('🎯 GOAL', 0, 3);
 
         ctx.restore();
       }
-      // Iconic Toronto Landmarks direction and position badges on radar
-      const radarLandmarks = [
-        { code: 'CN', pos: LM.cnTower, col: '#ff3b4a' },
-        { code: 'ROGR', pos: LM.rogersCentre, col: '#3b82f6' },
-        { code: 'AQUA', pos: LM.ripleys, col: '#00f0ff' },
-        { code: 'TRN', pos: LM.roundhouse, col: '#f59e0b' },
-        { code: 'UNN', pos: LM.unionStation, col: '#eab308' },
-        { code: 'RYL', pos: LM.royalYork, col: '#ec4899' },
-        { code: 'RTH', pos: LM.royThomson, col: '#a855f7' },
-        { code: 'SQ', pos: LM.pecautSquare, col: '#38bdf8' },
-        { code: 'FLAT', pos: LM.gooderham, col: '#ef4444' },
-        { code: 'MKT', pos: LM.stLawrence, col: '#10b981' }
-      ];
-      radarLandmarks.forEach(lm => {
-        if (!lm.pos) return;
-        const ldx = lm.pos[0] - player.x, ldz = lm.pos[1] - player.z;
-        const ld = Math.hypot(ldx, ldz);
-        const radiusLimit = size / 2 - 8;
-        let k;
-        if (ld * s > radiusLimit) {
-          k = radiusLimit / ld;
-        } else {
-          k = s;
-        }
-        ctx.save();
-        ctx.translate(ldx * k, ldz * k);
-        ctx.rotate(-yaw);
-        ctx.beginPath();
-        ctx.arc(0, 0, 7.5, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-        ctx.fill();
-        ctx.strokeStyle = lm.col;
-        ctx.lineWidth = 1.4;
-        ctx.stroke();
-        ctx.fillStyle = lm.col;
-        ctx.font = 'bold 8px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(lm.code, 0, 3);
-        ctx.restore();
-      });
+
       ctx.restore();
 
       // player arrow (always points up)

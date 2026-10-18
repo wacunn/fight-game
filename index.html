@@ -58,7 +58,20 @@
       </div>
       <canvas id="minimap-canvas" width="160" height="160"></canvas>
       <div id="minimap-footer">
-        <span id="tower-distance" style="color:#34d399;">CN TOWER SANCTUARY (INSIDE)</span>
+        <div class="minimap-target-row sanctuary-row">
+          <div class="m-left">
+            <span class="m-icon">🕊️</span>
+            <span class="m-label">CN TOWER:</span>
+          </div>
+          <span id="tower-distance" class="m-val">INSIDE</span>
+        </div>
+        <div class="minimap-target-row goal-row" id="minimap-goal-row">
+          <div class="m-left">
+            <span class="m-icon" id="minimap-goal-icon">🎯</span>
+            <span class="m-label" id="minimap-goal-label">GOAL:</span>
+          </div>
+          <span id="minimap-goal-distance" class="m-val">--</span>
+        </div>
       </div>
     </div>
 

@@ -3470,16 +3470,48 @@ function animate(now) {
     if (traffic) traffic.cars.forEach(c => dots.push({ x: c.vx, z: c.vz, c: '#e5e7eb', r: 2 }));
     city.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
 
-    // Distance to CN Tower
+    // 1. Distance & status to CN Tower (Peace Sanctuary)
     const towerDist = Math.round(Math.hypot(player.pos.x - city.landmarks.cnTower[0], player.pos.z - city.landmarks.cnTower[1]));
     const towerDistEl = document.getElementById('tower-distance');
     if (towerDistEl) {
       if (city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
-        towerDistEl.innerText = 'CN TOWER SANCTUARY (INSIDE)';
+        towerDistEl.innerText = 'INSIDE';
         towerDistEl.style.color = '#34d399';
       } else {
-        towerDistEl.innerText = `CN TOWER: ${towerDist}m`;
-        towerDistEl.style.color = '#38bdf8';
+        towerDistEl.innerText = `${towerDist}m`;
+        towerDistEl.style.color = '#34d399';
+      }
+    }
+
+    // 2. Pointer & distance to Mission Goal
+    const goalLabelEl = document.getElementById('minimap-goal-label');
+    const goalDistEl = document.getElementById('minimap-goal-distance');
+    const goalRowEl = document.getElementById('minimap-goal-row');
+    if (goalLabelEl && goalDistEl && goalRowEl) {
+      if (missionState.active && missionState.landmark && missionState.color && missionState.state === 'active') {
+        const mDist = Math.round(Math.hypot(player.pos.x - missionState.pos.x, player.pos.z - missionState.pos.z));
+        const dx = missionState.pos.x - player.pos.x;
+        const dz = missionState.pos.z - player.pos.z;
+        const relAngle = Math.atan2(dx, dz) - player.yaw;
+        let norm = (relAngle + Math.PI) % (Math.PI * 2) - Math.PI;
+        let arrow = '↑';
+        if (norm > Math.PI * 0.75 || norm < -Math.PI * 0.75) arrow = '↓';
+        else if (norm > Math.PI * 0.25) arrow = '→';
+        else if (norm < -Math.PI * 0.25) arrow = '←';
+        else if (norm > 0.1) arrow = '↗';
+        else if (norm < -0.1) arrow = '↖';
+
+        const shortName = missionState.landmark.name.length > 10 ? missionState.landmark.name.slice(0, 9) + '.' : missionState.landmark.name;
+        goalLabelEl.innerText = `${shortName.toUpperCase()}:`;
+        goalDistEl.innerText = `${mDist}m ${arrow}`;
+        goalDistEl.style.color = missionState.color.hex;
+        goalRowEl.style.borderColor = missionState.color.hex;
+        goalRowEl.style.display = 'flex';
+      } else {
+        goalLabelEl.innerText = 'GOAL:';
+        goalDistEl.innerText = 'NEXT SOON...';
+        goalDistEl.style.color = '#f59e0b';
+        goalRowEl.style.borderColor = 'rgba(245, 158, 11, 0.3)';
       }
     }
   }

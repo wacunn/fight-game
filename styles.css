@@ -974,8 +974,9 @@ kbd {
   position: absolute;
   top: 56px;
   right: 18px;
-  background: rgba(11, 14, 20, 0.88);
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  width: 182px;
+  background: rgba(11, 14, 20, 0.90);
+  border: 1px solid rgba(56, 189, 248, 0.40);
   border-radius: 12px;
   padding: 8px 10px;
   display: flex;
@@ -983,7 +984,7 @@ kbd {
   align-items: center;
   gap: 5px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 0 16px rgba(0, 240, 255, 0.12);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
   z-index: 25;
   pointer-events: none;
   user-select: none;
@@ -994,7 +995,7 @@ kbd {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 #minimap-location {
@@ -1043,11 +1044,70 @@ kbd {
 }
 
 #minimap-footer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 1px;
   font-family: 'Chakra Petch', monospace;
   font-size: 10px;
-  font-weight: 600;
-  color: #38bdf8;
   letter-spacing: 0.5px;
+}
+
+.minimap-target-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.70);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.minimap-target-row .m-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.minimap-target-row .m-icon {
+  font-size: 10px;
+}
+
+.minimap-target-row .m-label {
+  font-weight: 700;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.minimap-target-row .m-val {
+  font-weight: 800;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.minimap-target-row.sanctuary-row .m-label {
+  color: #34d399;
+}
+
+.minimap-target-row.sanctuary-row .m-val {
+  color: #34d399;
+}
+
+.minimap-target-row.goal-row {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.minimap-target-row.goal-row .m-label {
+  color: #f1f5f9;
+}
+
+.minimap-target-row.goal-row .m-val {
+  color: #ef4444;
 }
 
 /* Peace Sanctuary Notification Banner */
