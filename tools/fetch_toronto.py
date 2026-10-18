@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
 """
-Fetch real Toronto street + building data (CN Tower / Union Station area)
-from OpenStreetMap's Overpass API and convert it into a compact local-metre
-JSON blob the game can load with zero runtime map dependencies.
+Fetch real Toronto street + building data from OpenStreetMap's Overpass API and
+convert it into a compact local-metre JSON blob the game loads with zero runtime
+map dependencies.
+
+Covers the WHOLE playable map: Rogers Centre / Roundhouse in the west to
+St. Lawrence Market / Jarvis St in the east, the lakeshore to north of King St.
 
 Output: ../toronto_map.js  (defines window.TORONTO_MAP)
 
+Usage:
+  python3 tools/fetch_toronto.py                  # download + write toronto_map.js
+  python3 tools/fetch_toronto.py --save-raw raw.json   # also keep the raw Overpass reply
+  python3 tools/fetch_toronto.py --input raw.json      # rebuild offline from a saved reply
+
 Map data (c) OpenStreetMap contributors, ODbL. Attribution is shown in-game.
 """
+import argparse
 import json
 import math
 import os
@@ -15,10 +24,12 @@ import sys
 import urllib.parse
 import urllib.request
 
-# Data bounding box (S, W, N, E): Union Station east edge -> past CN Tower / Rogers Centre
-S, W, N, E = 43.6395, -79.3935, 43.6480, -79.3765
+# Data bounding box (S, W, N, E). Matches the game's map bounds exactly, so every
+# street the player can reach has real buildings along it.
+S, W, N, E = 43.63932, -79.39368, 43.65012, -79.37133
 
-# Projection origin (between CN Tower and Union Station)
+# Projection origin (between CN Tower and Union Station) -- do not change, all
+# game coordinates are relative to this point.
 LAT0, LON0 = 43.6440, -79.3835
 M_PER_DEG_LAT = 111_132.0
 M_PER_DEG_LON = 111_320.0 * math.cos(math.radians(LAT0))
@@ -33,7 +44,7 @@ ENDPOINTS = [
 ]
 
 QUERY = f"""
-[out:json][timeout:90];
+[out:json][timeout:180];
 (
   way["building"]({S},{W},{N},{E});
   relation["building"]({S},{W},{N},{E});
@@ -48,6 +59,21 @@ ROAD_WIDTHS = {
     "primary": 13, "primary_link": 7, "secondary": 11, "secondary_link": 6,
     "tertiary": 9, "tertiary_link": 6, "residential": 7, "unclassified": 7,
     "living_street": 6, "service": 5, "pedestrian": 6,
+}
+
+# Landmarks the game models by hand. Position = centroid of the real OSM footprint
+# whose name matches; the lat/lon is only a fallback if OSM doesn't have it.
+LANDMARKS = {
+    "cnTower":      (["CN Tower"],                                   43.642566, -79.387057),
+    "unionStation": (["Union Station"],                              43.645541, -79.380648),
+    "rogersCentre": (["Rogers Centre"],                              43.641438, -79.389353),
+    "ripleys":      (["Ripley's Aquarium"],                          43.642458, -79.386189),
+    "roundhouse":   (["John Street Roundhouse"],                     43.640855, -79.386031),
+    "royalYork":    (["Fairmont Royal York"],                        43.645936, -79.381288),
+    "royThomson":   (["Roy Thomson Hall"],                           43.646632, -79.386343),
+    "pecautSquare": ([],                                             43.646160, -79.386541),
+    "gooderham":    (["Gooderham Building"],                         43.648400, -79.374500),
+    "stLawrence":   (["St. Lawrence Market South", "St. Lawrence Market"], 43.648769, -79.373010),
 }
 
 
@@ -86,8 +112,8 @@ def fetch():
     for url in ENDPOINTS:
         try:
             print(f"Querying {url} ...", file=sys.stderr)
-            req = urllib.request.Request(url, data=data, headers={"User-Agent": "fist-of-doom-toronto/1.0"})
-            with urllib.request.urlopen(req, timeout=120) as r:
+            req = urllib.request.Request(url, data=data, headers={"User-Agent": "fist-of-doom-toronto/1.1"})
+            with urllib.request.urlopen(req, timeout=240) as r:
                 return json.loads(r.read().decode())
         except Exception as e:  # noqa: BLE001
             last_err = e
@@ -95,9 +121,36 @@ def fetch():
     raise SystemExit(f"All Overpass endpoints failed: {last_err}")
 
 
+def centroid(pts):
+    return sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts)
+
+
+def area(pts):
+    a = 0.0
+    for i in range(len(pts)):
+        x0, z0 = pts[i]
+        x1, z1 = pts[(i + 1) % len(pts)]
+        a += x0 * z1 - x1 * z0
+    return abs(a) / 2
+
+
 def main():
-    raw = fetch()
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--input", help="build from a saved Overpass JSON reply instead of downloading")
+    ap.add_argument("--save-raw", help="also save the raw Overpass reply to this file")
+    args = ap.parse_args()
+
+    if args.input:
+        with open(args.input, encoding="utf-8") as f:
+            raw = json.load(f)
+    else:
+        raw = fetch()
+        if args.save_raw:
+            with open(args.save_raw, "w", encoding="utf-8") as f:
+                json.dump(raw, f)
+
     buildings, roads, rails = [], [], []
+    named_feet = []  # (name, centroid, area) for landmark lookup
 
     for el in raw.get("elements", []):
         tags = el.get("tags", {})
@@ -123,6 +176,7 @@ def main():
                 name = tags.get("name")
                 if name:
                     b["n"] = name
+                    named_feet.append((name, centroid(pts), area(pts)))
                 buildings.append(b)
 
         elif "highway" in tags and el["type"] == "way":
@@ -148,17 +202,29 @@ def main():
             pts = [proj(p["lat"], p["lon"]) for p in el["geometry"]]
             rails.append({"p": flat(pts)})
 
-    # Landmarks (projected)
-    landmarks = {
-        "cnTower": proj(43.642566, -79.387057),
-        "unionStation": proj(43.645541, -79.380648),
-        "rogersCentre": proj(43.641438, -79.389353),
-    }
+    # Landmarks: centroid of the largest real footprint whose name matches
+    landmarks, report = {}, []
+    for key, (names, lat, lon) in LANDMARKS.items():
+        found = None
+        for wanted in names:
+            hits = [f for f in named_feet if f[0].startswith(wanted)]
+            if hits:
+                found = max(hits, key=lambda f: f[2])
+                break
+        if found and key != "cnTower":
+            landmarks[key] = [round(found[1][0], 1), round(found[1][1], 1)]
+            report.append(f"{key}: from OSM footprint '{found[0]}'")
+        else:
+            landmarks[key] = list(proj(lat, lon))
+            report.append(f"{key}: fixed coordinates" + ("" if key in ("cnTower", "pecautSquare") else "  (WARNING: no OSM footprint found)"))
 
     out = {
         "attribution": "Map data \u00a9 OpenStreetMap contributors (ODbL)",
         "origin": [LAT0, LON0],
         "bounds": [proj(N, W), proj(S, E)],
+        # Area actually covered by real OSM data. The game only invents filler
+        # buildings OUTSIDE this box (distant skyline beyond the playable area).
+        "dataBounds": [proj(N, W), proj(S, E)],
         "landmarks": landmarks,
         "buildings": buildings,
         "roads": roads,
@@ -174,10 +240,10 @@ def main():
         json.dump(out, f, separators=(",", ":"), ensure_ascii=False)
         f.write(";\n")
 
-    named = sorted({b["n"] for b in buildings if "n" in b})
-    print(f"buildings={len(buildings)} roads={len(roads)} rails={len(rails)} "
+    with_h = sum(1 for b in buildings if "h" in b)
+    print(f"buildings={len(buildings)} (with real height: {with_h}) roads={len(roads)} rails={len(rails)} "
           f"size={os.path.getsize(target)//1024}KB", file=sys.stderr)
-    print("named buildings:", ", ".join(named[:60]), file=sys.stderr)
+    print("landmarks:\n  " + "\n  ".join(report), file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -973,6 +973,11 @@
       }
       if (name === 'Union Station') h = 26;
       if (name.indexOf('Fairmont Royal York') >= 0) { h = 50; landmarkFeet.royalYork = pts; } // chateau roof added later
+      // Gooderham & St. Lawrence Market: real footprint, roofs/turret/pediment added later
+      const isGooderham = name.indexOf('Gooderham Building') === 0;
+      const isMarket = name === 'St. Lawrence Market South' || (name === 'St. Lawrence Market' && !landmarkFeet.market);
+      if (isGooderham) { h = 20; landmarkFeet.gooderham = pts; }
+      if (isMarket) { h = 12; landmarkFeet.market = pts; }
       h = Math.max(4, Math.min(h, 320));
 
       let style;
@@ -988,10 +993,12 @@
       }
       if (name === 'Union Station') unionPoly = { pts, cx, cz, h };
 
+      if (isGooderham || isMarket) style = 'brick';
       const tb = 0.78 + hash(bi * 2.71) * 0.4;
       addBuilding(pts, h, style, 0, {
         tint: [tb * (0.95 + hash(bi * 9.1) * 0.1), tb, tb * (0.95 + hash(bi * 4.3) * 0.1)],
-        uOff: hash(bi * 7.7) * TILE_W
+        uOff: hash(bi * 7.7) * TILE_W,
+        shops: !isMarket, roof: !(isGooderham || isMarket)
       });
 
       let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -1025,6 +1032,9 @@
       return false;
     }
     const nearSanctuary = (x, z) => Math.hypot(x - LM.cnTower[0], z - LM.cnTower[1]) < 75;
+    // Newer map files record the area covered by real OSM data; nothing is invented inside it
+    const DATA = MAP.dataBounds ? { x0: MAP.dataBounds[0][0], z0: MAP.dataBounds[0][1], x1: MAP.dataBounds[1][0], z1: MAP.dataBounds[1][1] } : null;
+    const inRealData = (x, z) => !!DATA && x > DATA.x0 && x < DATA.x1 && z > DATA.z0 && z < DATA.z1;
     function lotIsFree(rect) {
       const probes = rect.slice();
       for (let i = 0; i < rect.length; i++) {
@@ -1059,6 +1069,21 @@
     {
       const fronts = roadByName('Front Street East'), wells = roadByName('Wellington Street East');
       let best = null;
+      if (landmarkFeet.gooderham) {
+        // Real footprint: the turret goes on the sharpest corner (the flatiron's prow)
+        const P = landmarkFeet.gooderham, c = centroid(P);
+        let sharp = 0, bestCos = -2;
+        P.forEach((p, i) => {
+          const a = P[(i + P.length - 1) % P.length], b = P[(i + 1) % P.length];
+          const u = unit(a[0] - p[0], a[1] - p[1]), v = unit(b[0] - p[0], b[1] - p[1]);
+          const cosA = u[0] * v[0] + u[1] * v[1];
+          if (cosA > bestCos) { bestCos = cosA; sharp = i; }
+        });
+        const tipP = P[sharp], inward = unit(c[0] - tipP[0], c[1] - tipP[1]);
+        const nose = [tipP[0] + inward[0] * 2.6, tipP[1] + inward[1] * 2.6];
+        landmarkExtras.gooderham = { poly: P, apex: nose, nose };
+        LM.gooderham = [c[0], c[1]];
+      }
       wells.forEach(w => [0, w.pts.length - 1].forEach(wi => {
         const wp = w.pts[wi];
         fronts.forEach(f => f.pts.forEach((fp, fi) => {
@@ -1066,7 +1091,7 @@
           if (d < 15 && (!best || d < best.d)) best = { d, w, wi, f, fi };
         }));
       }));
-      if (best) {
+      if (best && !landmarkFeet.gooderham && !DATA) {
         const { w, wi, f, fi } = best;
         const tip = f.pts[fi];
         // directions pointing WEST (away from the tip) along each street
@@ -1105,10 +1130,28 @@
     {
       const fronts = roadByName('Front Street East'), jarv = roadByName('Jarvis Street');
       let hit = null;
+      if (landmarkFeet.market) {
+        const P = landmarkFeet.market, c = centroid(P);
+        // long axis = the market hall's length (north-south); measure the footprint along it
+        let best = 0, ax = [0, 1];
+        for (let i = 0; i < P.length; i++) {
+          const a = P[i], b = P[(i + 1) % P.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+          if (L > best) { best = L; ax = unit(b[0] - a[0], b[1] - a[1]); }
+        }
+        let south = ax[1] < 0 ? [-ax[0], -ax[1]] : ax;
+        let west = [-south[1], south[0]]; if (west[0] > 0) west = [-west[0], -west[1]];
+        const along = P.map(p => (p[0] - c[0]) * south[0] + (p[1] - c[1]) * south[1]);
+        const across = P.map(p => (p[0] - c[0]) * west[0] + (p[1] - c[1]) * west[1]);
+        const D = Math.max(...along) - Math.min(...along), W = Math.max(...across) - Math.min(...across);
+        const mid = (Math.max(...along) + Math.min(...along)) / 2, midW = (Math.max(...across) + Math.min(...across)) / 2;
+        const center = [c[0] + south[0] * mid + west[0] * midW, c[1] + south[1] * mid + west[1] * midW];
+        landmarkExtras.market = { center, west, south, W, D };
+        LM.stLawrence = [c[0], c[1]];
+      }
       fronts.forEach(f => f.pts.forEach((fp, fi) => jarv.forEach(j => j.pts.forEach(jp => {
         if (Math.hypot(fp[0] - jp[0], fp[1] - jp[1]) < 3) hit = { f, fi, j, p: fp };
       }))));
-      if (hit) {
+      if (hit && !landmarkFeet.market && !DATA) {
         const { f, fi, j, p } = hit;
         const fNext = f.pts[fi > 0 ? fi - 1 : fi + 1];               // west along Front
         const west = unit(fNext[0] - p[0], fNext[1] - p[1]);
@@ -1123,7 +1166,7 @@
           addLot(rect, 12, 'brick', 91, { shops: false, roof: false });
           const c = centroid(rect);
           LM.stLawrence = [c[0], c[1]];
-          landmarkExtras.market = { rect, west, south, K, W, D };
+          landmarkExtras.market = { center: centroid(rect), west, south, W, D };
         }
       }
     }
@@ -1146,14 +1189,14 @@
               if (t + lotW > len - 3) break;
               const s0 = r.w / 2 + 3.2;
               const mx = ax + dx * (t + lotW / 2) + nx * side * (s0 + 10), mz = az + dz * (t + lotW / 2) + nz * side * (s0 + 10);
-              if (mx < PLAY.minX || mx > PLAY.maxX || mz < PLAY.minZ || mz > PLAY.maxZ || nearRealBuilding(mx, mz, 48)) { t += lotW; continue; }
+              if (mx < PLAY.minX || mx > PLAY.maxX || mz < PLAY.minZ || mz > PLAY.maxZ || inRealData(mx, mz) || nearRealBuilding(mx, mz, 48)) { t += lotW; continue; }
               // up to two rows deep: street-front shops, then a taller building behind
               let off = s0;
               for (let row = 0; row < 2; row++) {
                 const depth = row ? 16 + hash(seed * 5.3) * 14 : 13 + hash(seed * 3.1) * 11;
                 const p0 = [ax + dx * t + nx * side * off, az + dz * t + nz * side * off];
                 const p1 = [p0[0] + dx * lotW, p0[1] + dz * lotW];
-                const rect = [p0, p1, [p1[0] + nx * side * depth, p1[1] + nz * side * depth], [p0[0] + nx * side * depth, p0[1] + nz * side * depth]];
+                const rect = [p0, p1, [p1[0] + nx * side * depth, p1[1] + nz * side * depth], [p0[0] + nx * side * depth, p0[0] + nz * side * depth]];
                 if (!lotIsFree(rect)) break;
                 const r1 = hash(seed * 7.9 + row);
                 let h, style;
@@ -1964,8 +2007,8 @@
 
     // ---------------- 6. St. Lawrence Market: long gable roof + 1845 pediment frontispiece on Front St ----------------
     if (landmarkExtras.market) {
-      const { rect, west, south, K, W, D } = landmarkExtras.market;
-      const [cx, cz] = centroid(rect);
+      const { center, west, south, W, D } = landmarkExtras.market;
+      const [cx, cz] = center;
       const rot = Math.atan2(south[0], south[1]);
       const prof = new THREE.Shape(); prof.moveTo(-W / 2 - 0.6, 0); prof.lineTo(W / 2 + 0.6, 0); prof.lineTo(0, 10); prof.closePath();
       const gable = new THREE.ExtrudeGeometry(prof, { depth: D + 1.2, bevelEnabled: false });
@@ -1976,7 +2019,7 @@
       const glow = new THREE.Mesh(new THREE.BoxGeometry(3, 1.2, D - 6), new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0xffc070, emissiveIntensity: 0.55 }));
       glow.position.set(cx, 21.9, cz); glow.rotation.y = rot; scene.add(glow);
       // Pediment pavilion centred on the Front Street face
-      const fm = [K[0] + west[0] * W / 2, K[1] + west[1] * W / 2];
+      const fm = [cx - south[0] * D / 2, cz - south[1] * D / 2]; // middle of the Front Street face
       const stone = new THREE.MeshStandardMaterial({ color: 0xc9b99a, roughness: 0.7, envMapIntensity: 0.3 });
       const pav = new THREE.Group(); pav.position.set(fm[0] - south[0] * 1.2, 0, fm[1] - south[1] * 1.2); pav.rotation.y = rot;
       const block = new THREE.Mesh(new THREE.BoxGeometry(20, 17, 4), stone); block.position.y = 8.5; pav.add(block);
