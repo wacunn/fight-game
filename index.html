@@ -86,6 +86,73 @@
       </div>
     </div>
 
+    <!-- CN Tower Glass Elevator Ride HUD -->
+    <div id="elevator-hud" class="hidden">
+      <div class="elev-header">
+        <span class="elev-pulse"></span>
+        <span id="elev-title">CN TOWER GLASS ELEVATOR</span>
+        <span id="elev-speed">22 KM/H</span>
+      </div>
+      <div class="elev-level-name" id="elev-level-name">ASCENDING TO OBSERVATION DECK</div>
+      <div class="elev-alt-row">
+        <span class="elev-alt-label">ALTITUDE</span>
+        <div class="elev-gauge-track">
+          <div class="elev-gauge-fill" id="elev-gauge-fill"></div>
+        </div>
+        <span class="elev-alt-val" id="elev-alt-val">12 m</span>
+      </div>
+      <div class="elev-tip">👀 MOUSE LOOK ACTIVE • ENJOY THE 360° SCENIC TORONTO VIEW</div>
+    </div>
+
+    <!-- Interactive Prompt Pill (Elevator, Telescopes, Sky Showdown) -->
+    <div id="deck-action-prompt" class="hidden">
+      <span class="action-key" id="deck-action-key">[E]</span>
+      <span class="action-text" id="deck-action-text">BOARD GLASS ELEVATOR</span>
+    </div>
+
+    <!-- Sky Showdown Mini-Game HUD -->
+    <div id="sky-showdown-hud" class="hidden">
+      <div class="showdown-badge">
+        <span class="showdown-icon">⚔️</span>
+        <span class="showdown-title">CN TOWER SKY SHOWDOWN</span>
+        <span id="showdown-wave-tag" class="showdown-tag">WAVE 1 / 3</span>
+      </div>
+      <div class="showdown-status-row">
+        <span id="showdown-sub">GLASS FLOOR DEFENSE</span>
+        <span id="showdown-count" class="showdown-count">4 FOES REMAINING</span>
+      </div>
+      <!-- Boss Health Bar for Wave 3 -->
+      <div id="sky-boss-bar-wrap" class="hidden">
+        <div class="boss-label">👹 THE SKY APEX BRUTE</div>
+        <div class="boss-bar-track">
+          <div id="sky-boss-bar-fill" class="boss-bar-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tourist Telescope Fullscreen Overlay -->
+    <div id="telescope-overlay" class="hidden">
+      <div class="telescope-vignette"></div>
+      <div class="telescope-reticle">
+        <div class="crosshair-h"></div>
+        <div class="crosshair-v"></div>
+        <div class="reticle-circle-1"></div>
+        <div class="reticle-circle-2"></div>
+      </div>
+      <div class="telescope-card">
+        <div class="telescope-dir" id="telescope-dir">🔭 SOUTH LOOKOUT • 180°</div>
+        <div class="telescope-name" id="telescope-name">LAKE ONTARIO & TORONTO ISLANDS</div>
+        <div class="telescope-desc" id="telescope-desc">Panoramic southern vista across Toronto Harbour, Billy Bishop Airport, and the Toronto Islands.</div>
+        <div class="telescope-exit-hint">PRESS [V] OR MOVE TO EXIT TELESCOPE VIEW</div>
+      </div>
+    </div>
+
+    <!-- Glass Floor Looking-Down Indicator -->
+    <div id="glass-floor-indicator" class="hidden">
+      <span class="indicator-icon">👀</span>
+      <span class="indicator-text">342m GLASS FLOOR • LOOKING STRAIGHT DOWN AT TORONTO!</span>
+    </div>
+
     <!-- Crosshair & Dynamic Hit Markers -->
     <div id="crosshair-wrapper">
       <div id="crosshair"></div>

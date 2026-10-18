@@ -574,6 +574,149 @@ class EnhancedRetroAudio {
       osc.stop(t + 0.25);
     } catch (err) { }
   }
+
+  playElevatorDing() {
+    if (!this.ctx || this.isMuted) return;
+    try {
+      const t = this.ctx.currentTime;
+      [659.25, 880.00].forEach((freq, i) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t + i * 0.12);
+        gain.gain.setValueAtTime(0.25, t + i * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.12 + 0.7);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t + i * 0.12);
+        osc.stop(t + i * 0.12 + 0.75);
+      });
+    } catch (err) { }
+  }
+
+  playElevatorArrival() {
+    if (!this.ctx || this.isMuted) return;
+    try {
+      const t = this.ctx.currentTime;
+      [523.25, 659.25, 1046.50].forEach((freq, i) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t + i * 0.14);
+        gain.gain.setValueAtTime(0.28, t + i * 0.14);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.14 + 0.85);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t + i * 0.14);
+        osc.stop(t + i * 0.14 + 0.9);
+      });
+    } catch (err) { }
+  }
+
+  playElevatorHum(pitch = 1.0) {
+    if (!this.ctx || this.isMuted) return;
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(95 * pitch, t);
+      osc.frequency.exponentialRampToValueAtTime(140 * pitch, t + 0.6);
+      gain.gain.setValueAtTime(0.12, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.65);
+    } catch (err) { }
+  }
+
+  playShowdownAlert() {
+    if (!this.ctx || this.isMuted) return;
+    try {
+      const t = this.ctx.currentTime;
+      [440, 554.37, 659.25, 880].forEach((f, i) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(f, t + i * 0.1);
+        gain.gain.setValueAtTime(0.22, t + i * 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.1 + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t + i * 0.1);
+        osc.stop(t + i * 0.1 + 0.28);
+      });
+    } catch (err) { }
+  }
+
+  playShowdownVictory() {
+    if (!this.ctx || this.isMuted) return;
+    try {
+      const t = this.ctx.currentTime;
+      [523.25, 659.25, 783.99, 1046.50, 1318.51].forEach((f, i) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(f, t + i * 0.13);
+        gain.gain.setValueAtTime(0.3, t + i * 0.13);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.13 + 0.8);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t + i * 0.13);
+        osc.stop(t + i * 0.13 + 0.85);
+      });
+    } catch (err) { }
+  }
+
+  playFireworks() {
+    if (!this.ctx || this.isMuted) return;
+    try {
+      const t = this.ctx.currentTime;
+      // Boom
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(160, t);
+      osc.frequency.exponentialRampToValueAtTime(35, t + 0.25);
+      gain.gain.setValueAtTime(0.35, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.28);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.3);
+
+      // Crackle sizzle
+      const node = this.ctx.createBufferSource();
+      const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.4, this.ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < buf.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.1));
+      node.buffer = buf;
+      const cGain = this.ctx.createGain();
+      cGain.gain.setValueAtTime(0.2, t + 0.15);
+      cGain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      node.connect(cGain);
+      cGain.connect(this.ctx.destination);
+      node.start(t + 0.15);
+    } catch (err) { }
+  }
+
+  playTelescopeClick() {
+    if (!this.ctx || this.isMuted) return;
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(1400, t);
+      gain.gain.setValueAtTime(0.15, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.05);
+    } catch (err) { }
+  }
 }
 
 const audio = new EnhancedRetroAudio();
@@ -730,7 +873,18 @@ const state = {
   isPointerLocked: false,
   isDead: false,
   gloryTarget: null,
-  wasInsidePeace: false
+  wasInsidePeace: false,
+  // CN Tower Elevator & Observation Deck State
+  inElevator: false,
+  onObservationDeck: false,
+  deckFloor: 1, // 1 (342m) or 2 (348m)
+  telescopeActive: false,
+  telescopeTarget: null,
+  skyShowdownActive: false,
+  skyShowdownWave: 0,
+  skyShowdownTotalWaves: 3,
+  skyShowdownBoss: null,
+  skyShowdownCleared: false
 };
 
 // ============================================================================
@@ -2519,6 +2673,580 @@ if (city) {
 }
 
 // ============================================================================
+// CN TOWER GLASS ELEVATOR, 2-FLOOR OBSERVATION DECK & SKY SHOWDOWN SYSTEMS
+// ============================================================================
+
+const elevatorController = {
+  cabY: 2.0,
+  targetY: 2.0,
+  isMoving: false,
+  direction: 0,
+  progress: 0,
+  duration: 5.5,
+  doorProgress: 1.0, // 0 = closed, 1 = open
+  state: 'ground',   // 'ground', 'moving_up', 'floor1', 'floor2', 'moving_down'
+  humTimer: 0
+};
+
+function startElevatorRide(targetY) {
+  if (elevatorController.isMoving || !city || !city.cnElevator) return;
+  elevatorController.targetY = targetY;
+  elevatorController.direction = targetY > elevatorController.cabY ? 1 : -1;
+  elevatorController.isMoving = true;
+  elevatorController.progress = 0;
+  elevatorController.doorProgress = 0;
+  state.inElevator = true;
+
+  audio.playElevatorDing();
+
+  // Position player directly in cab
+  player.pos.set(city.cnElevator.pos.x, elevatorController.cabY + 1.7, city.cnElevator.pos.z);
+  player.velocity.set(0, 0, 0);
+
+  // Update HUD
+  const elevHud = document.getElementById('elevator-hud');
+  if (elevHud) {
+    elevHud.classList.remove('hidden');
+    const levelName = document.getElementById('elev-level-name');
+    if (levelName) {
+      levelName.innerText = elevatorController.direction > 0
+        ? 'ASCENDING TO 342m OBSERVATION DECK'
+        : 'DESCENDING TO GROUND PLAZA';
+    }
+  }
+
+  showAnnouncement(
+    elevatorController.direction > 0
+      ? '🚀 BOARDED GLASS ELEVATOR: CLIMBING 342 METERS!'
+      : '🚀 DESCENDING GLASS ELEVATOR: RETURNING TO PLAZA',
+    3500
+  );
+}
+
+function updateElevator(dt) {
+  if (!city || !city.cnElevator) return;
+  const elevCab = city.cnElevator.cab;
+  const doors = city.cnElevator.doors;
+
+  if (elevatorController.isMoving) {
+    elevatorController.progress += dt / elevatorController.duration;
+    const t = Math.max(0, Math.min(1, elevatorController.progress));
+    // Smoothstep easing for high-speed panoramic elevator
+    const smoothT = t * t * (3 - 2 * t);
+    const startY = elevatorController.direction > 0 ? 2.0 : 342.0;
+    elevatorController.cabY = startY + (elevatorController.targetY - startY) * smoothT;
+
+    // Motor hum sound effect
+    elevatorController.humTimer += dt;
+    if (elevatorController.humTimer > 0.45) {
+      elevatorController.humTimer = 0;
+      audio.playElevatorHum(0.8 + smoothT * 0.5);
+    }
+
+    // Move 3D cab & player smoothly
+    elevCab.position.y = elevatorController.cabY;
+    player.pos.set(city.cnElevator.pos.x, elevatorController.cabY + 1.7, city.cnElevator.pos.z);
+    player.velocity.set(0, 0, 0);
+
+    // Keep doors shut while moving
+    if (doors && doors.length === 2) {
+      doors[0].position.z = -0.7;
+      doors[1].position.z = 0.7;
+    }
+
+    // Dynamic Atmospheric Fog Thinning
+    // At ground: 0.0021 | High up at 342m: 0.00065 for crystal-clear panoramic views of Toronto!
+    const fogProg = Math.max(0, Math.min(1, (elevatorController.cabY - 2.0) / 340.0));
+    if (scene.fog) {
+      scene.fog.density = THREE.MathUtils.lerp(0.0021, 0.00065, fogProg);
+    }
+
+    // Update HUD altitude readout & gauge
+    const altVal = document.getElementById('elev-alt-val');
+    if (altVal) altVal.innerText = `${Math.round(elevatorController.cabY)} m`;
+    const gaugeFill = document.getElementById('elev-gauge-fill');
+    if (gaugeFill) gaugeFill.style.width = `${Math.round((elevatorController.cabY / 342.0) * 100)}%`;
+
+    // Arrival check
+    if (elevatorController.progress >= 1.0) {
+      elevatorController.isMoving = false;
+      elevatorController.cabY = elevatorController.targetY;
+      elevCab.position.y = elevatorController.cabY;
+      state.inElevator = false;
+
+      audio.playElevatorArrival();
+
+      // Open sliding doors
+      if (doors && doors.length === 2) {
+        doors[0].position.z = -1.5;
+        doors[1].position.z = 1.5;
+      }
+
+      const elevHud = document.getElementById('elevator-hud');
+      if (elevHud) elevHud.classList.add('hidden');
+
+      if (elevatorController.targetY >= 342.0) {
+        elevatorController.state = 'floor1';
+        state.onObservationDeck = true;
+        // Step forward onto Floor 1
+        player.pos.x += 2.2;
+        showAnnouncement('🌟 WELCOME TO THE CN TOWER OBSERVATION DECK • 342m ABOVE TORONTO! 🌟', 4500);
+      } else {
+        elevatorController.state = 'ground';
+        state.onObservationDeck = false;
+        // Step forward into ground plaza
+        player.pos.x += 2.2;
+        showAnnouncement('🕊️ RETURNED TO CN TOWER PEACE SANCTUARY PLAZA', 3500);
+      }
+    }
+  } else {
+    // Keep doors open when docked
+    if (doors && doors.length === 2) {
+      doors[0].position.z = -1.5;
+      doors[1].position.z = 1.5;
+    }
+  }
+}
+
+function getDeckFloorY(x, z, currentY) {
+  if (!city || !city.landmarks || !city.landmarks.cnTower) return 342.0;
+  const cx = city.landmarks.cnTower[0];
+  const cz = city.landmarks.cnTower[1];
+  const dx = x - cx;
+  const dz = z - cz;
+  const r = Math.hypot(dx, dz);
+  let angle = Math.atan2(dz, dx);
+  if (angle < 0) angle += Math.PI * 2;
+
+  // Check North Curved Staircase (a: 1.20 to 1.80 rad, r: 9.8 to 12.8)
+  if (r >= 9.8 && r <= 12.8 && angle >= 1.20 && angle <= 1.80) {
+    const t = Math.max(0, Math.min(1, (angle - 1.25) / (1.75 - 1.25)));
+    return 342.0 + t * 6.0;
+  }
+  // Check South Curved Staircase (a: 3.80 to 4.40 rad, r: 9.8 to 12.8)
+  if (r >= 9.8 && r <= 12.8 && angle >= 3.80 && angle <= 4.40) {
+    const t = Math.max(0, Math.min(1, (angle - 3.85) / (4.35 - 3.85)));
+    return 342.0 + t * 6.0;
+  }
+
+  // If already at Floor 2 level
+  if (currentY > 346.0) {
+    // If stepped into central mezzanine atrium opening (r < 12.2) and not on connecting bridges
+    const onBridge = (Math.abs(dz) < 2.2 && r < 12.6);
+    if (r < 12.2 && !onBridge) {
+      return 342.0; // drops down to Floor 1!
+    }
+    return 348.0;
+  }
+
+  return 342.0;
+}
+
+let activeDeckAction = null;
+
+function updateObservationDeck(dt) {
+  if (!city || !city.cnElevator) return;
+  const elevPos = city.cnElevator.pos;
+  const promptEl = document.getElementById('deck-action-prompt');
+  const actionText = document.getElementById('deck-action-text');
+  const actionKey = document.getElementById('deck-action-key');
+  activeDeckAction = null;
+
+  if (state.inElevator) {
+    if (promptEl) promptEl.classList.add('hidden');
+    return;
+  }
+
+  // 1. Check Ground Pavilion Elevator Entrance (y < 20)
+  if (player.pos.y < 20) {
+    const dElev = Math.hypot(player.pos.x - elevPos.x, player.pos.z - elevPos.z);
+    const dPav = Math.hypot(player.pos.x - city.cnElevator.entrancePavilion.doorX, player.pos.z - city.cnElevator.entrancePavilion.doorZ);
+    if (dElev < 3.2 || dPav < 3.5) {
+      activeDeckAction = 'board_up';
+      if (promptEl && actionText && actionKey) {
+        actionKey.innerText = '[E]';
+        actionText.innerText = 'BOARD GLASS ELEVATOR TO OBSERVATION DECK';
+        promptEl.classList.remove('hidden');
+      }
+      return;
+    }
+  }
+
+  // 2. Observation Deck Level Checks (y > 50)
+  if (player.pos.y > 50) {
+    state.onObservationDeck = true;
+    state.deckFloor = player.pos.y > 345.5 ? 2 : 1;
+
+    // Check Glass Floor Footprint (Level 1: r: 9.8 to 16.2)
+    const cx = city.landmarks.cnTower[0];
+    const cz = city.landmarks.cnTower[1];
+    const r = Math.hypot(player.pos.x - cx, player.pos.z - cz);
+    const glassFloorEl = document.getElementById('glass-floor-indicator');
+    if (glassFloorEl) {
+      if (state.deckFloor === 1 && r >= 9.8 && r <= 16.2) {
+        glassFloorEl.classList.remove('hidden');
+      } else {
+        glassFloorEl.classList.add('hidden');
+      }
+    }
+
+    // Check Deck Elevator Door (Level 1 or Level 2)
+    const dElevDeck = Math.hypot(player.pos.x - elevPos.x, player.pos.z - elevPos.z);
+    if (dElevDeck < 3.2) {
+      activeDeckAction = 'board_down';
+      if (promptEl && actionText && actionKey) {
+        actionKey.innerText = '[E]';
+        actionText.innerText = 'RIDE GLASS ELEVATOR DOWN TO GROUND PLAZA';
+        promptEl.classList.remove('hidden');
+      }
+      return;
+    }
+
+    // Check Tourist Telescopes on Floor 2
+    if (state.deckFloor === 2 && city.cnElevator.viewfinders) {
+      for (let i = 0; i < city.cnElevator.viewfinders.length; i++) {
+        const vf = city.cnElevator.viewfinders[i];
+        const dVf = Math.hypot(player.pos.x - vf.worldX, player.pos.z - vf.worldZ);
+        if (dVf < 2.4) {
+          activeDeckAction = { type: 'telescope', vf };
+          if (promptEl && actionText && actionKey) {
+            actionKey.innerText = '[V]';
+            actionText.innerText = `PEER THROUGH TELESCOPE: ${vf.name}`;
+            promptEl.classList.remove('hidden');
+          }
+          return;
+        }
+      }
+    }
+
+    // Check Sky Showdown Terminal on Floor 2
+    if (state.deckFloor === 2 && !state.skyShowdownActive && city.cnElevator.terminal) {
+      const term = city.cnElevator.terminal;
+      const dTerm = Math.hypot(player.pos.x - term.x, player.pos.z - term.z);
+      if (dTerm < 2.6) {
+        activeDeckAction = 'start_showdown';
+        if (promptEl && actionText && actionKey) {
+          actionKey.innerText = '[G]';
+          actionText.innerText = 'START SKY SHOWDOWN MINI-GAME';
+          promptEl.classList.remove('hidden');
+        }
+        return;
+      }
+    }
+  } else {
+    state.onObservationDeck = false;
+    const glassFloorEl = document.getElementById('glass-floor-indicator');
+    if (glassFloorEl) glassFloorEl.classList.add('hidden');
+  }
+
+  if (promptEl) promptEl.classList.add('hidden');
+}
+
+function handleDeckAction() {
+  if (!activeDeckAction) return false;
+  if (activeDeckAction === 'board_up') {
+    startElevatorRide(342.0);
+    return true;
+  }
+  if (activeDeckAction === 'board_down') {
+    startElevatorRide(2.0);
+    return true;
+  }
+  return false;
+}
+
+function handleTelescopeAction() {
+  if (state.telescopeActive) {
+    exitTelescope();
+    return true;
+  }
+  if (activeDeckAction && activeDeckAction.type === 'telescope') {
+    enterTelescope(activeDeckAction.vf);
+    return true;
+  }
+  return false;
+}
+
+function enterTelescope(vf) {
+  state.telescopeActive = true;
+  state.telescopeTarget = vf;
+  audio.playTelescopeClick();
+
+  const overlay = document.getElementById('telescope-overlay');
+  if (overlay) {
+    overlay.classList.remove('hidden');
+    const nameEl = document.getElementById('telescope-name');
+    const descEl = document.getElementById('telescope-desc');
+    const dirEl = document.getElementById('telescope-dir');
+    if (nameEl) nameEl.innerText = vf.name;
+    if (descEl) descEl.innerText = vf.desc;
+    if (dirEl) dirEl.innerText = `🔭 LOOKOUT VISTA • ${vf.id.toUpperCase()}`;
+  }
+
+  player.yaw = vf.yaw;
+  player.pitch = vf.pitch;
+}
+
+function exitTelescope() {
+  state.telescopeActive = false;
+  state.telescopeTarget = null;
+  audio.playTelescopeClick();
+  const overlay = document.getElementById('telescope-overlay');
+  if (overlay) overlay.classList.add('hidden');
+}
+
+function updateTelescope(dt) {
+  const targetFov = state.telescopeActive ? 24 : 78;
+  if (Math.abs(camera.fov - targetFov) > 0.2) {
+    camera.fov += (targetFov - camera.fov) * Math.min(1, 10 * dt);
+    camera.updateProjectionMatrix();
+  }
+}
+
+// ----------------------------------------------------------------------------
+// CN TOWER SKY SHOWDOWN MINI-GAME
+// ----------------------------------------------------------------------------
+let deckEnemies = [];
+let showdownBossRef = null;
+
+function handleShowdownAction() {
+  if (activeDeckAction === 'start_showdown') {
+    startSkyShowdown();
+    return true;
+  }
+  return false;
+}
+
+function startSkyShowdown() {
+  state.skyShowdownActive = true;
+  state.skyShowdownWave = 1;
+  state.skyShowdownCleared = false;
+  audio.playShowdownAlert();
+
+  const hud = document.getElementById('sky-showdown-hud');
+  if (hud) hud.classList.remove('hidden');
+
+  showAnnouncement('🚨 SECURITY ALERT: SKY SHOWDOWN COMMENCED! DEFEND THE CN TOWER! 🚨', 4000);
+  spawnShowdownWave(1);
+}
+
+function spawnShowdownWave(waveNum) {
+  state.skyShowdownWave = waveNum;
+  deckEnemies = [];
+
+  const waveTag = document.getElementById('showdown-wave-tag');
+  const subEl = document.getElementById('showdown-sub');
+  const countEl = document.getElementById('showdown-count');
+  const bossWrap = document.getElementById('sky-boss-bar-wrap');
+  if (bossWrap) bossWrap.classList.add('hidden');
+
+  if (waveTag) waveTag.innerText = `WAVE ${waveNum} / 3`;
+
+  if (waveNum === 1) {
+    if (subEl) subEl.innerText = 'LEVEL 1: GLASS FLOOR DEFENSE';
+    if (countEl) countEl.innerText = '4 INTRUDERS REMAINING';
+    // Spawn 4 fighters on Floor 1
+    for (let i = 0; i < 4; i++) {
+      const a = (i * Math.PI * 2) / 4 + 0.3;
+      const r = 13.5;
+      spawnDeckFighter(342.0, a, r, (i % 2), 'GLASS FLOOR BRAWLER');
+    }
+  } else if (waveNum === 2) {
+    if (subEl) subEl.innerText = 'MULTI-LEVEL INFILTRATION';
+    if (countEl) countEl.innerText = '6 INTRUDERS REMAINING';
+    // Spawn 3 fighters on Floor 1, 3 on Floor 2
+    for (let i = 0; i < 3; i++) {
+      const a = (i * Math.PI * 2) / 3 + 0.2;
+      spawnDeckFighter(342.0, a, 14.0, (i % 4), 'SKYTERRACE STRIKER');
+    }
+    for (let i = 0; i < 3; i++) {
+      const a = (i * Math.PI * 2) / 3 + 0.7;
+      spawnDeckFighter(348.0, a, 16.5, ((i + 2) % 4), 'LOOKOUT INFILTRATOR');
+    }
+  } else if (waveNum === 3) {
+    if (subEl) subEl.innerText = 'APEX MINI-BOSS DUEL';
+    if (countEl) countEl.innerText = 'THE SKY APEX BRUTE & 2 ENFORCERS';
+    if (bossWrap) bossWrap.classList.remove('hidden');
+
+    // Spawn 2 Elite Enforcers on Floor 2
+    spawnDeckFighter(348.0, 0.8, 16.0, 1, 'ELITE SKY ENFORCER');
+    spawnDeckFighter(348.0, 2.4, 16.0, 2, 'ELITE SKY ENFORCER');
+
+    // Spawn The Sky Apex Brute (Mini-Boss)
+    spawnDeckFighter(348.0, 3.8, 15.5, 3, 'THE SKY APEX BRUTE', true);
+  }
+}
+
+function spawnDeckFighter(floorY, angle, radius, archIdx, name, isBoss = false) {
+  if (!city || !city.landmarks || !city.landmarks.cnTower) return;
+  const cx = city.landmarks.cnTower[0] + Math.cos(angle) * radius;
+  const cz = city.landmarks.cnTower[1] + Math.sin(angle) * radius;
+
+  const enemyObj = spawnEnemy(cx, cz, archIdx, isBoss, name);
+  enemyObj.isDeckEnemy = true;
+  enemyObj.deckFloorY = floorY;
+  enemyObj.isSkyBoss = isBoss;
+
+  if (enemyObj.rig && enemyObj.rig.root) {
+    enemyObj.rig.root.position.y = floorY;
+    if (isBoss) {
+      enemyObj.rig.root.scale.multiplyScalar(1.25);
+      enemyObj.maxHp = 420;
+      enemyObj.hp = 420;
+      enemyObj.damage = 25;
+      enemyObj.rig.updateNameplate(420, 420, true);
+      showdownBossRef = enemyObj;
+      const bossBar = document.getElementById('sky-boss-bar-fill');
+      if (bossBar) bossBar.style.width = '100%';
+    }
+  }
+
+  deckEnemies.push(enemyObj);
+}
+
+function onDeckEnemyDefeated(enemy) {
+  const idx = deckEnemies.indexOf(enemy);
+  if (idx >= 0) deckEnemies.splice(idx, 1);
+
+  const aliveDeck = deckEnemies.filter(e => !e.isDead && !e.isKnockedOut);
+  const countEl = document.getElementById('showdown-count');
+  if (countEl) {
+    countEl.innerText = `${aliveDeck.length} INTRUDERS REMAINING`;
+  }
+
+  if (enemy.isSkyBoss) {
+    const bossWrap = document.getElementById('sky-boss-bar-wrap');
+    if (bossWrap) bossWrap.classList.add('hidden');
+    showdownBossRef = null;
+  }
+
+  if (aliveDeck.length === 0 && state.skyShowdownActive) {
+    if (state.skyShowdownWave === 1) {
+      showAnnouncement('⚡ WAVE 1 CLEARED! PREPARE FOR MULTI-LEVEL INFILTRATION! ⚡', 3000);
+      setTimeout(() => spawnShowdownWave(2), 2500);
+    } else if (state.skyShowdownWave === 2) {
+      showAnnouncement('⚠️ WARNING: THE SKY APEX BRUTE HAS ENTERED THE LOOKOUT! ⚠️', 3500);
+      setTimeout(() => spawnShowdownWave(3), 2800);
+    } else if (state.skyShowdownWave === 3) {
+      // VICTORY!
+      state.skyShowdownActive = false;
+      state.skyShowdownCleared = true;
+      audio.playShowdownVictory();
+
+      state.score += 5000;
+      updateHUDScore();
+
+      showAnnouncement('🏆 CN TOWER SKY SHOWDOWN CHAMPION! TOWER SECURED! 🏆', 6000);
+
+      const hud = document.getElementById('sky-showdown-hud');
+      if (hud) hud.classList.add('hidden');
+
+      // Launch spectacular celebration fireworks outside CN Tower windows!
+      triggerDeckFireworks();
+
+      // Spawn Golden Victory Trophy Crate on Floor 2
+      spawnGoldenSkyCrate();
+    }
+  }
+}
+
+function spawnGoldenSkyCrate() {
+  if (!city || !city.landmarks || !city.landmarks.cnTower) return;
+  const cx = city.landmarks.cnTower[0] - 8.5;
+  const cz = city.landmarks.cnTower[1];
+  const goldCrateMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(1.6, 1.6, 1.6),
+    new THREE.MeshStandardMaterial({
+      color: 0xffb703,
+      emissive: 0xffaa00,
+      emissiveIntensity: 0.8,
+      metalness: 0.95,
+      roughness: 0.15
+    })
+  );
+  goldCrateMesh.position.set(cx, 348.0 + 0.8, cz);
+  scene.add(goldCrateMesh);
+
+  crates.push({
+    mesh: goldCrateMesh,
+    loot: 'SLAM',
+    desc: '🏆 GOLDEN SKY APEX TROPHY • CANADIAN BERSERK!',
+    hp: 50,
+    destroyed: false,
+    isSkyGoldenCrate: true
+  });
+}
+
+// ----------------------------------------------------------------------------
+// CELEBRATION FIREWORKS OVER DOWNTOWN TORONTO
+// ----------------------------------------------------------------------------
+const deckFireworks = [];
+
+function triggerDeckFireworks() {
+  if (!city || !city.landmarks || !city.landmarks.cnTower) return;
+  const cx = city.landmarks.cnTower[0];
+  const cz = city.landmarks.cnTower[1];
+
+  for (let i = 0; i < 12; i++) {
+    setTimeout(() => {
+      const a = Math.random() * Math.PI * 2;
+      const r = 35.0 + Math.random() * 25.0;
+      const y = 338.0 + Math.random() * 30.0;
+      const fx = cx + Math.cos(a) * r;
+      const fz = cz + Math.sin(a) * r;
+      createFireworkBurst(fx, y, fz);
+    }, i * 350);
+  }
+}
+
+function createFireworkBurst(x, y, z) {
+  audio.playFireworks();
+  const colors = [0x38bdf8, 0xef4444, 0xfacc15, 0x4ade80, 0xa855f7, 0xf43f5e];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  const count = 45;
+  const particles = [];
+
+  for (let i = 0; i < count; i++) {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.3, 6, 6),
+      new THREE.MeshBasicMaterial({ color, fog: false })
+    );
+    mesh.position.set(x, y, z);
+    scene.add(mesh);
+
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(Math.random() * 2 - 1);
+    const speed = 12.0 + Math.random() * 16.0;
+    const vel = new THREE.Vector3(
+      speed * Math.sin(phi) * Math.cos(theta),
+      speed * Math.cos(phi),
+      speed * Math.sin(phi) * Math.sin(theta)
+    );
+
+    particles.push({ mesh, vel, life: 1.2, maxLife: 1.2 });
+  }
+
+  deckFireworks.push(...particles);
+}
+
+function updateFireworks(dt) {
+  for (let i = deckFireworks.length - 1; i >= 0; i--) {
+    const p = deckFireworks[i];
+    p.life -= dt;
+    if (p.life <= 0) {
+      scene.remove(p.mesh);
+      deckFireworks.splice(i, 1);
+      continue;
+    }
+    p.mesh.position.addScaledVector(p.vel, dt);
+    p.vel.y -= 9.8 * dt; // gravity
+    p.vel.multiplyScalar(0.97); // air resistance
+    const scale = p.life / p.maxLife;
+    p.mesh.scale.set(scale, scale, scale);
+  }
+}
+
+// ============================================================================
 // CONTROLS & POINTER LOCK MANAGEMENT (NEVER TRAPS CURSOR!)
 // ============================================================================
 const keys = {};
@@ -2612,7 +3340,25 @@ window.addEventListener('keydown', (e) => {
   }
 
   if (e.code === 'KeyF') triggerAttack();
-  if (e.code === 'KeyE' && state.unlocked[ATTACKS.KICK.id]) triggerQuickKick();
+  if (e.code === 'KeyE') {
+    if (handleDeckAction()) {
+      e.preventDefault();
+      return;
+    }
+    if (state.unlocked[ATTACKS.KICK.id]) triggerQuickKick();
+  }
+  if (e.code === 'KeyV') {
+    if (handleTelescopeAction()) {
+      e.preventDefault();
+      return;
+    }
+  }
+  if (e.code === 'KeyG') {
+    if (handleShowdownAction()) {
+      e.preventDefault();
+      return;
+    }
+  }
 
   if (e.code.startsWith('Digit') && !e.shiftKey) {
     const n = parseInt(e.code.slice(5), 10);
@@ -2711,8 +3457,8 @@ function triggerAttack() {
     }
   }
 
-  // Peace Sanctuary: No fighting allowed against humans
-  if (city && city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
+  // Peace Sanctuary: No fighting allowed against humans at ground level (allowed on observation deck!)
+  if (city && city.isInsidePeaceZone(player.pos.x, player.pos.z, player.pos.y)) {
     showAnnouncement("🕊️ PEACE SANCTUARY: NO COMBAT PERMITTED");
     audio.playPeaceChime?.();
     return;
@@ -2763,8 +3509,8 @@ function triggerQuickKick() {
     }
   }
 
-  // Peace Sanctuary: No fighting allowed against humans
-  if (city && city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
+  // Peace Sanctuary: No fighting allowed against humans at ground level (allowed on observation deck!)
+  if (city && city.isInsidePeaceZone(player.pos.x, player.pos.z, player.pos.y)) {
     showAnnouncement("🕊️ PEACE SANCTUARY: NO COMBAT PERMITTED");
     audio.playPeaceChime?.();
     return;
@@ -2792,7 +3538,7 @@ function executeMeteorSlam() {
     if (dBox <= 8.0) allowSlamInPeace = true;
   }
 
-  if (!allowSlamInPeace && city && city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
+  if (!allowSlamInPeace && city && city.isInsidePeaceZone(player.pos.x, player.pos.z, player.pos.y)) {
     showAnnouncement("🕊️ PEACE SANCTUARY: NO COMBAT PERMITTED");
     audio.playPeaceChime?.();
     return;
@@ -2990,6 +3736,15 @@ function hitEnemy(enemy, dmg, knockback, type) {
     }, 110);
   }
 
+  // Update Boss Bar if Mini-Boss
+  if (enemy.isSkyBoss) {
+    const bossBar = document.getElementById('sky-boss-bar-fill');
+    if (bossBar) {
+      const pct = Math.max(0, Math.min(100, (enemy.hp / enemy.maxHp) * 100));
+      bossBar.style.width = `${pct}%`;
+    }
+  }
+
   // Knockback physics
   const pos = enemy.rig ? enemy.rig.root.position : enemy.sprite.position;
   const dir = pos.clone().sub(player.pos).normalize();
@@ -3012,6 +3767,10 @@ function killEnemy(enemy, isGlory = false) {
   state.score += isGlory ? 500 : 300;
   document.getElementById('hud-kills').innerText = state.kills;
   document.getElementById('hud-score').innerText = state.score;
+
+  if (enemy.isDeckEnemy) {
+    onDeckEnemyDefeated(enemy);
+  }
 
   // Build Rage
   state.rage = Math.min(100, state.rage + 25);
@@ -3037,16 +3796,16 @@ function killEnemy(enemy, isGlory = false) {
     if (enemy.rig && enemy.rig.root) scene.remove(enemy.rig.root);
 
     // If an ambient enemy was defeated, schedule a reinforcement near the player
-    if (!enemy.isMissionGuard) {
+    if (!enemy.isMissionGuard && !enemy.isDeckEnemy) {
       const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
-      const aliveAmbient = enemies.filter(e => !e.isDead && !e.isMissionGuard).length;
+      const aliveAmbient = enemies.filter(e => !e.isDead && !e.isMissionGuard && !e.isDeckEnemy).length;
       if (aliveAmbient < cfg.targetEnemies) {
         setTimeout(() => spawnSingleReinforcement(), 2400);
       }
     }
 
     // Respawn next wave of fighters when all ambient foes are KO'd
-    const ambientEnemies = enemies.filter(e => !e.isMissionGuard);
+    const ambientEnemies = enemies.filter(e => !e.isMissionGuard && !e.isDeckEnemy);
     if (ambientEnemies.length > 0 && ambientEnemies.every(e => e.isDead)) {
       showAnnouncement("🔥 ARENA CLEARED! NEXT RIVAL FIGHTERS INCOMING! 🔥");
       setTimeout(() => populateEnemies(), 2200);
@@ -3465,7 +4224,9 @@ function updateNeighborhood() {
   const lms = city.landmarks;
   let name = "DOWNTOWN TORONTO";
 
-  if (city.isInsidePeaceZone(p.x, p.z)) {
+  if (p.y > 50) {
+    name = p.y > 345.5 ? "CN TOWER • 348m 360° LOOKOUT" : "CN TOWER • 342m GLASS FLOOR";
+  } else if (city.isInsidePeaceZone(p.x, p.z)) {
     name = "CN TOWER PLAZA";
   } else if (lms.roundhouse && Math.hypot(p.x - lms.roundhouse[0], p.z - lms.roundhouse[1]) < 65) {
     name = "ROUNDHOUSE PARK";
@@ -3528,6 +4289,10 @@ function animate(now) {
     updateParticles(simDt);
     updateCombatTimers(simDt);
     updateMission(simDt);
+    updateElevator(simDt);
+    updateObservationDeck(simDt);
+    updateTelescope(simDt);
+    updateFireworks(simDt);
   }
 
   if (traffic && (!state.inGame || state.isPaused || state.isDead)) traffic.silence();
@@ -3580,7 +4345,10 @@ function animate(now) {
     const towerDist = Math.round(Math.hypot(player.pos.x - city.landmarks.cnTower[0], player.pos.z - city.landmarks.cnTower[1]));
     const towerDistEl = document.getElementById('tower-distance');
     if (towerDistEl) {
-      if (city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
+      if (player.pos.y > 50) {
+        towerDistEl.innerText = player.pos.y > 345.5 ? '348m LOOKOUT' : '342m GLASS FLR';
+        towerDistEl.style.color = '#38bdf8';
+      } else if (city.isInsidePeaceZone(player.pos.x, player.pos.z)) {
         towerDistEl.innerText = 'INSIDE';
         towerDistEl.style.color = '#34d399';
       } else {
@@ -3694,6 +4462,10 @@ function updatePlayer(dt) {
   const isMoving = moveDir.lengthSq() > 0;
   if (isMoving) moveDir.normalize();
 
+  if (state.inElevator) {
+    return;
+  }
+
   const isSprinting = keys['ShiftLeft'] || keys['ShiftRight'] || state.isBerserk;
   const curSpeed = isSprinting ? player.sprintSpeed : player.speed;
 
@@ -3715,9 +4487,16 @@ function updatePlayer(dt) {
   if (canMoveTo(nextX, player.pos.z)) player.pos.x = nextX;
   if (canMoveTo(player.pos.x, nextZ)) player.pos.z = nextZ;
 
+  // Vertical position clamping for Ground or Observation Deck (2 floors + stairs)
+  let floorY = 0;
+  if (player.pos.y > 50) {
+    floorY = getDeckFloorY(player.pos.x, player.pos.z, player.pos.y);
+  }
+  const minPlayerY = floorY + 1.7;
+
   player.pos.y += player.velocity.y * dt;
-  if (player.pos.y <= 1.7) {
-    player.pos.y = 1.7;
+  if (player.pos.y <= minPlayerY) {
+    player.pos.y = minPlayerY;
     player.velocity.y = 0;
     player.isGrounded = true;
   }
@@ -3729,7 +4508,7 @@ function updatePlayer(dt) {
   }
 
   // --- Peace Sanctuary Aura & Transition Check ---
-  const insidePeace = city ? city.isInsidePeaceZone(player.pos.x, player.pos.z) : false;
+  const insidePeace = (city && player.pos.y <= 50) ? city.isInsidePeaceZone(player.pos.x, player.pos.z, player.pos.y) : false;
 
   if (insidePeace !== state.wasInsidePeace) {
     state.wasInsidePeace = insidePeace;
@@ -3761,6 +4540,29 @@ function updatePlayer(dt) {
 }
 
 function canMoveTo(x, z) {
+  if (player.pos.y > 50) {
+    if (!city || !city.landmarks || !city.landmarks.cnTower) return true;
+    const cx = city.landmarks.cnTower[0];
+    const cz = city.landmarks.cnTower[1];
+    const r = Math.hypot(x - cx, z - cz);
+    if (r < 4.8 || r > 21.8) return false;
+
+    // Body blocking on deck against living deck enemies
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i];
+      if (e.isDead || e.isKnockedOut || !e.isDeckEnemy) continue;
+      const ePos = e.rig ? e.rig.root.position : null;
+      if (!ePos) continue;
+      const dNew = Math.hypot(x - ePos.x, z - ePos.z);
+      if (dNew < 1.35) {
+        if (state.isBerserk) return true;
+        const dCurr = Math.hypot(player.pos.x - ePos.x, player.pos.z - ePos.z);
+        if (dNew < dCurr) return false;
+      }
+    }
+    return true;
+  }
+
   if (city) {
     if (!city.canMoveTo(x, z, 0.6)) return false;
   } else {
@@ -3821,7 +4623,7 @@ function canMoveTo(x, z) {
 function updateEnemies(dt) {
   let nearestStaggered = null;
   let minDist = 4.0;
-  const playerInPeace = city ? city.isInsidePeaceZone(player.pos.x, player.pos.z) : false;
+  const playerInPeace = (city && player.pos.y <= 50) ? city.isInsidePeaceZone(player.pos.x, player.pos.z, player.pos.y) : false;
 
   // Dynamic Roaming Distance Culling & Local Neighborhood Respawn
   // If player runs away into the city (> 110m away), despawn distant ambient enemies
@@ -3833,7 +4635,7 @@ function updateEnemies(dt) {
 
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
-      if (e.isDead || e.isKnockedOut || e.isMissionGuard) continue;
+      if (e.isDead || e.isKnockedOut || e.isMissionGuard || e.isDeckEnemy) continue;
 
       const d = e.rig.root.position.distanceTo(player.pos);
       if (d > 115) {
@@ -3844,7 +4646,7 @@ function updateEnemies(dt) {
     }
 
     // Maintain ambient target count
-    const aliveAmbient = enemies.filter(e => !e.isDead && !e.isMissionGuard).length;
+    const aliveAmbient = enemies.filter(e => !e.isDead && !e.isMissionGuard && !e.isDeckEnemy).length;
     if (aliveAmbient < cfg.targetEnemies) {
       spawnSingleReinforcement();
     }
@@ -3856,7 +4658,7 @@ function updateEnemies(dt) {
       if (enemy.koProgress < 1.0) {
         enemy.koProgress = Math.min(1.0, enemy.koProgress + dt * 3.2);
         enemy.rig.root.rotation.x = -Math.PI / 2 * enemy.koProgress;
-        enemy.rig.root.position.y = 0.22 * (1 - enemy.koProgress) + 0.12 * enemy.koProgress;
+        enemy.rig.root.position.y = (enemy.deckFloorY || 0) + 0.22 * (1 - enemy.koProgress) + 0.12 * enemy.koProgress;
         enemy.rig.leftLegPivot.rotation.x = 0.35 * enemy.koProgress;
         enemy.rig.rightLegPivot.rotation.x = 0.45 * enemy.koProgress;
         enemy.rig.leftArmPivot.rotation.x = 0.5 * enemy.koProgress;
@@ -3874,7 +4676,21 @@ function updateEnemies(dt) {
     enemy.vz *= 0.86;
 
     // Keep within world bounds
-    if (city && city.bounds) {
+    if (enemy.isDeckEnemy && city && city.landmarks && city.landmarks.cnTower) {
+      enemy.rig.root.position.y = enemy.deckFloorY || 342.0;
+      const cx = city.landmarks.cnTower[0];
+      const cz = city.landmarks.cnTower[1];
+      const edx = enemy.rig.root.position.x - cx;
+      const edz = enemy.rig.root.position.z - cz;
+      const er = Math.hypot(edx, edz);
+      if (er < 5.2 && er > 0.01) {
+        enemy.rig.root.position.x = cx + (edx / er) * 5.2;
+        enemy.rig.root.position.z = cz + (edz / er) * 5.2;
+      } else if (er > 21.2) {
+        enemy.rig.root.position.x = cx + (edx / er) * 21.2;
+        enemy.rig.root.position.z = cz + (edz / er) * 21.2;
+      }
+    } else if (city && city.bounds) {
       enemy.rig.root.position.x = Math.max(city.bounds.minX + 5, Math.min(city.bounds.maxX - 5, enemy.rig.root.position.x));
       enemy.rig.root.position.z = Math.max(city.bounds.minZ + 5, Math.min(city.bounds.maxZ - 5, enemy.rig.root.position.z));
     } else {
@@ -3882,8 +4698,8 @@ function updateEnemies(dt) {
       enemy.rig.root.position.z = Math.max(-36, Math.min(36, enemy.rig.root.position.z));
     }
 
-    // Peace Sanctuary Repulsion: push enemy away so bad guys NEVER enter the sanctuary!
-    if (city && city.peaceZone) {
+    // Peace Sanctuary Repulsion: push street enemies away from ground sanctuary
+    if (city && city.peaceZone && !enemy.isDeckEnemy) {
       const edx = enemy.rig.root.position.x - city.peaceZone.x;
       const edz = enemy.rig.root.position.z - city.peaceZone.z;
       const edist = Math.hypot(edx, edz);
