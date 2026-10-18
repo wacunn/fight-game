@@ -527,6 +527,35 @@ class EnhancedRetroAudio {
       });
     } catch (err) { }
   }
+
+  playWalkSignal(dist = 0, isEastWest = true) {
+    if (!this.ctx || this.isMuted) return;
+    try {
+      const t = this.ctx.currentTime;
+      const vol = Math.min(0.22, 0.45 / (1 + dist * 0.12));
+      if (vol < 0.01) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      if (isEastWest) {
+        // High rapid chirp
+        osc.frequency.setValueAtTime(1150, t);
+        osc.frequency.exponentialRampToValueAtTime(750, t + 0.08);
+        osc.frequency.setValueAtTime(1150, t + 0.13);
+        osc.frequency.exponentialRampToValueAtTime(750, t + 0.21);
+      } else {
+        // Cuckoo tone (two-tone)
+        osc.frequency.setValueAtTime(950, t);
+        osc.frequency.setValueAtTime(720, t + 0.11);
+      }
+      gain.gain.setValueAtTime(vol, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.25);
+    } catch (err) { }
+  }
 }
 
 const audio = new EnhancedRetroAudio();
@@ -2916,7 +2945,18 @@ function animate(now) {
     updatePlayer(simDt);
     applyCarKnockback(simDt);
     updateEnemies(simDt);
-    if (traffic) traffic.update(simDt, trafficHooks);
+    if (traffic) {
+      traffic.update(simDt, trafficHooks);
+      if (traffic.isSafeCrossing) {
+        const crossStatus = traffic.isSafeCrossing(player.pos.x, player.pos.z);
+        if (crossStatus.inCrosswalk && crossStatus.isSafe && !state.wasInSafeCrossing) {
+          state.wasInSafeCrossing = true;
+          showAnnouncement(`🚶 WALK SIGNAL ACTIVE • SAFE TO CROSS ${crossStatus.street.toUpperCase()}`);
+        } else if (!crossStatus.inCrosswalk) {
+          state.wasInSafeCrossing = false;
+        }
+      }
+    }
     updatePickups(simDt);
     updateParticles(simDt);
     updateCombatTimers(simDt);

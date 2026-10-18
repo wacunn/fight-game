@@ -237,6 +237,204 @@
       return tmp;
     }
 
+    // ======================================================================
+    // TORONTO TRAFFIC SIGNALS & CONTINENTAL CROSSWALKS
+    // ======================================================================
+    const roadApproachMap = new Map();
+    const signalIntersections = [];
+    const crosswalkList = [];
+    const signals = [];
+
+    // Assign IDs to usable roads and collect approach endpoints
+    const endpoints = [];
+    usable.forEach((r, ri) => {
+      r.id = ri;
+      const pts = r.pts;
+      if (pts.length < 2) return;
+      const dx0 = pts[1][0] - pts[0][0], dz0 = pts[1][1] - pts[0][1];
+      const l0 = Math.hypot(dx0, dz0) || 1;
+      endpoints.push({ r, atStart: true, x: pts[0][0], z: pts[0][1], fx: -dx0 / l0, fz: -dz0 / l0, w: r.w || 10, name: r.n || 'Street' });
+      const dx1 = pts[pts.length - 1][0] - pts[pts.length - 2][0], dz1 = pts[pts.length - 1][1] - pts[pts.length - 2][1];
+      const l1 = Math.hypot(dx1, dz1) || 1;
+      endpoints.push({ r, atStart: false, x: pts[pts.length - 1][0], z: pts[pts.length - 1][1], fx: dx1 / l1, fz: dz1 / l1, w: r.w || 10, name: r.n || 'Street' });
+    });
+
+    // Cluster endpoints within 14m into intersection nodes
+    endpoints.forEach(ep => {
+      let matched = null;
+      for (let i = 0; i < signalIntersections.length; i++) {
+        const inter = signalIntersections[i];
+        if (Math.hypot(inter.x - ep.x, inter.z - ep.z) < 14) { matched = inter; break; }
+      }
+      if (matched) {
+        matched.approaches.push(ep);
+        matched.x = matched.approaches.reduce((s, a) => s + a.x, 0) / matched.approaches.length;
+        matched.z = matched.approaches.reduce((s, a) => s + a.z, 0) / matched.approaches.length;
+      } else {
+        signalIntersections.push({ x: ep.x, z: ep.z, approaches: [ep] });
+      }
+    });
+
+    // Crosswalk buffer geometry (single draw call for all continental markings across the city!)
+    const cwPos = [], cwNrm = [];
+    function addCwQuad(ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz) {
+      cwPos.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+      cwPos.push(ax, ay, az, cx, cy, cz, dx, dy, dz);
+      for (let k = 0; k < 6; k++) cwNrm.push(0, 1, 0);
+    }
+    function addOrientedBar(cx, cz, y, w, L, fx, fz) {
+      const rx = -fz, rz = fx;
+      const hw = w / 2, hl = L / 2;
+      const p0x = cx - rx * hw - fx * hl, p0z = cz - rz * hw - fz * hl;
+      const p1x = cx + rx * hw - fx * hl, p1z = cz + rz * hw - fz * hl;
+      const p2x = cx + rx * hw + fx * hl, p2z = cz + rz * hw + fz * hl;
+      const p3x = cx - rx * hw + fx * hl, p3z = cz - rz * hw + fz * hl;
+      addCwQuad(p0x, y, p0z, p1x, y, p1z, p2x, y, p2z, p3x, y, p3z);
+    }
+
+    const CYCLE = 42.0;
+
+    signalIntersections.forEach((inter, interIdx) => {
+      const offset = (Math.abs(inter.x * 0.08 + inter.z * 0.12) % CYCLE);
+      inter.offset = offset;
+      inter.approaches.forEach(a => {
+        // Phase 0 = East-West, Phase 1 = North-South
+        const isEastWest = Math.abs(a.fx) > Math.abs(a.fz);
+        const phase = isEastWest ? 0 : 1;
+        const sig = {
+          id: signals.length,
+          interIdx,
+          phase,
+          offset,
+          isEastWest,
+          x: a.x, z: a.z,
+          fx: a.fx, fz: a.fz,
+          state: 'red',
+          ped: 'dontwalk',
+          streetName: a.name
+        };
+        signals.push(sig);
+        a.signal = sig;
+        a.stopDist = 5.2;
+        roadApproachMap.set(a.r.id + ':' + a.atStart, a);
+
+        // Draw Solid Stop Bar across approaching roadway
+        const y = (a.r.y || 0.05) + 0.02;
+        const rx = -a.fz, rz = a.fx;
+        const stopCx = a.x - a.fx * 5.2, stopCz = a.z - a.fz * 5.2;
+        addOrientedBar(stopCx, stopCz, y, a.w * 0.9, 0.55, a.fx, a.fz);
+
+        // Draw Continental Zebra Crosswalk Stripes
+        const cwCx = a.x - a.fx * 2.8, cwCz = a.z - a.fz * 2.8;
+        const halfRoad = a.w / 2;
+        for (let s = -halfRoad + 0.6; s <= halfRoad - 0.6; s += 0.85) {
+          addOrientedBar(cwCx + rx * s, cwCz + rz * s, y, 0.48, 3.2, a.fx, a.fz);
+        }
+
+        crosswalkList.push({
+          x: cwCx, z: cwCz,
+          streetName: a.name,
+          signal: sig,
+          approach: a,
+          isEastWest
+        });
+      });
+    });
+
+    if (cwPos.length) {
+      const cwGeo = new THREE.BufferGeometry();
+      cwGeo.setAttribute('position', new THREE.Float32BufferAttribute(cwPos, 3));
+      cwGeo.setAttribute('normal', new THREE.Float32BufferAttribute(cwNrm, 3));
+      const cwMesh = new THREE.Mesh(cwGeo, new THREE.MeshBasicMaterial({
+        color: 0xf5f5f5, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4
+      }));
+      scene.add(cwMesh);
+    }
+
+    // Toronto-Style Cantilever Mast-Arm Signal Poles with Yellow-Bordered Backplates
+    const poleParts = [];
+    const colGeo = new THREE.CylinderGeometry(0.14, 0.17, 6.4, 8); colGeo.translate(0, 3.2, 0);
+    poleParts.push({ geo: colGeo, color: [0.1, 0.11, 0.13] });
+    const armGeo = new THREE.CylinderGeometry(0.09, 0.12, 5.6, 8); armGeo.rotateZ(Math.PI / 2); armGeo.translate(2.8, 5.8, 0);
+    poleParts.push({ geo: armGeo, color: [0.1, 0.11, 0.13] });
+    const bpGeo = new THREE.BoxGeometry(0.85, 2.15, 0.14); bpGeo.translate(5.4, 5.8, 0);
+    poleParts.push({ geo: bpGeo, color: [0.06, 0.07, 0.08] });
+    const ybGeo = new THREE.BoxGeometry(0.92, 2.22, 0.02); ybGeo.translate(5.4, 5.8, -0.07);
+    poleParts.push({ geo: ybGeo, color: [1.0, 0.78, 0.0] }); // Ontario retroreflective yellow
+    [-0.6, 0.0, 0.6].forEach(yo => {
+      const hood = new THREE.CylinderGeometry(0.24, 0.24, 0.28, 8, 1, true, 0, Math.PI);
+      hood.rotateX(-Math.PI / 2); hood.translate(5.4, 5.8 + yo + 0.08, -0.16);
+      poleParts.push({ geo: hood, color: [0.06, 0.07, 0.08] });
+    });
+    const pedBox = new THREE.BoxGeometry(0.42, 0.42, 0.16); pedBox.translate(0, 2.7, 0);
+    poleParts.push({ geo: pedBox, color: [0.08, 0.09, 0.1] });
+
+    const mergedPolesGeo = merge(poleParts);
+    const polesMesh = new THREE.InstancedMesh(
+      mergedPolesGeo,
+      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.35 }),
+      Math.max(1, signals.length)
+    );
+    polesMesh.castShadow = true;
+
+    // Instanced Lenses (Sphere with un-tonemapped bloom color)
+    const lensGeo = new THREE.SphereGeometry(0.18, 10, 8);
+    const redLensMesh = new THREE.InstancedMesh(lensGeo, new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }), Math.max(1, signals.length));
+    const yellowLensMesh = new THREE.InstancedMesh(lensGeo, new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }), Math.max(1, signals.length));
+    const greenLensMesh = new THREE.InstancedMesh(lensGeo, new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }), Math.max(1, signals.length));
+
+    const pedGeo = new THREE.PlaneGeometry(0.36, 0.36);
+    const pedLensMesh = new THREE.InstancedMesh(pedGeo, new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false, side: THREE.DoubleSide }), Math.max(1, signals.length));
+
+    const pMat4 = new THREE.Matrix4(), pQuat = new THREE.Quaternion(), pPos = new THREE.Vector3(), pScale = new THREE.Vector3(1, 1, 1);
+    const upVec = new THREE.Vector3(0, 1, 0);
+
+    signals.forEach((sig, i) => {
+      const rx = -sig.fz, rz = sig.fx;
+      const poleX = sig.x - sig.fx * 5.2 + rx * (sig.approach ? (sig.approach.w / 2 + 1.8) : 6.2);
+      const poleZ = sig.z - sig.fz * 5.2 + rz * (sig.approach ? (sig.approach.w / 2 + 1.8) : 6.2);
+      const heading = Math.atan2(sig.fx, sig.fz);
+      pQuat.setFromAxisAngle(upVec, heading);
+
+      pMat4.compose(pPos.set(poleX, 0, poleZ), pQuat, pScale);
+      polesMesh.setMatrixAt(i, pMat4);
+
+      const hx = poleX - rx * 5.4, hz = poleZ - rz * 5.4;
+      pMat4.compose(pPos.set(hx, 6.4, hz), pQuat, pScale); redLensMesh.setMatrixAt(i, pMat4);
+      pMat4.compose(pPos.set(hx, 5.8, hz), pQuat, pScale); yellowLensMesh.setMatrixAt(i, pMat4);
+      pMat4.compose(pPos.set(hx, 5.2, hz), pQuat, pScale); greenLensMesh.setMatrixAt(i, pMat4);
+
+      pMat4.compose(pPos.set(poleX, 2.7, poleZ - 0.1), pQuat, pScale);
+      pedLensMesh.setMatrixAt(i, pMat4);
+    });
+
+    polesMesh.instanceMatrix.needsUpdate = true;
+    redLensMesh.instanceMatrix.needsUpdate = true;
+    yellowLensMesh.instanceMatrix.needsUpdate = true;
+    greenLensMesh.instanceMatrix.needsUpdate = true;
+    pedLensMesh.instanceMatrix.needsUpdate = true;
+
+    scene.add(polesMesh);
+    scene.add(redLensMesh);
+    scene.add(yellowLensMesh);
+    scene.add(greenLensMesh);
+    scene.add(pedLensMesh);
+
+    const COL_RED_ON = new THREE.Color(2.8, 0.18, 0.18);
+    const COL_RED_OFF = new THREE.Color(0.18, 0.02, 0.02);
+    const COL_YEL_ON = new THREE.Color(2.4, 1.6, 0.1);
+    const COL_YEL_OFF = new THREE.Color(0.16, 0.1, 0.01);
+    const COL_GRN_ON = new THREE.Color(0.1, 2.8, 1.2);
+    const COL_GRN_OFF = new THREE.Color(0.01, 0.15, 0.05);
+
+    const COL_WALK = new THREE.Color(2.0, 2.2, 2.6);
+    const COL_DONTWALK = new THREE.Color(2.5, 0.85, 0.05);
+    const COL_PED_OFF = new THREE.Color(0.04, 0.04, 0.04);
+
+    let signalTimer = 0;
+    let pedAudioTimer = 0;
+
+
     // ---------- instanced rendering ----------
     const designs = {};
     const meshes = {};
@@ -437,6 +635,36 @@
     function update(dt, ctx) {
       dt = Math.min(dt, 0.05);
       const P = ctx.player.pos;
+
+      // Update Toronto Traffic Signals
+      signalTimer += dt;
+      for (let i = 0; i < signals.length; i++) {
+        const sig = signals[i];
+        const t = (signalTimer + sig.offset) % CYCLE;
+        let st = 'red', ped = 'dontwalk';
+        if (sig.phase === 0) {
+          if (t < 16.5) { st = 'green'; ped = t > 12.5 ? (Math.floor(t * 3) % 2 === 0 ? 'dontwalk' : 'off') : 'walk'; }
+          else if (t < 20.0) { st = 'yellow'; ped = 'dontwalk'; }
+          else { st = 'red'; ped = 'dontwalk'; }
+        } else {
+          if (t < 21.0) { st = 'red'; ped = 'dontwalk'; }
+          else if (t < 37.5) { st = 'green'; ped = t > 33.5 ? (Math.floor(t * 3) % 2 === 0 ? 'dontwalk' : 'off') : 'walk'; }
+          else if (t < 41.0) { st = 'yellow'; ped = 'dontwalk'; }
+          else { st = 'red'; ped = 'dontwalk'; }
+        }
+        sig.state = st;
+        sig.ped = ped;
+        redLensMesh.setColorAt(i, st === 'red' ? COL_RED_ON : COL_RED_OFF);
+        yellowLensMesh.setColorAt(i, st === 'yellow' ? COL_YEL_ON : COL_YEL_OFF);
+        greenLensMesh.setColorAt(i, st === 'green' ? COL_GRN_ON : COL_GRN_OFF);
+        pedLensMesh.setColorAt(i, ped === 'walk' ? COL_WALK : (ped === 'dontwalk' ? COL_DONTWALK : COL_PED_OFF));
+      }
+      if (signals.length) {
+        redLensMesh.instanceColor.needsUpdate = true;
+        yellowLensMesh.instanceColor.needsUpdate = true;
+        greenLensMesh.instanceColor.needsUpdate = true;
+        pedLensMesh.instanceColor.needsUpdate = true;
+      }
       const people = [{ x: P.x, z: P.z, isPlayer: true, y: P.y }];
       ctx.enemies.forEach(e => { if (!e.isDead && e.rig) people.push({ x: e.rig.root.position.x, z: e.rig.root.position.z, enemy: e }); });
       let nearest = Infinity, nearestSpeed = 0;
@@ -472,6 +700,28 @@
           }
         });
 
+        // ---- Look ahead for traffic lights & stop bars ----
+        const rem = c.dir > 0 ? (c.road.len - c.s) : c.s;
+        let isWaitingAtRed = false;
+        if (rem < 36 && rem > 0.6) {
+          const atStart = c.dir < 0;
+          const app = roadApproachMap.get(c.road.id + ':' + atStart);
+          if (app && app.signal) {
+            const sig = app.signal.state;
+            if (sig === 'red' || (sig === 'yellow' && rem > 12)) {
+              const dStop = Math.max(0, rem - app.stopDist);
+              if (dStop < gap) {
+                gap = dStop;
+                if (rem < 15) isWaitingAtRed = true;
+              }
+              if (dStop <= 0.8) {
+                c.speed = 0;
+                c.braking = true;
+              }
+            }
+          }
+        }
+
         // ---- speed control (simple intelligent-driver model) ----
         const limit = c.road.limit;
         let target = limit;
@@ -483,7 +733,7 @@
         if (personAhead && gap < 10 && c.speed > 2 && c.honkCd <= 0) { honk(Math.hypot(c.vx - P.x, c.vz - P.z)); c.honkCd = 2.5; }
 
         // gridlock breaker: if stuck behind cars for a while, ghost through
-        if (c.speed < 0.3 && gap < 6 && !personAhead) { c.stuck += dt; if (c.stuck > 5) { c.ghost = 2.5; c.stuck = 0; } } else c.stuck = 0;
+        if (c.speed < 0.3 && gap < 6 && !personAhead && !isWaitingAtRed) { c.stuck += dt; if (c.stuck > 6) { c.ghost = 2.5; c.stuck = 0; } } else c.stuck = 0;
 
         // ---- move along the network ----
         c.s += c.speed * dt;
@@ -539,6 +789,20 @@
       [beams, tailGlow, blobs].forEach(im => { im.instanceMatrix.needsUpdate = true; });
       tailGlow.instanceColor.needsUpdate = true;
 
+      // Accessible Pedestrian Signal (APS) Audio chirp
+      pedAudioTimer += dt;
+      if (pedAudioTimer >= 1.15) {
+        pedAudioTimer = 0;
+        let nearDist = 32, nearSig = null;
+        signals.forEach(s => {
+          const d = Math.hypot(s.x - P.x, s.z - P.z);
+          if (d < nearDist) { nearDist = d; nearSig = s; }
+        });
+        if (nearSig && nearSig.ped === 'walk') {
+          audio.playWalkSignal(nearDist, nearSig.isEastWest);
+        }
+      }
+
       // engine rumble from the nearest car
       ensureEngine();
       if (engine) {
@@ -556,7 +820,20 @@
 
     function silence() { if (engine) engine.gain.gain.setTargetAtTime(0, audio.ctx.currentTime, 0.1); }
 
-    return { cars, update, silence };
+    function isSafeCrossing(px, pz) {
+      for (let i = 0; i < crosswalkList.length; i++) {
+        const cw = crosswalkList[i];
+        const dx = px - cw.x, dz = pz - cw.z;
+        if (dx * dx + dz * dz < 20) {
+          const isRed = cw.signal.state === 'red';
+          const isWalk = cw.signal.ped === 'walk';
+          return { inCrosswalk: true, isSafe: isRed || isWalk, street: cw.streetName, signal: cw.signal.state };
+        }
+      }
+      return { inCrosswalk: false, isSafe: false, street: '', signal: '' };
+    }
+
+    return { cars, update, silence, getIntersections: () => signalIntersections, isSafeCrossing };
   }
 
   window.createTraffic = createTraffic;
