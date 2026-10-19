@@ -589,7 +589,7 @@
 
     (city.streetcarRoutes || []).forEach(src => {
       if (!src.pts || src.pts.length < 2 || typeof city.makeStreetcar !== 'function') return;
-      const rt = { id: src.id, pts: src.pts, limit: src.limit || 11, portal: src.portal, stops: [], cum: [0] };
+      const rt = { id: src.id, pts: src.pts, limit: src.limit || 11, portal: src.portal, stops: [], cum: [0], sigLat: src.sigLat || 8 };
       for (let i = 1; i < rt.pts.length; i++) rt.cum.push(rt.cum[i - 1] + Math.hypot(rt.pts[i][0] - rt.pts[i - 1][0], rt.pts[i][1] - rt.pts[i - 1][1]));
       rt.len = rt.cum[rt.cum.length - 1];
       // Turnaround points: the car centre stops here. At a tunnel portal the whole 18 m car
@@ -602,9 +602,15 @@
         const p = sample(rt, d);
         return !signals.some(sg => Math.hypot(sg.x - p.x, sg.z - p.z) < 30);
       };
-      for (let d = 140; d < rt.len - 80; d += 240) {
-        const pick = [0, 35, -35, 70, -70].map(o => d + o).find(dd => dd > 60 && dd < rt.len - 60 && clearOfSignals(dd));
-        if (pick !== undefined) rt.stops.push(pick);
+      if (src.stops) {
+        // explicit stops; dir 1/-1 = that direction only (Spadina's near-side platforms), 0 = both
+        rt.stops = src.stops.map(st => ({ d: st.d, dir: st.dir || 0 }));
+        rt.platformsUntil = src.spadinaEnd || 0;            // those have platforms, not curb poles
+      } else {
+        for (let d = 140; d < rt.len - 80; d += 240) {
+          const pick = [0, 35, -35, 70, -70].map(o => d + o).find(dd => dd > 60 && dd < rt.len - 60 && clearOfSignals(dd));
+          if (pick !== undefined) rt.stops.push({ d: pick, dir: 0 });
+        }
       }
       scRoutes.push(rt);
 
@@ -625,7 +631,9 @@
       }
 
       // TTC stop poles on the right-hand curb for each direction (instanced, 3 draw calls total)
-      rt.stops.forEach(d => {
+      rt.stops.forEach(st => {
+        const d = st.d;
+        if (st.dir || d < (rt.platformsUntil || 0)) return;
         const p = sample(rt, d), tx = p.tx, tz = p.tz, cx = p.x, cz = p.z;
         [1, -1].forEach(dir => {
           const rx = -tz * dir, rz = tx * dir;            // right of travel
@@ -708,7 +716,9 @@
 
           // next stop
           let stopRem = Infinity;
-          rt.stops.forEach(sd => {
+          rt.stops.forEach(st => {
+            if (st.dir && st.dir !== sc.dir) return;
+            const sd = st.d;
             if (Math.abs(sd - sc.servedD) < 1) return;
             const r = (sd - sc.d) * sc.dir;
             if (r > -0.3 && r < stopRem) stopRem = r;
@@ -722,7 +732,7 @@
           signals.forEach(sg => {
             if (sg.fx * sc.fx + sg.fz * sc.fz < 0.8) return;
             const r = rel(sc, sg.x, sg.z);
-            if (r.f < SC.L / 2 || r.f > 70 || Math.abs(r.l) > 8) return;
+            if (r.f < SC.L / 2 || r.f > 70 || Math.abs(r.l) > rt.sigLat) return;
             const dStop = r.f - 5.2 - SC.L / 2;
             if (sg.state === 'red' || (sg.state === 'yellow' && dStop > 10)) {
               if (dStop + 2.5 < gap) { gap = dStop + 2.5; waitingForTraffic = true; }

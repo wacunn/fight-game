@@ -1224,7 +1224,7 @@
 
       if (MAJOR[r.t]) {
         // double yellow centre line (two thin lines, like real Toronto arterials)
-        cleanRoadPts.forEach(seg => {   // centre line stops at the open cut too
+        if (r.n !== 'Spadina Avenue') cleanRoadPts.forEach(seg => {   // centre line stops at the open cut too (Spadina's halves are one-way: no yellow)
           ribbon(lineGB, offsetLine(seg, 0.11), 0.09, y + 0.01, 4);
           ribbon(lineGB, offsetLine(seg, -0.11), 0.09, y + 0.01, 4);
         });
@@ -2145,7 +2145,7 @@
         const fE = front.reduce((a, p) => (Math.abs(p[0] - (O[0] + 90)) < Math.abs(a[0] - (O[0] + 90)) ? p : a));
         let wx = O[0] - fE[0], wz = O[1] - fE[1]; const wl = Math.hypot(wx, wz) || 1; wx /= wl; wz /= wl;   // west along Front
         const nx = -wz, nz = wx;   // north along Spadina: square to Front on Toronto's rotated grid
-        reservedLines.push({ a: O, b: [O[0] + nx * 450, O[1] + nz * 450], hw: 26 });   // keep Spadina itself clear
+        reservedLines.push({ a: O, b: [O[0] + nx * 1100, O[1] + nz * 1100], hw: 28 });   // keep Spadina itself clear
         const C = [O[0] + wx * 30 + nx * 12, O[1] + wz * 30 + nz * 12];             // SE corner of the block (Spadina is ~45 m wide)
         if (typeof window !== 'undefined') window.__well = { C, w: [wx, wz], n: [nx, nz] };
         const P = (u, v) => [C[0] + wx * u + nx * v, C[1] + wz * u + nz * v];
@@ -4133,7 +4133,7 @@
     // ---------- 1. Streetcar Tracks along King St, Queen St & Spadina Ave (1 merged GeoBuilder draw call) ----------
     const streetcarRoads = groundRoads.filter(r => {
       const n = (MAP.roads[r.id] || {}).n || '';
-      return n.indexOf('King Street') >= 0 || n.indexOf('Queen Street') >= 0 || n.indexOf('Spadina Avenue') >= 0;
+      return n.indexOf('King Street') >= 0 || n.indexOf('Queen Street') >= 0;
     });
     const scRailGB = new GeoBuilder();
     streetcarRoads.forEach(r => {
@@ -4229,6 +4229,230 @@
       scene.add(g);
       rt.portal = { x: cx, z: cz, len: PL };
     });
+
+    let spadina510 = null;
+    // ==========================================================================
+    // 510 SPADINA: the reserved centre right-of-way, and the route itself
+    // Spadina's look: tracks down the middle on a paver surface raised ~5 cm, a row of bollards
+    // along both edges, and near-side platforms with a partial shelter, railings along the whole
+    // boarding area and a streetcar signal. OSM maps Spadina south of Front as two one-way
+    // carriageways; the right-of-way is the median between them. North of Front (outside the OSM
+    // data) the avenue is continued visually to King and on past the edge of the map.
+    // The 510 runs Spadina, then Queens Quay east into the Union Station tunnel, like the real one.
+    // ==========================================================================
+    {
+      const nameOf = r => r.n || '';
+      const spSegs = MAP.roads.filter(r => nameOf(r) === 'Spadina Avenue').map(r => toPairs(r.p));
+      const chain = segs => {
+        const rem = segs.map(s => s.slice()); if (!rem.length) return [];
+        let bi = 0, bend = 0, bz = Infinity;
+        rem.forEach((s, i) => { if (s[0][1] < bz) { bz = s[0][1]; bi = i; bend = 0; } if (s[s.length - 1][1] < bz) { bz = s[s.length - 1][1]; bi = i; bend = 1; } });
+        let path = rem.splice(bi, 1)[0]; if (bend) path.reverse();
+        for (;;) {
+          const e = path[path.length - 1]; let best = -1, rev = false, bd = 6;
+          rem.forEach((s, i) => {
+            const d0 = Math.hypot(s[0][0] - e[0], s[0][1] - e[1]), d1 = Math.hypot(s[s.length - 1][0] - e[0], s[s.length - 1][1] - e[1]);
+            if (d0 < bd) { bd = d0; best = i; rev = false; } if (d1 < bd) { bd = d1; best = i; rev = true; }
+          });
+          if (best < 0) break;
+          const s = rem.splice(best, 1)[0]; if (rev) s.reverse(); path = path.concat(s.slice(1));
+        }
+        return { path, rem };
+      };
+      const A = chain(spSegs), B = A.path ? chain(A.rem) : { path: [] };
+      const qq = streetcarRoutes.find(r => r.portal && r.pts.length > 3);
+      const front = MAP.roads.filter(r => nameOf(r) === 'Front Street West').flatMap(r => toPairs(r.p));
+      if (A.path.length > 1 && B.path.length > 1 && qq && front.length) {
+        const nearestOn = (line, x, z) => {
+          let best = null, bd = Infinity;
+          for (let i = 1; i < line.length; i++) {
+            const a = line[i - 1], b = line[i], dx = b[0] - a[0], dz = b[1] - a[1], L2 = dx * dx + dz * dz || 1;
+            const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / L2));
+            const d = Math.hypot(a[0] + dx * t - x, a[1] + dz * t - z);
+            if (d < bd) { bd = d; best = [a[0] + dx * t, a[1] + dz * t]; }
+          }
+          return { p: best, d: bd };
+        };
+        // centre line of the median = midpoint between the carriageways, every 6 m
+        const mid = [];
+        for (let i = 1; i < A.path.length; i++) {
+          const a = A.path[i - 1], b = A.path[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+          for (let s2 = 0; s2 < L; s2 += 6) {
+            const x = a[0] + (b[0] - a[0]) * s2 / L, z = a[1] + (b[1] - a[1]) * s2 / L, n = nearestOn(B.path, x, z);
+            if (n.d < 40) mid.push([(x + n.p[0]) / 2, (z + n.p[1]) / 2]);
+          }
+        }
+        const sm = mid.map((p, i) => (i === 0 || i === mid.length - 1) ? p : [(mid[i - 1][0] + p[0] * 2 + mid[i + 1][0]) / 4, (mid[i - 1][1] + p[1] * 2 + mid[i + 1][1]) / 4]);
+        if (sm.length > 5) {
+          if (sm[0][1] > sm[sm.length - 1][1]) sm.reverse();                    // north -> south
+          // grid north, square to Front St
+          const fO = front.reduce((a, p) => (p[0] < a[0] ? p : a));
+          const fE = front.reduce((a, p) => (Math.abs(p[0] - (fO[0] + 90)) < Math.abs(a[0] - (fO[0] + 90)) ? p : a));
+          let wx = fO[0] - fE[0], wz = fO[1] - fE[1]; const wl = Math.hypot(wx, wz) || 1; wx /= wl; wz /= wl;
+          const nX = -wz, nZ = wx;                                               // north along Spadina
+          const northLen = (sm[0][1] - (PLAY.minZ - 60)) / Math.abs(nZ);
+          const north = [];
+          for (let t2 = northLen; t2 > 0.5; t2 -= 12) north.push([sm[0][0] + nX * t2, sm[0][1] + nZ * t2]);
+          const extN = north.length;                                             // points before the OSM part
+          // join onto the Queens Quay line
+          let qi = 0, qd = Infinity;
+          qq.pts.forEach((p, i) => { const d = Math.hypot(p[0] - sm[sm.length - 1][0], p[1] - sm[sm.length - 1][1]); if (d < qd && i < qq.pts.length - 2) { qd = d; qi = i; } });
+          const pts = north.concat(sm, qq.pts.slice(qi + 1));
+          const cum = [0];
+          for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+          const sJunction = cum[extN + sm.length - 1];                          // Spadina / Queens Quay
+          const at = d => {
+            let i = 1; while (i < cum.length - 1 && cum[i] < d) i++;
+            const a = pts[i - 1], b = pts[i], L = cum[i] - cum[i - 1] || 1, t2 = Math.max(0, Math.min(1, (d - cum[i - 1]) / L));
+            return { x: a[0] + (b[0] - a[0]) * t2, z: a[1] + (b[1] - a[1]) * t2, tx: (b[0] - a[0]) / L, tz: (b[1] - a[1]) / L };
+          };
+          const arcNearest = (x, z, maxD) => {
+            let bd = Infinity, bs = null;
+            for (let i = 1; i < pts.length; i++) {
+              if (cum[i - 1] > sJunction) break;
+              const a = pts[i - 1], b = pts[i], dx = b[0] - a[0], dz = b[1] - a[1], L2 = dx * dx + dz * dz || 1;
+              const t2 = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / L2));
+              const d = Math.hypot(a[0] + dx * t2 - x, a[1] + dz * t2 - z);
+              if (d < bd) { bd = d; bs = cum[i - 1] + Math.sqrt(L2) * t2; }
+            }
+            return bd < (maxD || 35) ? bs : null;
+          };
+          const crossAt = names => {
+            let best = null;
+            MAP.roads.filter(r => names.includes(nameOf(r))).forEach(r => toPairs(r.p).forEach(p => {
+              const s2 = arcNearest(p[0], p[1], 35); if (s2 === null) return;
+              const q = at(s2), d = Math.hypot(q.x - p[0], q.z - p[1]);
+              if (!best || d < best.d) best = { s: s2, d };
+            }));
+            return best ? best.s : null;
+          };
+          const crossings = [['King Street West'], ['Front Street West'], ['Bremner Boulevard', 'Fort York Boulevard'], ['Lake Shore Boulevard West']]
+            .map(crossAt).filter(s2 => s2 !== null && s2 < sJunction - 40);
+          const stops = [];
+          crossings.forEach(s2 => stops.push({ d: s2 - 26, dir: 1 }, { d: s2 + 26, dir: -1 }));   // near-side platforms
+          for (let d = sJunction + 120; d < cum[cum.length - 1] - 60; d += 240) stops.push({ d, dir: 0 });  // Queens Quay stops
+          const route510 = {
+            id: '510', name: '510 Spadina', pts, limit: 11, cars: 3,
+            signs: ['510 SPADINA / UNION', '510 SPADINA / SPADINA STN'],
+            stops: stops.filter(st => st.d > 40 && st.d < cum[cum.length - 1] - 40),
+            sigLat: 16, portal: qq.portal, spadinaEnd: sJunction
+          };
+          streetcarRoutes.push(route510);
+          spadina510 = { route: route510, cum, at, crossings, sJunction, extN, north, nX, nZ };
+        }
+      }
+    }
+
+    // ---------- Spadina right-of-way: pavers, bollards, platforms, overhead ----------
+    if (spadina510) {
+      const { route, at, crossings, sJunction, cum } = spadina510;
+      const ROW_HW = 4.0, TRACK = 1.5;
+      const spPts = route.pts.filter((p, i) => cum[i] <= sJunction + 1);
+      // paver texture: small grey-red setts
+      const pc = document.createElement('canvas'); pc.width = pc.height = 256;
+      const px = pc.getContext('2d');
+      px.fillStyle = '#4a4542'; px.fillRect(0, 0, 256, 256);
+      for (let r = 0; r < 16; r++) for (let c2 = 0; c2 < 8; c2++) {
+        const off = (r % 2) * 16, tone = 95 + Math.floor(hash(r * 31 + c2 * 7) * 40);
+        px.fillStyle = `rgb(${tone + 18},${tone},${tone - 8})`;
+        px.fillRect(c2 * 32 + off + 1, r * 16 + 1, 30, 14);
+      }
+      const ptex = new THREE.CanvasTexture(pc); ptex.wrapS = ptex.wrapT = THREE.RepeatWrapping;
+      const rowGB = new GeoBuilder();
+      ribbon(rowGB, spPts, ROW_HW * 2, 0.10, 4);
+      wallStrip(rowGB, offsetLine(spPts, ROW_HW), 0, 0.03, 0.10);
+      wallStrip(rowGB, offsetLine(spPts, -ROW_HW).slice().reverse(), 0, 0.03, 0.10);
+      const rowMesh = new THREE.Mesh(rowGB.build(), new THREE.MeshStandardMaterial({ map: ptex, roughness: 0.9, side: THREE.DoubleSide }));
+      rowMesh.receiveShadow = true; scene.add(rowMesh);
+
+      // North of Front there's no OSM street, so draw the two carriageways along the extension
+      const ext = spadina510.north.concat([route.pts[spadina510.extN]]);
+      const cwGB = new GeoBuilder(), cwLine = new GeoBuilder();
+      [-11.5, 11.5].forEach(o => {
+        const l = offsetLine(ext, o);
+        ribbon(cwGB, l, 13, 0.05, 8);
+        [-3.25, 3.25].forEach(lo => ribbon(cwLine, offsetLine(l, lo), 0.14, 0.062, 6));
+      });
+      scene.add(new THREE.Mesh(cwGB.build(), roadMat));
+      scene.add(new THREE.Mesh(cwLine.build(), new THREE.MeshStandardMaterial({ map: makeDashTexture(), alphaTest: 0.5, roughness: 0.55 })));
+
+      // tracks for the whole 510 (Spadina + Queens Quay; the 509 shares the Queens Quay pair)
+      const tGB = new GeoBuilder();
+      [-TRACK, TRACK].forEach(o => {
+        const l = offsetLine(route.pts, o);
+        ribbon(tGB, offsetLine(l, 0.72), 0.12, 0.13, 4);
+        ribbon(tGB, offsetLine(l, -0.72), 0.12, 0.13, 4);
+      });
+      scene.add(new THREE.Mesh(tGB.build(), new THREE.MeshStandardMaterial({ color: 0xa8b0ba, roughness: 0.3, metalness: 0.9 })));
+
+      const nearCross = s2 => crossings.some(c3 => Math.abs(s2 - c3) < 16);
+      const nearStop = (s2, side) => route.stops.some(st => st.dir === side && Math.abs(s2 - st.d) < 17);
+      // bollards both edges, every 2.5 m, gaps at intersections and platforms
+      const bol = [];
+      for (let s2 = 2; s2 < sJunction - 2; s2 += 2.5) {
+        if (nearCross(s2)) continue;
+        const p = at(s2);
+        [-1, 1].forEach(side => {
+          if (nearStop(s2, side)) return;   // side +1 = right of southbound
+          bol.push([p.x - p.tz * side * (ROW_HW - 0.25), p.z + p.tx * side * (ROW_HW - 0.25)]);
+        });
+      }
+      const m4 = new THREE.Matrix4();
+      const bolMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.11, 0.13, 0.9, 10), new THREE.MeshStandardMaterial({ color: 0x2c2f33, roughness: 0.5, metalness: 0.4 }), bol.length);
+      const bandMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.115, 0.115, 0.08, 10), new THREE.MeshBasicMaterial({ color: 0xf2f2ea }), bol.length);
+      bol.forEach(([x, z], i) => { m4.makeTranslation(x, 0.55, z); bolMesh.setMatrixAt(i, m4); m4.makeTranslation(x, 0.86, z); bandMesh.setMatrixAt(i, m4); });
+      scene.add(bolMesh, bandMesh);
+
+      // overhead: centre poles between the tracks with twin arms over each track
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0x3d4248, roughness: 0.5, metalness: 0.6 });
+      const wireGB = new GeoBuilder();
+      [-TRACK, TRACK].forEach(o => ribbon(wireGB, offsetLine(route.pts, o), 0.04, 5.6, 4));
+      scene.add(new THREE.Mesh(wireGB.build(), new THREE.MeshBasicMaterial({ color: 0x4b5058 })));
+      for (let s2 = 10; s2 < sJunction - 5; s2 += 34) {
+        if (nearCross(s2)) continue;
+        const p = at(s2);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, 6.4, 10), poleMat);
+        pole.position.set(p.x, 3.3, p.z); scene.add(pole);
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(TRACK * 2 + 0.6, 0.1, 0.1), poleMat);
+        arm.position.set(p.x, 5.85, p.z); arm.rotation.y = -Math.atan2(p.tz, p.tx); scene.add(arm);
+      }
+
+      // near-side platforms: raised concrete, partial shelter, railings along the whole boarding
+      // area on the traffic side, and a streetcar signal at the front
+      const platMat = new THREE.MeshStandardMaterial({ color: 0xb8b3ab, roughness: 0.9 });
+      const tactMat = new THREE.MeshStandardMaterial({ color: 0xe0b020, roughness: 0.7 });
+      const glassMat = new THREE.MeshStandardMaterial({ color: 0xbfe3f2, transparent: true, opacity: 0.3, roughness: 0.05, side: THREE.DoubleSide, depthWrite: false });
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0x3a3f45, roughness: 0.5, metalness: 0.6 });
+      const railMat = new THREE.MeshStandardMaterial({ color: 0x8a9099, roughness: 0.4, metalness: 0.7 });
+      route.stops.forEach(st => {
+        if (!st.dir || st.d > sJunction) return;
+        const p = at(st.d), side = st.dir;
+        const off = side * (TRACK + 1.27 + 0.15 + 1.2);
+        const g = new THREE.Group();
+        const PLEN = 32, PW = 2.4;
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(PW, 0.3, PLEN), platMat); slab.position.y = 0.15; g.add(slab);
+        const tact = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.02, PLEN), tactMat); tact.position.set(PW / 2 - 0.3, 0.31, 0); g.add(tact);
+        // group faces the direction of travel, so the traffic side (outer edge) is local -x
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, PLEN - 1), railMat); rail.position.set(-PW / 2 + 0.1, 1.35, 0); g.add(rail);
+        const mid2 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, PLEN - 1), railMat); mid2.position.set(-PW / 2 + 0.1, 0.85, 0); g.add(mid2);
+        for (let k = -PLEN / 2 + 0.5; k <= PLEN / 2 - 0.5; k += 2.5) {
+          const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.05, 0.06), railMat); post.position.set(-PW / 2 + 0.1, 0.82, k); g.add(post);
+        }
+        // partial shelter: glass back + roof over the middle third
+        const back = new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.1, 9), glassMat); back.position.set(-PW / 2 + 0.25, 1.35, 0); g.add(back);
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 9.4), frameMat); roof.position.set(-0.25, 2.5, 0); g.add(roof);
+        [[-4.5], [4.5]].forEach(([z]) => { const c3 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 0.08), frameMat); c3.position.set(-PW / 2 + 0.25, 1.4, z); g.add(c3); });
+        // streetcar signal (white bar) at the front end
+        const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.2, 8), frameMat); sp.position.set(PW / 2 - 0.2, 1.9, PLEN / 2 - 0.4); g.add(sp);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.6, 0.3), new THREE.MeshStandardMaterial({ color: 0x15171a })); head.position.set(PW / 2 - 0.2, 3.2, PLEN / 2 - 0.4); g.add(head);
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, 0.05), new THREE.MeshBasicMaterial({ color: 0xf8f8ff })); bar.position.set(PW / 2 - 0.2, 3.25, PLEN / 2 - 0.25); g.add(bar);
+        // TTC stop flag
+        const flag = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.55, 0.42), new THREE.MeshStandardMaterial({ color: 0xda251d })); flag.position.set(-PW / 2 + 0.1, 2.6, -PLEN / 2 + 1); g.add(flag);
+        g.position.set(p.x - p.tz * off, 0.1, p.z + p.tx * off);
+        g.rotation.y = Math.atan2(p.tx * side, p.tz * side);
+        scene.add(g);
+      });
+    }
 
     // 28 m, 2.54 m wide, 3.84 m high, five articulated sections (A-B-C-D-E). A, C and E sit on
     // skirted bogies; B and D are suspended between them. Single-ended: driver's cab at the
