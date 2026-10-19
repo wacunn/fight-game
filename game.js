@@ -4229,6 +4229,9 @@ function triggerAttack() {
   if (atk.type === 'punch') vm.jabHand = vm.jabHand === 'right' ? 'left' : 'right';
 
   audio.playPunch(atk.type === 'heavy' ? 1.6 : 1.0, state.isBerserk);
+  if (window.multiplayer && window.multiplayer.broadcastAttack) {
+    window.multiplayer.broadcastAttack(atk.type);
+  }
 
   // Land the hit on the frame the fist reaches full extension
   setTimeout(() => {
@@ -4267,6 +4270,9 @@ function triggerQuickKick() {
   state.currentAnimType = 'kick';
 
   audio.playPunch(1.4, state.isBerserk);
+  if (window.multiplayer && window.multiplayer.broadcastAttack) {
+    window.multiplayer.broadcastAttack('kick');
+  }
 
   setTimeout(() => {
     checkMeleeHits(atk);
@@ -4296,6 +4302,9 @@ function executeMeteorSlam() {
   // Rocket downward with immense slam velocity
   player.velocity.y = -22.0;
   audio.playPunch(2.4, true);
+  if (window.multiplayer && window.multiplayer.broadcastAttack) {
+    window.multiplayer.broadcastAttack('slam');
+  }
 
   const checkImpact = setInterval(() => {
     if (player.isGrounded) {
@@ -4405,6 +4414,13 @@ function checkMeleeHits(atk) {
       }
     }
   });
+
+  // Check Remote Players (Multiplayer Co-op / PvP)
+  if (window.multiplayer && window.multiplayer.checkMeleeHits) {
+    if (window.multiplayer.checkMeleeHits(atk)) {
+      hitSomething = true;
+    }
+  }
 
   if (hitSomething) {
     // Freeze-frame + camera recoil sell the weight of the blow
@@ -5137,6 +5153,9 @@ function animate(now) {
     updateTelescope(simDt);
     updateRotatingRestaurant(simDt);
     updateFireworks(simDt);
+    if (window.multiplayer && window.multiplayer.update) {
+      window.multiplayer.update(simDt);
+    }
   }
 
   if (traffic && (!state.inGame || state.isPaused || state.isDead)) traffic.silence();
@@ -5185,6 +5204,17 @@ function animate(now) {
         });
       }
     });
+    // Remote Squad Players on Minimap Radar
+    if (window.multiplayer && window.multiplayer.remotePlayers) {
+      window.multiplayer.remotePlayers.forEach(rp => {
+        dots.push({
+          x: rp.currentPos.x,
+          z: rp.currentPos.z,
+          c: '#' + rp.color.toString(16).padStart(6, '0'),
+          r: 4.2
+        });
+      });
+    }
     // Active exploration mission objective waypoint
     if (missionState.active && missionState.color && missionState.state === 'active') {
       dots.push({
@@ -6171,6 +6201,21 @@ document.querySelectorAll('.diff-btn').forEach(btn => {
     if (diff) setDifficulty(diff, false);
   });
 });
+
+// Global exports for multiplayer & UI
+window.showAnnouncement = showAnnouncement;
+window.triggerDamageFlash = triggerDamageFlash;
+window.triggerScreenShake = triggerScreenShake;
+window.setFaceExpression = setFaceExpression;
+window.updateHUDHealth = updateHUDHealth;
+window.playerDeath = playerDeath;
+window.spawnDebris = spawnDebris;
+window.pauseGame = pauseGame;
+window.audio = audio;
+
+if (window.multiplayer && window.multiplayer.init) {
+  window.multiplayer.init(scene, player, state);
+}
 
 // Init HUD & Start Loop
 updateHUDWeapon();

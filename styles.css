@@ -1917,3 +1917,144 @@ body.telescope-mode #crosshair-wrapper {
 @media (max-width: 700px) {
   #elevator-panel { right: 50%; transform: translate(50%, -50%); width: min(300px, 90vw); }
 }
+
+/* ==========================================================================
+   MULTIPLAYER SQUAD & LOBBY STYLES
+   ========================================================================== */
+.multiplayer-section {
+  margin: 0 0 20px 0;
+  background: rgba(14, 18, 25, 0.88);
+  border: 1px solid #1e293b;
+  border-left: 3px solid #38bdf8;
+  border-radius: 8px;
+  padding: 14px 18px;
+}
+
+.mp-title {
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #38bdf8;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mp-status-text {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.mp-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.mp-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mp-input-group label {
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 1px;
+}
+
+.mp-input-group input {
+  background: #090d16;
+  border: 1px solid #283347;
+  border-radius: 4px;
+  color: #f8fafc;
+  font-family: 'Chakra Petch', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 10px;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.mp-input-group input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.35);
+}
+
+.mp-server-group {
+  grid-column: 1 / -1;
+}
+
+.mp-btn-group {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mp-mode-toggle-btn {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
+  color: #34d399;
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.mp-mode-toggle-btn:hover {
+  background: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.mp-mode-toggle-btn.pvp-active {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #f87171;
+}
+
+.mp-mode-toggle-btn.pvp-active:hover {
+  background: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+}
+
+.mp-btn {
+  background: rgba(14, 165, 233, 0.2);
+  border: 1px solid #0284c7;
+  color: #38bdf8;
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mp-btn:hover {
+  background: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+}
+
+@media (max-width: 600px) {
+  .mp-controls-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+

@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: toronto-defender
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python3 server_multiplayer.py
+    envVars:
+      - key: PORT
+        value: 10000
+    plan: free

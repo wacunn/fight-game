@@ -30,6 +30,7 @@
           <button id="diff-next-btn" class="diff-step-btn" type="button" title="Increase difficulty [ ] key ]">▶</button>
         </div>
         <span id="mouse-status-tag" class="tag tag-green">MOUSE: UNLOCKED</span>
+        <span id="mp-status-badge" class="tag tag-dim" title="Multiplayer Status">🌐 SOLO / OFFLINE</span>
         <span id="fps-counter" class="tag tag-dim">60 FPS</span>
       </div>
     </header>
@@ -371,6 +372,32 @@
           </div>
         </div>
 
+        <!-- Multiplayer Squad & Network Lobby -->
+        <div class="multiplayer-section">
+          <div class="mp-title">
+            <span>🌐 MULTIPLAYER SQUAD &amp; ONLINE LOBBY</span>
+            <span id="mp-lobby-status" class="mp-status-text">OFFLINE / LOCAL</span>
+          </div>
+          <div class="mp-controls-grid">
+            <div class="mp-input-group">
+              <label for="mp-name-input">FIGHTER NAME</label>
+              <input type="text" id="mp-name-input" maxlength="18" placeholder="DEFENDER">
+            </div>
+            <div class="mp-input-group">
+              <label for="mp-room-input">SQUAD ROOM</label>
+              <input type="text" id="mp-room-input" maxlength="12" placeholder="6ix">
+            </div>
+            <div class="mp-input-group mp-server-group">
+              <label for="mp-server-input">RELAY SERVER (WSS / WS)</label>
+              <input type="text" id="mp-server-input" placeholder="wss://toronto-defender.onrender.com">
+            </div>
+            <div class="mp-btn-group">
+              <button id="mp-mode-btn" class="mp-mode-toggle-btn" type="button" title="Toggle Co-op vs PvP">🤝 SQUAD CO-OP (NO FRIENDLY FIRE)</button>
+              <button id="mp-connect-btn" class="mp-btn" type="button">CONNECT / RECONNECT</button>
+            </div>
+          </div>
+        </div>
+
         <div class="menu-actions">
           <button id="start-mouse-btn" class="action-btn primary-btn">
             ENTER TORONTO ARENA &mdash; MOUSE LOOK MODE
@@ -390,6 +417,7 @@
   <script src="toronto_map.js"></script>
   <script src="city.js"></script>
   <script src="traffic.js"></script>
+  <script src="multiplayer.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
