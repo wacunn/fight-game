@@ -2411,18 +2411,22 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     ectx.fillStyle = '#000'; ectx.fillRect(0, 0, SZ, SZ);
 
     const S = {
-      glass:    { base: '#1b2b3a', frame: '#33495c', glass: ['#2a4560', '#1a2c40'], lit: ['#cfe6ff', '#ffe9c2', '#b8dcff'], litP: 0.38, full: true,  wallRough: 120, metal: 0.4 },
-      office:   { base: '#545a63', frame: '#6a707a', glass: ['#26303c', '#141a22'], lit: ['#ffe6b5', '#fff5dc', '#d7ecff'], litP: 0.32, full: false, wallRough: 215, metal: 0.0 },
-      brick:    { base: '#6e3a2c', frame: '#8a5a48', glass: ['#2a2420', '#120e0c'], lit: ['#ffc77a', '#ffd9a3', '#ffb35c'], litP: 0.36, full: false, wallRough: 240, metal: 0.0 },
-      dark:     { base: '#12151b', frame: '#262c36', glass: ['#1c2836', '#0a0e14'], lit: ['#a6dcff', '#ffffff', '#ffd59a'], litP: 0.22, full: true,  wallRough: 110, metal: 0.5 },
-      stone:    { base: '#8d8370', frame: '#a99d86', glass: ['#2b261f', '#14110d'], lit: ['#ffd38a', '#ffe6bb'], litP: 0.5,  full: false, wallRough: 235, metal: 0.0 },
+      glass: { base: '#1b2b3a', frame: '#33495c', glass: ['#2a4560', '#1a2c40'], lit: ['#cfe6ff', '#ffe9c2', '#b8dcff'], litP: 0.38, full: true, wallRough: 120, metal: 0.4 },
+      office: { base: '#545a63', frame: '#6a707a', glass: ['#26303c', '#141a22'], lit: ['#ffe6b5', '#fff5dc', '#d7ecff'], litP: 0.32, full: false, wallRough: 215, metal: 0.0 },
+      brick: { base: '#6e3a2c', frame: '#8a5a48', glass: ['#2a2420', '#120e0c'], lit: ['#ffc77a', '#ffd9a3', '#ffb35c'], litP: 0.36, full: false, wallRough: 240, metal: 0.0 },
+      dark: { base: '#12151b', frame: '#262c36', glass: ['#1c2836', '#0a0e14'], lit: ['#a6dcff', '#ffffff', '#ffd59a'], litP: 0.22, full: true, wallRough: 110, metal: 0.5 },
+      stone: { base: '#8d8370', frame: '#a99d86', glass: ['#2b261f', '#14110d'], lit: ['#ffd38a', '#ffe6bb'], litP: 0.5, full: false, wallRough: 235, metal: 0.0 },
       concrete: { base: '#606264', frame: '#75777a', glass: ['#2a2e33', '#15181b'], lit: ['#eaf2ff', '#fff1d6'], litP: 0.18, full: false, wallRough: 230, metal: 0.0 },
       // King West converted warehouses: red brick, big multi-pane windows under segmental brick arches
-      warehouse: { base: '#7b3626', frame: '#3a3633', glass: ['#262a2e', '#101214'], lit: ['#ffc77a', '#ffd9a3', '#fff0cf'], litP: 0.42, full: false, wallRough: 240, metal: 0.0,
-                   masonry: true, win: { ox: 8, oy: 15, w: CELL - 16, h: CELL - 23 }, arch: true, panes: [3, 2] },
+      warehouse: {
+        base: '#7b3626', frame: '#3a3633', glass: ['#262a2e', '#101214'], lit: ['#ffc77a', '#ffd9a3', '#fff0cf'], litP: 0.42, full: false, wallRough: 240, metal: 0.0,
+        masonry: true, win: { ox: 8, oy: 15, w: CELL - 16, h: CELL - 23 }, arch: true, panes: [3, 2]
+      },
       // Old Town (St. Lawrence / Front St E) Victorian commercial: warm brick, tall narrow windows, cream stone lintels
-      victorian: { base: '#9a5a3c', frame: '#d9ccb0', glass: ['#2a2420', '#120e0c'], lit: ['#ffc77a', '#ffd9a3', '#ffb35c'], litP: 0.38, full: false, wallRough: 240, metal: 0.0,
-                   masonry: true, win: { ox: Math.round(CELL * 0.29), oy: 13, w: Math.round(CELL * 0.42), h: CELL - 21 }, lintel: true, panes: [1, 2] },
+      victorian: {
+        base: '#9a5a3c', frame: '#d9ccb0', glass: ['#2a2420', '#120e0c'], lit: ['#ffc77a', '#ffd9a3', '#ffb35c'], litP: 0.38, full: false, wallRough: 240, metal: 0.0,
+        masonry: true, win: { ox: Math.round(CELL * 0.29), oy: 13, w: Math.round(CELL * 0.42), h: CELL - 21 }, lintel: true, panes: [1, 2]
+      },
       // South Core / CityPlace / waterfront condos: blue-green window wall with white balcony slabs
       condo: { base: '#2f5664', frame: '#c9d2d8', glass: ['#4c7c8c', '#24414c'], lit: ['#cfe6ff', '#ffe9c2', '#ffd9b0'], litP: 0.42, full: true, wallRough: 110, metal: 0.35, balcony: true }
     }[style];
@@ -2690,7 +2694,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
 
         // Fine concrete aggregate speckling
         for (let i = 0; i < 450; i++) {
-          ctx.fillStyle = hash(idx * 73 + i * 2.1) > 0.5 ? `rgba(255,255,255,${0.06 + hash(i)*0.08})` : `rgba(0,0,0,${0.05 + hash(i)*0.08})`;
+          ctx.fillStyle = hash(idx * 73 + i * 2.1) > 0.5 ? `rgba(255,255,255,${0.06 + hash(i) * 0.08})` : `rgba(0,0,0,${0.05 + hash(i) * 0.08})`;
           ctx.fillRect(sx + hash(i * 3.7) * (sw - 4), sy + hash(i * 5.9) * (sh - 4), 2, 2);
         }
 
@@ -2964,18 +2968,18 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       [-580, 168.0],
       [-480, 142.0],
       [-380, 118.0],
-      [-280,  92.0],
-      [-180,  72.0],
-      [ -80,  48.0],
-      [  20,  18.0],
-      [ 120, -22.0],
-      [ 220, -56.0],
-      [ 320, -88.0],
-      [ 420,-118.0],
-      [ 520,-142.0],
-      [ 620,-162.0],
-      [ 720,-182.0],
-      [ 850,-210.0]
+      [-280, 92.0],
+      [-180, 72.0],
+      [-80, 48.0],
+      [20, 18.0],
+      [120, -22.0],
+      [220, -56.0],
+      [320, -88.0],
+      [420, -118.0],
+      [520, -142.0],
+      [620, -162.0],
+      [720, -182.0],
+      [850, -210.0]
     ];
 
     function getUsrcZ(x) {
@@ -2994,32 +2998,147 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     }
 
     const TRENCH_HALF_W = 14.0; // 28 m wide mainline rail corridor
-    const TRENCH_Y = -4.6;      // Sunken cut depth (rail level)
-
-    // Overpass Bridges spanning across the Railway Trench (aligned to real Toronto north-south streets)
-    const OVERPASS_BRIDGES = [
-      { name: 'Spadina Avenue Overpass', x: -829, w: 24.0 },
-      { name: 'Blue Jays Way Bridge', x: -599, w: 18.0 },
-      { name: 'Peter St / SkyWalk Pedestrian Bridge', x: -381, w: 8.5, isPed: true },
-      { name: 'John Street Pedestrian Bridge', x: -195, w: 8.5, isPed: true },
-      { name: 'Lower Simcoe Street Bridge', x: -80, w: 20.0 },
-      { name: 'York Street Bridge', x: 110, w: 22.0 },
-      { name: 'Bay Street Bridge', x: 395, w: 22.0 },
-      { name: 'Yonge Street Bridge', x: 595, w: 22.0 },
-      { name: 'Jarvis Street Overpass', x: 750, w: 18.0 }
-    ];
+    // A full level below the street: a bi-level GO coach (~4.3 m here) plus overhead wire and
+    // the bridge decks all fit under street level, so nothing in the cut pokes above the curb.
+    const TRENCH_Y = -8.0;
+    const TRENCH_X0 = -900, TRENCH_X1 = 860;   // tunnel portals at both ends
 
     function isInsideTrench(x, z) {
-      if (x < -900 || x > 860) return false;
-      const cz = getUsrcZ(x);
-      return Math.abs(z - cz) < TRENCH_HALF_W;
+      if (x < TRENCH_X0 || x > TRENCH_X1) return false;
+      return Math.abs(z - getUsrcZ(x)) < TRENCH_HALF_W;
     }
 
-    function isOnBridge(x, z) {
-      if (x < -900 || x > 860) return false;
-      const cz = getUsrcZ(x);
-      if (Math.abs(z - cz) > TRENCH_HALF_W + 3.5) return false;
-      return OVERPASS_BRIDGES.some(b => Math.abs(x - b.x) <= (b.w / 2 + 0.3));
+    // ---------- Bridges over the cut, derived from the real streets ----------
+    // 1. Streets that cross the corridor in the OSM data (Spadina, Blue Jays Way, the SkyWalk).
+    // 2. Streets that end at the corridor (Bay, Yonge, Lower Simcoe...) are carried straight
+    //    across in their own direction, joining the street on the far side if there is one.
+    // Each bridge is an oriented rectangle; isOnBridge() tests against those exact decks.
+    const BRIDGES = [];
+    {
+      const sideOf = (x, z) => z - getUsrcZ(x);                   // <0 north of the cut, >0 south
+      const inBand = (x, z, pad) => x >= TRENCH_X0 && x <= TRENCH_X1 && Math.abs(sideOf(x, z)) < TRENCH_HALF_W + (pad || 0);
+      const BRIDGE_TYPES = { primary: 1, secondary: 1, tertiary: 1, residential: 1, unclassified: 1, pedestrian: 1, living_street: 1 };
+      const raw = [];
+      const ends = [];
+      // a polyline end that touches another road is a junction, not a dead end
+      const joinsOther = (ri, x, z) => MAP.roads.some((o, oi) => {
+        if (oi === ri) return false;
+        for (let k = 0; k < o.p.length; k += 2) if (Math.abs(o.p[k] - x) < 1.5 && Math.abs(o.p[k + 1] - z) < 1.5) return true;
+        return false;
+      });
+      MAP.roads.forEach((r, ri) => {
+        if (!BRIDGE_TYPES[r.t]) return;
+        const pts = toPairs(r.p);
+        if (pts.length < 2) return;
+        // densify to 2 m
+        const d = [pts[0]];
+        for (let i = 1; i < pts.length; i++) {
+          const a = pts[i - 1], b = pts[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(L / 2));
+          for (let k = 1; k <= n; k++) d.push([a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]);
+        }
+        // crossings: runs of points inside the band with outside points on both ends, on opposite sides
+        let i = 0;
+        while (i < d.length) {
+          if (!inBand(d[i][0], d[i][1])) { i++; continue; }
+          let j = i; while (j < d.length && inBand(d[j][0], d[j][1])) j++;
+          if (i > 0 && j < d.length) {
+            const A = d[i - 1], B = d[j];
+            if (Math.sign(sideOf(A[0], A[1])) !== Math.sign(sideOf(B[0], B[1]))) raw.push({ n: r.n || '', t: r.t, w: r.w, a: A, b: B, osm: true });
+          }
+          i = j;
+        }
+        // street ends close to the cut, pointing at it
+        [[0, 1], [pts.length - 1, pts.length - 2]].forEach(([e, p]) => {
+          const E = pts[e], P = pts[p];
+          if (E[0] < TRENCH_X0 + 10 || E[0] > TRENCH_X1 - 10) return;
+          const off = sideOf(E[0], E[1]);
+          if (Math.abs(off) < TRENCH_HALF_W || Math.abs(off) > TRENCH_HALF_W + 32) return;
+          let dx = E[0] - P[0], dz = E[1] - P[1]; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
+          if (dz * -Math.sign(off) < 0.6) return;                    // must head toward the cut
+          if (joinsOther(ri, E[0], E[1])) return;
+          ends.push({ n: r.n || '', t: r.t, w: r.w, e: E, dir: [dx, dz], side: Math.sign(off) });
+        });
+      });
+      // carry dead-end streets across
+      const used = new Set();
+      ends.forEach((s, si) => {
+        if (used.has(si) || s.t === 'pedestrian' || !s.n) return;
+        used.add(si);
+        // merge a twin carriageway with the same name on the same side
+        const twins = ends.map((o, oi) => ({ o, oi })).filter(({ o, oi }) => !used.has(oi) && o.n === s.n && o.side === s.side && Math.hypot(o.e[0] - s.e[0], o.e[1] - s.e[1]) < 25);
+        twins.forEach(({ oi }) => used.add(oi));
+        const group = [s].concat(twins.map(t => t.o));
+        const ex = group.reduce((a, g) => a + g.e[0], 0) / group.length, ez = group.reduce((a, g) => a + g.e[1], 0) / group.length;
+        let spread = 0; group.forEach(g => { spread = Math.max(spread, Math.hypot(g.e[0] - ex, g.e[1] - ez) * 2); });
+        const dir = s.dir;
+        // the same street continuing on the far side?
+        const farAll = ends.map((o, oi) => ({ o, oi })).filter(({ o, oi }) => !used.has(oi) && o.n === s.n && o.side === -s.side);
+        let bx, bz;
+        if (farAll.length) {
+          // the far side may be a pair of carriageways too: aim at their midpoint
+          const f0 = farAll[0].o.e, near = farAll.filter(({ o }) => Math.hypot(o.e[0] - f0[0], o.e[1] - f0[1]) < 25);
+          near.forEach(({ oi }) => used.add(oi));
+          bx = near.reduce((a, { o }) => a + o.e[0], 0) / near.length; bz = near.reduce((a, { o }) => a + o.e[1], 0) / near.length;
+          near.forEach(({ o }) => { spread = Math.max(spread, Math.hypot(o.e[0] - bx, o.e[1] - bz) * 2); });
+        }
+        else {
+          // walk across until 5 m past the far lip
+          let t = 0; bx = ex; bz = ez;
+          while (t < 160) { t += 1; bx = ex + dir[0] * t; bz = ez + dir[1] * t; if (Math.sign(sideOf(bx, bz)) === -s.side && Math.abs(sideOf(bx, bz)) > TRENCH_HALF_W + 5) break; }
+        }
+        raw.push({ n: s.n, t: s.t, w: s.w + spread, a: [ex, ez], b: [bx, bz], osm: false });
+      });
+      // merge OSM crossings of the same street (e.g. Spadina's two carriageways + median)
+      const merged = [];
+      raw.forEach(c => { if (sideOf(c.a[0], c.a[1]) > 0) { const t = c.a; c.a = c.b; c.b = t; } });   // a = north end
+      raw.forEach(c => {
+        const mid = [(c.a[0] + c.b[0]) / 2, (c.a[1] + c.b[1]) / 2];
+        const m = merged.find(o => o.n && o.n === c.n && Math.hypot(o.mid[0] - mid[0], o.mid[1] - mid[1]) < 40);
+        if (m) {
+          const sep = Math.hypot(m.mid[0] - mid[0], m.mid[1] - mid[1]);
+          m.w = Math.max(m.w, sep + Math.max(m.w0, c.w));
+          m.a = [(m.a[0] + c.a[0]) / 2, (m.a[1] + c.a[1]) / 2]; m.b = [(m.b[0] + c.b[0]) / 2, (m.b[1] + c.b[1]) / 2];
+          m.mid = [(m.a[0] + m.b[0]) / 2, (m.a[1] + m.b[1]) / 2];
+          return;
+        }
+        merged.push(Object.assign({ mid, w0: c.w }, c));
+      });
+      merged.forEach(c => {
+        const ped = c.t === 'pedestrian';
+        let fx = c.b[0] - c.a[0], fz = c.b[1] - c.a[1]; const L = Math.hypot(fx, fz) || 1; fx /= L; fz /= L;
+        // always reach 4 m onto solid ground past both lips
+        const a = [c.a[0] - fx * 4, c.a[1] - fz * 4], b = [c.b[0] + fx * 4, c.b[1] + fz * 4];
+        const w = ped ? Math.max(6, c.w) : c.w + 4.4;               // + sidewalks
+        addBridgeDeck(c.n || (ped ? 'Pedestrian bridge' : 'Bridge'), a, b, w, ped, c.osm, c.w);
+      });
+      // John Street's red-arch pedestrian bridge (hand-placed, square to the street grid)
+      {
+        const cz = getUsrcZ(-195), gx = -Math.sin(17 * Math.PI / 180), gz = -Math.cos(17 * Math.PI / 180);
+        const half = TRENCH_HALF_W + 6;
+        addBridgeDeck('John Street Pedestrian Bridge', [-195 - gx * half, cz - gz * half], [-195 + gx * half, cz + gz * half], 7, true, false, 7, true);
+      }
+    }
+    function addBridgeDeck(name, a, b, w, ped, osm, roadW, arch) {
+      let fx = b[0] - a[0], fz = b[1] - a[1]; const len = Math.hypot(fx, fz) || 1; fx /= len; fz /= len;
+      const rx = -fz, rz = fx, hw = w / 2;
+      const poly = [[a[0] - rx * hw, a[1] - rz * hw], [a[0] + rx * hw, a[1] + rz * hw], [b[0] + rx * hw, b[1] + rz * hw], [b[0] - rx * hw, b[1] - rz * hw]];
+      if (polyArea(poly) < 0) poly.reverse();
+      BRIDGES.push({ name, a, b, w, ped, osm, roadW, arch: !!arch, fx, fz, rx, rz, len, poly });
+    }
+    function isOnBridge(x, z, pad) {
+      for (const br of BRIDGES) {
+        // local coordinates along / across the deck
+        const dx = x - br.a[0], dz = z - br.a[1];
+        const s = dx * br.fx + dz * br.fz, l = dx * br.rx + dz * br.rz;
+        if (s >= -(pad || 0) && s <= br.len + (pad || 0) && Math.abs(l) <= br.w / 2 - 0.2 + (pad || 0)) return true;
+      }
+      return false;
+    }
+    // Put anything standing over the open cut back on the nearest curb (NPC knockback etc.)
+    function pushOutOfTrench(x, z, margin) {
+      if (!isInsideTrench(x, z) || isOnBridge(x, z)) return null;
+      const cz = getUsrcZ(x), off = z - cz;
+      return [x, cz + (off < 0 ? -1 : 1) * (TRENCH_HALF_W + (margin || 1.0))];
     }
 
     function floorAt(x, z, y) {
@@ -3027,7 +3146,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         const feetY = (y > 300 && (y - 340) % 6 > 1.0 && y % 1 > 0.4) ? (y - 1.7) : y;
         if (elevatorCab) {
           const dCab = Math.hypot(x - elevatorCab.position.x, z - elevatorCab.position.z);
-          if (dCab <= 2.2) return elevatorCab.position.y;
+          // only stand on the cab when it is actually at this level (it used to drop you to Level 1)
+          if (dCab <= 2.2 && Math.abs(elevatorCab.position.y - feetY) < 1.5) return elevatorCab.position.y;
         } else {
           const dCab = Math.hypot(x - railX, z - railZ);
           if (dCab <= 2.2) return 342.0;
@@ -3203,202 +3323,66 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     scene.add(moon);
     scene.add(moon.target);
 
-    // ---------- Ground: sidewalks / plazas with Sunken Railway Trench Cut ----------
+    // ---------- Ground: sidewalks / plazas, with the sunken rail cut ----------
+    // Quads are wound counter-clockwise seen from the side they face; the old ones faced down
+    // (and the trench walls faced away from the trench), so they were culled and the night sky
+    // showed through where the ground should be.
     const sideTex = makeGroundTexture('sidewalk');
     const gravelTex = makeGroundTexture('gravel');
 
     const groundGB = new GeoBuilder();
     const trenchGB = new GeoBuilder();
     const trenchWallsGB = new GeoBuilder();
+    const X_MIN_EXT = minX - 800, X_MAX_EXT = maxX + 800, Z_MIN_EXT = minZ - 800, Z_MAX_EXT = maxZ + 800;
 
-    const X_MIN_EXT = minX - 800;
-    const X_MAX_EXT = maxX + 800;
-    const Z_MIN_EXT = minZ - 800;
-    const Z_MAX_EXT = maxZ + 800;
-
-    const SLICE_DX = 25.0;
-    const xSteps = Math.ceil((X_MAX_EXT - X_MIN_EXT) / SLICE_DX);
-
-    for (let si = 0; si < xSteps; si++) {
-      const x0 = X_MIN_EXT + si * SLICE_DX;
-      const x1 = Math.min(X_MAX_EXT, x0 + SLICE_DX);
-      const inTrench0 = (x0 >= -900 && x0 <= 860);
-      const inTrench1 = (x1 >= -900 && x1 <= 860);
-
-      if (inTrench0 || inTrench1) {
-        const cz0 = getUsrcZ(x0), cz1 = getUsrcZ(x1);
-        const zn0 = cz0 - TRENCH_HALF_W, zn1 = cz1 - TRENCH_HALF_W;
-        const zs0 = cz0 + TRENCH_HALF_W, zs1 = cz1 + TRENCH_HALF_W;
-
-        // 1. North Ground at street level (y = 0)
-        let q = [
-          groundGB.vert(x0, 0, Z_MIN_EXT, 0, 1, 0, x0 / 4, Z_MIN_EXT / 4),
-          groundGB.vert(x1, 0, Z_MIN_EXT, 0, 1, 0, x1 / 4, Z_MIN_EXT / 4),
-          groundGB.vert(x1, 0, zn1, 0, 1, 0, x1 / 4, zn1 / 4),
-          groundGB.vert(x0, 0, zn0, 0, 1, 0, x0 / 4, zn0 / 4)
-        ];
-        groundGB.quad(q[0], q[1], q[2], q[3]);
-
-        // 2. South Ground at street level (y = 0)
-        q = [
-          groundGB.vert(x0, 0, zs0, 0, 1, 0, x0 / 4, zs0 / 4),
-          groundGB.vert(x1, 0, zs1, 0, 1, 0, x1 / 4, zs1 / 4),
-          groundGB.vert(x1, 0, Z_MAX_EXT, 0, 1, 0, x1 / 4, Z_MAX_EXT / 4),
-          groundGB.vert(x0, 0, Z_MAX_EXT, 0, 1, 0, x0 / 4, Z_MAX_EXT / 4)
-        ];
-        groundGB.quad(q[0], q[1], q[2], q[3]);
-
-        // 3. North Retaining Wall (from y = 0 down to y = TRENCH_Y)
-        q = [
-          trenchWallsGB.vert(x0, 0, zn0, 0, 0, 1, x0 / 4, 0),
-          trenchWallsGB.vert(x1, 0, zn1, 0, 0, 1, x1 / 4, 0),
-          trenchWallsGB.vert(x1, TRENCH_Y, zn1, 0, 0, 1, x1 / 4, 1),
-          trenchWallsGB.vert(x0, TRENCH_Y, zn0, 0, 0, 1, x0 / 4, 1)
-        ];
-        trenchWallsGB.quad(q[0], q[1], q[2], q[3]);
-
-        // 4. South Retaining Wall (from y = TRENCH_Y up to y = 0)
-        q = [
-          trenchWallsGB.vert(x0, TRENCH_Y, zs0, 0, 0, -1, x0 / 4, 1),
-          trenchWallsGB.vert(x1, TRENCH_Y, zs1, 0, 0, -1, x1 / 4, 1),
-          trenchWallsGB.vert(x1, 0, zs1, 0, 0, -1, x1 / 4, 0),
-          trenchWallsGB.vert(x0, 0, zs0, 0, 0, -1, x0 / 4, 0)
-        ];
-        trenchWallsGB.quad(q[0], q[1], q[2], q[3]);
-
-        // 5. Sunken Trench Ballast Bed at y = TRENCH_Y
-        q = [
-          trenchGB.vert(x0, TRENCH_Y, zn0, 0, 1, 0, x0 / 4, zn0 / 4),
-          trenchGB.vert(x1, TRENCH_Y, zn1, 0, 1, 0, x1 / 4, zn1 / 4),
-          trenchGB.vert(x1, TRENCH_Y, zs1, 0, 1, 0, x1 / 4, zs1 / 4),
-          trenchGB.vert(x0, TRENCH_Y, zs0, 0, 1, 0, x0 / 4, zs0 / 4)
-        ];
-        trenchGB.quad(q[0], q[1], q[2], q[3]);
-      } else {
-        // Outside the rail corridor cut: flat ground across full Z
-        const q = [
-          groundGB.vert(x0, 0, Z_MIN_EXT, 0, 1, 0, x0 / 4, Z_MIN_EXT / 4),
-          groundGB.vert(x1, 0, Z_MIN_EXT, 0, 1, 0, x1 / 4, Z_MIN_EXT / 4),
-          groundGB.vert(x1, 0, Z_MAX_EXT, 0, 1, 0, x1 / 4, Z_MAX_EXT / 4),
-          groundGB.vert(x0, 0, Z_MAX_EXT, 0, 1, 0, x0 / 4, Z_MAX_EXT / 4)
-        ];
-        groundGB.quad(q[0], q[1], q[2], q[3]);
-      }
+    // up-facing quad for x0<x1, zN<zS (CCW from above)
+    function groundQuad(gb, x0, x1, zN0, zN1, zS0, zS1, y) {
+      const a = gb.vert(x0, y, zS0, 0, 1, 0, x0 / 4, zS0 / 4), b = gb.vert(x1, y, zS1, 0, 1, 0, x1 / 4, zS1 / 4);
+      const c = gb.vert(x1, y, zN1, 0, 1, 0, x1 / 4, zN1 / 4), d = gb.vert(x0, y, zN0, 0, 1, 0, x0 / 4, zN0 / 4);
+      gb.quad(a, b, c, d);
     }
+    const xCuts = [X_MIN_EXT, TRENCH_X0];
+    for (let x = TRENCH_X0 + 8; x < TRENCH_X1; x += 8) xCuts.push(x);
+    xCuts.push(TRENCH_X1, X_MAX_EXT);
+    const WALL_TOP = [0.86, 0.86, 0.9], WALL_BOT = [0.34, 0.34, 0.37];   // fake ambient occlusion: darker toward the bottom
+    for (let i = 0; i < xCuts.length - 1; i++) {
+      const x0 = xCuts[i], x1 = xCuts[i + 1];
+      const cut = x0 >= TRENCH_X0 && x1 <= TRENCH_X1;
+      if (!cut) { groundQuad(groundGB, x0, x1, Z_MIN_EXT, Z_MIN_EXT, Z_MAX_EXT, Z_MAX_EXT, 0); continue; }
+      const c0 = getUsrcZ(x0), c1 = getUsrcZ(x1);
+      const zn0 = c0 - TRENCH_HALF_W, zn1 = c1 - TRENCH_HALF_W, zs0 = c0 + TRENCH_HALF_W, zs1 = c1 + TRENCH_HALF_W;
+      groundQuad(groundGB, x0, x1, Z_MIN_EXT, Z_MIN_EXT, zn0, zn1, 0);       // north of the cut
+      groundQuad(groundGB, x0, x1, zs0, zs1, Z_MAX_EXT, Z_MAX_EXT, 0);       // south of the cut
+      trenchGB.color = [0.62, 0.6, 0.58];
+      groundQuad(trenchGB, x0, x1, zn0, zn1, zs0, zs1, TRENCH_Y);           // ballast floor
+      // north wall faces south (+z): bottom-left, bottom-right, top-right, top-left
+      let q = [
+        (trenchWallsGB.color = WALL_BOT, trenchWallsGB.vert(x0, TRENCH_Y, zn0, 0, 0, 1, x0 / 4, 2)),
+        trenchWallsGB.vert(x1, TRENCH_Y, zn1, 0, 0, 1, x1 / 4, 2),
+        (trenchWallsGB.color = WALL_TOP, trenchWallsGB.vert(x1, 0, zn1, 0, 0, 1, x1 / 4, 0)),
+        trenchWallsGB.vert(x0, 0, zn0, 0, 0, 1, x0 / 4, 0)];
+      trenchWallsGB.quad(q[0], q[1], q[2], q[3]);
+      // south wall faces north (-z): top-left, top-right, bottom-right, bottom-left
+      q = [
+        (trenchWallsGB.color = WALL_TOP, trenchWallsGB.vert(x0, 0, zs0, 0, 0, -1, x0 / 4, 0)),
+        trenchWallsGB.vert(x1, 0, zs1, 0, 0, -1, x1 / 4, 0),
+        (trenchWallsGB.color = WALL_BOT, trenchWallsGB.vert(x1, TRENCH_Y, zs1, 0, 0, -1, x1 / 4, 2)),
+        trenchWallsGB.vert(x0, TRENCH_Y, zs0, 0, 0, -1, x0 / 4, 2)];
+      trenchWallsGB.quad(q[0], q[1], q[2], q[3]);
+    }
+    trenchWallsGB.color = [1, 1, 1]; trenchGB.color = [1, 1, 1];
 
     const groundMesh = new THREE.Mesh(groundGB.build(), new THREE.MeshLambertMaterial({ map: sideTex }));
     groundMesh.receiveShadow = true;
     scene.add(groundMesh);
-
-    const trenchMesh = new THREE.Mesh(trenchGB.build(), new THREE.MeshLambertMaterial({ map: gravelTex }));
+    const trenchMesh = new THREE.Mesh(trenchGB.build(), new THREE.MeshLambertMaterial({ map: gravelTex, vertexColors: true }));
     trenchMesh.receiveShadow = true;
     scene.add(trenchMesh);
-
     const wallTex = makeGroundTexture('concrete_wall');
-    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.85, envMapIntensity: 0.3 });
-    const wallsMesh = new THREE.Mesh(trenchWallsGB.build(), wallMat);
+    const wallsMesh = new THREE.Mesh(trenchWallsGB.build(), new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9, envMapIntensity: 0.25, vertexColors: true }));
     wallsMesh.receiveShadow = true;
     scene.add(wallsMesh);
 
-    // ---------- High-Visibility Concrete Lip Coping & Black Steel Security Fencing ----------
-    const lipCurbMat = new THREE.MeshStandardMaterial({ color: 0x8c94a0, roughness: 0.75, envMapIntensity: 0.3 });
-    const fenceMat = new THREE.MeshStandardMaterial({ color: 0x181c24, roughness: 0.35, metalness: 0.85 });
-    const fenceGB = new GeoBuilder();
-    const copingGB = new GeoBuilder();
-
-    for (let si = 0; si < xSteps; si++) {
-      const x0 = X_MIN_EXT + si * SLICE_DX;
-      const x1 = Math.min(X_MAX_EXT, x0 + SLICE_DX);
-      if (x0 < -900 || x0 > 860) continue;
-
-      const subSteps = Math.ceil((x1 - x0) / 2.5);
-      const dxSub = (x1 - x0) / subSteps;
-
-      for (let sb = 0; sb < subSteps; sb++) {
-        const sx0 = x0 + sb * dxSub;
-        const sx1 = sx0 + dxSub;
-        const smid = (sx0 + sx1) / 2;
-
-        const cz0 = getUsrcZ(sx0), cz1 = getUsrcZ(sx1);
-        const zn0 = cz0 - TRENCH_HALF_W, zn1 = cz1 - TRENCH_HALF_W;
-        const zs0 = cz0 + TRENCH_HALF_W, zs1 = cz1 + TRENCH_HALF_W;
-
-        // NORTH LIP (zn)
-        if (!isOnBridge(smid, (zn0 + zn1) / 2)) {
-          // Raised Concrete Coping Curb (y = 0.0 to 0.35m, width 0.6m)
-          const qnCurb = [
-            copingGB.vert(sx0, 0.35, zn0, 0, 1, 0, sx0 / 2, zn0 / 2),
-            copingGB.vert(sx1, 0.35, zn1, 0, 1, 0, sx1 / 2, zn1 / 2),
-            copingGB.vert(sx1, 0.35, zn1 - 0.6, 0, 1, 0, sx1 / 2, (zn1 - 0.6) / 2),
-            copingGB.vert(sx0, 0.35, zn0 - 0.6, 0, 1, 0, sx0 / 2, (zn0 - 0.6) / 2)
-          ];
-          copingGB.quad(qnCurb[0], qnCurb[1], qnCurb[2], qnCurb[3]);
-          const qnFace = [
-            copingGB.vert(sx0, 0.0, zn0 - 0.6, 0, 0, -1, sx0 / 2, 0),
-            copingGB.vert(sx1, 0.0, zn1 - 0.6, 0, 0, -1, sx1 / 2, 0),
-            copingGB.vert(sx1, 0.35, zn1 - 0.6, 0, 0, -1, sx1 / 2, 1),
-            copingGB.vert(sx0, 0.35, zn0 - 0.6, 0, 0, -1, sx0 / 2, 1)
-          ];
-          copingGB.quad(qnFace[0], qnFace[1], qnFace[2], qnFace[3]);
-
-          // Black Steel Security Fence on top of curb (y = 0.35 to 1.55m)
-          ribbon(fenceGB, [[sx0, zn0 - 0.1], [sx1, zn1 - 0.1]], 0.08, 1.52, 2);
-          ribbon(fenceGB, [[sx0, zn0 - 0.1], [sx1, zn1 - 0.1]], 0.08, 0.45, 2);
-          for (let pz = 0; pz <= dxSub; pz += 0.4) {
-            const px = sx0 + pz;
-            const pcz = getUsrcZ(px) - TRENCH_HALF_W - 0.1;
-            const v0 = fenceGB.vert(px - 0.02, 0.35, pcz, 0, 0, 1, 0, 0);
-            const v1 = fenceGB.vert(px + 0.02, 0.35, pcz, 0, 0, 1, 1, 0);
-            const v2 = fenceGB.vert(px + 0.02, 1.55, pcz, 0, 0, 1, 1, 1);
-            const v3 = fenceGB.vert(px - 0.02, 1.55, pcz, 0, 0, 1, 0, 1);
-            fenceGB.quad(v0, v1, v2, v3);
-          }
-        }
-
-        // SOUTH LIP (zs)
-        if (!isOnBridge(smid, (zs0 + zs1) / 2)) {
-          // Raised Concrete Coping Curb (y = 0.0 to 0.35m, width 0.6m)
-          const qsCurb = [
-            copingGB.vert(sx0, 0.35, zs0 + 0.6, 0, 1, 0, sx0 / 2, (zs0 + 0.6) / 2),
-            copingGB.vert(sx1, 0.35, zs1 + 0.6, 0, 1, 0, sx1 / 2, (zs1 + 0.6) / 2),
-            copingGB.vert(sx1, 0.35, zs1, 0, 1, 0, sx1 / 2, zs1 / 2),
-            copingGB.vert(sx0, 0.35, zs0, 0, 1, 0, sx0 / 2, zs0 / 2)
-          ];
-          copingGB.quad(qsCurb[0], qsCurb[1], qsCurb[2], qsCurb[3]);
-          const qsFace = [
-            copingGB.vert(sx0, 0.0, zs0 + 0.6, 0, 0, 1, sx0 / 2, 0),
-            copingGB.vert(sx1, 0.0, zs1 + 0.6, 0, 0, 1, sx1 / 2, 0),
-            copingGB.vert(sx1, 0.35, zs1 + 0.6, 0, 0, 1, sx1 / 2, 1),
-            copingGB.vert(sx0, 0.35, zs0 + 0.6, 0, 0, 1, sx0 / 2, 1)
-          ];
-          copingGB.quad(qsFace[0], qsFace[1], qsFace[2], qsFace[3]);
-
-          // Black Steel Security Fence on top of curb
-          ribbon(fenceGB, [[sx0, zs0 + 0.1], [sx1, zs1 + 0.1]], 0.08, 1.52, 2);
-          ribbon(fenceGB, [[sx0, zs0 + 0.1], [sx1, zs1 + 0.1]], 0.08, 0.45, 2);
-          for (let pz = 0; pz <= dxSub; pz += 0.4) {
-            const px = sx0 + pz;
-            const pcz = getUsrcZ(px) + TRENCH_HALF_W + 0.1;
-            const v0 = fenceGB.vert(px - 0.02, 0.35, pcz, 0, 0, -1, 0, 0);
-            const v1 = fenceGB.vert(px + 0.02, 0.35, pcz, 0, 0, -1, 1, 0);
-            const v2 = fenceGB.vert(px + 0.02, 1.55, pcz, 0, 0, -1, 1, 1);
-            const v3 = fenceGB.vert(px - 0.02, 1.55, pcz, 0, 0, -1, 0, 1);
-            fenceGB.quad(v0, v1, v2, v3);
-          }
-        }
-      }
-    }
-
-    if (copingGB.pos.length) {
-      const copingMesh = new THREE.Mesh(copingGB.build(), lipCurbMat);
-      copingMesh.receiveShadow = true;
-      scene.add(copingMesh);
-    }
-    if (fenceGB.pos.length) {
-      const fenceMesh = new THREE.Mesh(fenceGB.build(), fenceMat);
-      fenceMesh.castShadow = true;
-      scene.add(fenceMesh);
-    }
 
     // Lake Ontario beyond the southern edge of the data
     const lake = new THREE.Mesh(
@@ -3469,7 +3453,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         const b = gb.vert(ax - nx, y, az - nz, 0, 1, 0, width / uScale, u0);
         const c = gb.vert(bx - nx, y, bz - nz, 0, 1, 0, width / uScale, u1);
         const d = gb.vert(bx + nx, y, bz + nz, 0, 1, 0, 0, u1);
-        gb.quad(a, b, c, d);
+        gb.quad(a, d, c, b);   // counter-clockwise seen from above: (a, b, c, d) faced down and was culled
         // round the joint with an extra square cap so bends don't show gaps
         dist += len;
       }
@@ -3497,7 +3481,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       MAP.roads.push(
         { t: 'pedestrian', w: 10, p: [-252.0, 120.0, -250.0, 185.0, -255.0, 259.0], n: 'CN Tower East Passage' },
         { t: 'pedestrian', w: 10, p: [-160.0, 115.0, -155.0, 165.0, -150.1, 207.9], n: 'Aquarium East Plaza' },
-        { t: 'tertiary',   w: 9,  p: [-351.7, 369.4, -339.9, 343.5, -307.3, 313.8], n: 'Bremner Boulevard' }
+        { t: 'tertiary', w: 9, p: [-351.7, 369.4, -339.9, 343.5, -307.3, 313.8], n: 'Bremner Boulevard' }
       );
     }
 
@@ -3528,18 +3512,24 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       }
       const y = MAJOR[r.t] ? 0.05 : (r.t === 'service' ? 0.03 : 0.04);
 
-      // Clip ground roads so they do NOT draw flat asphalt sheets across the open railway trench
+      // Clip ground roads at the open rail cut (they continue only over a bridge deck). Long OSM
+      // segments are checked every 2 m so a segment can't span the cut between two endpoints.
       const cleanRoadPts = [];
       let curRoadSeg = [];
+      const openCut = (px, pz) => isInsideTrench(px, pz) && !isOnBridge(px, pz);
       for (let i = 0; i < pts.length; i++) {
-        const [px, pz] = pts[i];
-        const inside = isInsideTrench(px, pz) && !isOnBridge(px, pz);
-        if (!inside) {
-          curRoadSeg.push(pts[i]);
-        } else {
-          if (curRoadSeg.length >= 2) cleanRoadPts.push(curRoadSeg);
-          curRoadSeg = [];
+        if (i > 0) {
+          const a = pts[i - 1], b = pts[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.ceil(L / 2);
+          for (let k = 1; k < n; k++) {
+            const px = a[0] + (b[0] - a[0]) * k / n, pz = a[1] + (b[1] - a[1]) * k / n;
+            if (openCut(px, pz)) {
+              if (curRoadSeg.length) { curRoadSeg.push([a[0] + (b[0] - a[0]) * (k - 1) / n, a[1] + (b[1] - a[1]) * (k - 1) / n]); if (curRoadSeg.length >= 2) cleanRoadPts.push(curRoadSeg); }
+              curRoadSeg = [];
+            } else if (!curRoadSeg.length) curRoadSeg.push([px, pz]);
+          }
         }
+        if (!openCut(pts[i][0], pts[i][1])) curRoadSeg.push(pts[i]);
+        else { if (curRoadSeg.length >= 2) cleanRoadPts.push(curRoadSeg); curRoadSeg = []; }
       }
       if (curRoadSeg.length >= 2) cleanRoadPts.push(curRoadSeg);
 
@@ -3551,8 +3541,10 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
 
       if (MAJOR[r.t]) {
         // double yellow centre line (two thin lines, like real Toronto arterials)
-        ribbon(lineGB, offsetLine(pts, 0.11), 0.09, y + 0.01, 4);
-        ribbon(lineGB, offsetLine(pts, -0.11), 0.09, y + 0.01, 4);
+        cleanRoadPts.forEach(seg => {   // centre line stops at the open cut too
+          ribbon(lineGB, offsetLine(seg, 0.11), 0.09, y + 0.01, 4);
+          ribbon(lineGB, offsetLine(seg, -0.11), 0.09, y + 0.01, 4);
+        });
         // lamps alternating sides every 32 m
         let carry = 10, side = 1;
         for (let i = 0; i < pts.length - 1; i++) {
@@ -3565,6 +3557,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
           while (t < len) {
             const f = t / len;
             const off = r.w / 2 + 1.2;
+            const lx = ax + dx * f + nx * off * side, lz = az + dz * f + nz * off * side;
+            if (isInsideTrench(lx, lz) && !isOnBridge(lx, lz)) { side *= -1; t += 32; continue; }   // no lamps floating over the cut
             lampSpots.push({
               x: ax + dx * f + nx * off * side,
               z: az + dz * f + nz * off * side,
@@ -3572,7 +3566,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
             });
             // street tree halfway to the next lamp on this side
             const f2 = (t + 16) / len;
-            if (f2 < 1) treeSpots.push({ x: ax + dx * f2 + nx * (off + 0.6) * side, z: az + dz * f2 + nz * (off + 0.6) * side, s: hash(t * 0.37 + ri) });
+            if (f2 < 1 && !(isInsideTrench(ax + dx * f2, az + dz * f2) && !isOnBridge(ax + dx * f2, az + dz * f2))) treeSpots.push({ x: ax + dx * f2 + nx * (off + 0.6) * side, z: az + dz * f2 + nz * (off + 0.6) * side, s: hash(t * 0.37 + ri) });
             side *= -1;
             t += 32;
           }
@@ -3642,10 +3636,10 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
             const ox = nx * sd * CURB_W, oz = nz * sd * CURB_W;
             const fnx = -nx * sd, fnz = -nz * sd; // inner face points back at the road
             let q = [curbGB.vert(p0x, 0, p0z, fnx, 0, fnz, 0, 0), curbGB.vert(p1x, 0, p1z, fnx, 0, fnz, 1, 0),
-                     curbGB.vert(p1x, CURB_H, p1z, fnx, 0, fnz, 1, 1), curbGB.vert(p0x, CURB_H, p0z, fnx, 0, fnz, 0, 1)];
+            curbGB.vert(p1x, CURB_H, p1z, fnx, 0, fnz, 1, 1), curbGB.vert(p0x, CURB_H, p0z, fnx, 0, fnz, 0, 1)];
             curbGB.quad(q[0], q[1], q[2], q[3]);
             q = [curbGB.vert(p0x, CURB_H, p0z, 0, 1, 0, 0, 0), curbGB.vert(p1x, CURB_H, p1z, 0, 1, 0, 1, 0),
-                 curbGB.vert(p1x + ox, CURB_H, p1z + oz, 0, 1, 0, 1, 1), curbGB.vert(p0x + ox, CURB_H, p0z + oz, 0, 1, 0, 0, 1)];
+            curbGB.vert(p1x + ox, CURB_H, p1z + oz, 0, 1, 0, 1, 1), curbGB.vert(p0x + ox, CURB_H, p0z + oz, 0, 1, 0, 0, 1)];
             curbGB.quad(q[0], q[1], q[2], q[3]);
           }
         });
@@ -3674,367 +3668,238 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       scene.add(pillars);
     }
 
-    // ---------- Sunken Rail Corridor Tracks & Road Overpass Bridges ----------
+    // ---------- Rail corridor: tracks, overhead wire, bridges, curbside barrier ----------
     const railBedGB = new GeoBuilder();
     const railGB = new GeoBuilder();
     const tiesGB = new GeoBuilder();
-    const catenaryGB = new GeoBuilder();
 
-    // 1. Render OSM tracks at appropriate elevations:
-    // Museum tracks in Roundhouse Park stay at ground level (y = 0.035);
+    // Museum tracks in Roundhouse Park stay at street level
     MAP.rails.forEach(r => {
       const pts = toPairs(r.p);
       if (pts.length < 2) return;
-      const isMuseumPark = pts.some(p => p[0] > -310 && p[0] < -90 && p[1] > 160);
-      if (!isMuseumPark) return; // Mainline corridor is built with continuous 4-track system below
-
+      if (!pts.some(p => p[0] > -310 && p[0] < -90 && p[1] > 160)) return;
       ribbon(railBedGB, pts, 3.6, 0.035, 4);
-
-      // Two steel rails
-      const left = [], right = [];
-      for (let i = 0; i < pts.length; i++) {
-        const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
-        const dx = b[0] - a[0], dz = b[1] - a[1];
-        const len = Math.hypot(dx, dz) || 1;
-        const nx = -dz / len * 0.72, nz = dx / len * 0.72;
-        left.push([pts[i][0] + nx, pts[i][1] + nz]);
-        right.push([pts[i][0] - nx, pts[i][1] - nz]);
-      }
-      ribbon(railGB, left, 0.12, 0.13, 4);
-      ribbon(railGB, right, 0.12, 0.13, 4);
+      ribbon(railGB, offsetLine(pts, 0.72), 0.12, 0.13, 4);
+      ribbon(railGB, offsetLine(pts, -0.72), 0.12, 0.13, 4);
     });
 
-    // 2. High-Density 4-Track Mainline System along the active USRC Sunken Corridor
-    const TRACK_OFFSETS = [-7.5, -2.5, 2.5, 7.5]; // 4 distinct parallel tracks across the 28m cut
-    TRACK_OFFSETS.forEach(trackOff => {
-      const mainPts = [];
-      for (let x = -860; x <= 860; x += 3.0) {
-        const cz = getUsrcZ(x);
-        const nextZ = getUsrcZ(x + 1.0);
-        const dx = 1.0, dz = nextZ - cz;
-        const len = Math.hypot(dx, dz) || 1;
-        const nx = -dz / len, nz = dx / len;
-        mainPts.push([x + nx * trackOff, cz + nz * trackOff]);
+    // Four permanent mainline tracks along the floor of the cut, portal to portal
+    const TRACK_OFFSETS = [-7.5, -2.5, 2.5, 7.5];
+    const corridorLine = off => {
+      const pts = [];
+      for (let x = TRENCH_X0 - 40; x <= TRENCH_X1 + 40; x += 3) {
+        const cz = getUsrcZ(x), dz = getUsrcZ(x + 1) - cz, L = Math.hypot(1, dz);
+        pts.push([x - dz / L * off, cz + 1 / L * off]);
       }
-      // Raised ballast shoulder under this track
-      ribbon(railBedGB, mainPts, 2.8, TRENCH_Y + 0.08, 4);
-
-      const left = [], right = [];
-      for (let i = 0; i < mainPts.length; i++) {
-        const a = mainPts[Math.max(0, i - 1)], b = mainPts[Math.min(mainPts.length - 1, i + 1)];
-        const dx = b[0] - a[0], dz = b[1] - a[1];
-        const len = Math.hypot(dx, dz) || 1;
-        const nx = -dz / len * 0.75, nz = dx / len * 0.75;
-        left.push([mainPts[i][0] + nx, mainPts[i][1] + nz]);
-        right.push([mainPts[i][0] - nx, mainPts[i][1] - nz]);
-
-        // Heavy dark creosote wooden cross-ties every 1.2m
-        const tnx = -dz / len * 1.3, tnz = dx / len * 1.3;
-        const p0 = [mainPts[i][0] + tnx, mainPts[i][1] + tnz];
-        const p1 = [mainPts[i][0] - tnx, mainPts[i][1] - tnz];
-        ribbon(tiesGB, [p0, p1], 0.32, TRENCH_Y + 0.14, 1);
-      }
-      // Twin gleaming steel rails with 3D profile
-      ribbon(railGB, left, 0.16, TRENCH_Y + 0.22, 4);
-      ribbon(railGB, right, 0.16, TRENCH_Y + 0.22, 4);
-    });
-
-    // Crossover tracks connecting Track 2 and Track 3 at x = -150 and x = 200
-    [-150, 200].forEach(cx => {
-      const cz = getUsrcZ(cx);
-      const crossPts = [
-        [cx - 25, cz - 2.5],
-        [cx + 25, cz + 2.5]
-      ];
-      ribbon(railBedGB, crossPts, 2.6, TRENCH_Y + 0.08, 4);
-      const cLeft = [], cRight = [];
-      const dx = 50, dz = 5;
-      const len = Math.hypot(dx, dz);
-      const nx = -dz / len * 0.75, nz = dx / len * 0.75;
-      cLeft.push([crossPts[0][0] + nx, crossPts[0][1] + nz], [crossPts[1][0] + nx, crossPts[1][1] + nz]);
-      cRight.push([crossPts[0][0] - nx, crossPts[0][1] - nz], [crossPts[1][0] - nx, crossPts[1][1] - nz]);
-      ribbon(railGB, cLeft, 0.16, TRENCH_Y + 0.22, 4);
-      ribbon(railGB, cRight, 0.16, TRENCH_Y + 0.22, 4);
-      for (let s = 0; s <= 50; s += 1.2) {
-        const f = s / 50;
-        const px = crossPts[0][0] + dx * f, pz = crossPts[0][1] + dz * f;
-        const tnx = -dz / len * 1.3, tnz = dx / len * 1.3;
-        ribbon(tiesGB, [[px + tnx, pz + tnz], [px - tnx, pz - tnz]], 0.32, TRENCH_Y + 0.14, 1);
-      }
-    });
-
-    if (railBedGB.pos.length) {
-      scene.add(new THREE.Mesh(railBedGB.build(), new THREE.MeshLambertMaterial({ map: gravelTex })));
-      scene.add(new THREE.Mesh(railGB.build(), new THREE.MeshStandardMaterial({ color: 0xc4cbd4, metalness: 0.95, roughness: 0.2, envMapIntensity: 0.8 })));
-      if (tiesGB.pos.length) {
-        scene.add(new THREE.Mesh(tiesGB.build(), new THREE.MeshLambertMaterial({ color: 0x241b14 })));
-      }
-    }
-
-    // Overhead High-Voltage Catenary Gantries Spanning the Trench Every 45m
-    const steelMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5, metalness: 0.8 });
-    for (let gx = -680; gx <= 820; gx += 45) {
-      if (OVERPASS_BRIDGES.some(b => Math.abs(gx - b.x) < 14)) continue;
-      const gcz = getUsrcZ(gx);
-      const gzn = gcz - TRENCH_HALF_W;
-      const gzs = gcz + TRENCH_HALF_W;
-      const spanLen = TRENCH_HALF_W * 2;
-
-      const towerH = 2.4 - TRENCH_Y;
-      const towerGeo = new THREE.BoxGeometry(0.5, towerH, 0.5);
-
-      const nTower = new THREE.Mesh(towerGeo, steelMat);
-      nTower.position.set(gx, TRENCH_Y + towerH / 2, gzn + 0.4);
-      scene.add(nTower);
-
-      const sTower = new THREE.Mesh(towerGeo, steelMat);
-      sTower.position.set(gx, TRENCH_Y + towerH / 2, gzs - 0.4);
-      scene.add(sTower);
-
-      const truss = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.65, spanLen), steelMat);
-      truss.position.set(gx, 2.4, gcz);
-      scene.add(truss);
-
-      TRACK_OFFSETS.forEach((off, idx) => {
-        const tz = gcz + off;
-        const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 3.8, 6), steelMat);
-        drop.position.set(gx, 0.5, tz);
-        scene.add(drop);
-
-        const sigBox = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.65, 0.25), new THREE.MeshBasicMaterial({ color: 0x0f172a }));
-        sigBox.position.set(gx, 1.7, tz);
-        scene.add(sigBox);
-
-        const sigColor = (idx === 1 && (Math.abs(gx) % 90 < 45)) ? 0xef4444 : 0x22c55e;
-        const sigLight = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color: sigColor }));
-        sigLight.position.set(gx + (gx > 0 ? -0.15 : 0.15), 1.7, tz);
-        scene.add(sigLight);
-      });
-    }
-
-    TRACK_OFFSETS.forEach(trackOff => {
-      const wirePts = [];
-      for (let x = -680; x <= 820; x += 15) {
-        const cz = getUsrcZ(x);
-        wirePts.push([x, cz + trackOff]);
-      }
-      ribbon(catenaryGB, wirePts, 0.06, -1.1, 4);
-      ribbon(catenaryGB, wirePts, 0.04, -1.6, 4);
-    });
-
-    if (catenaryGB.pos.length) {
-      scene.add(new THREE.Mesh(catenaryGB.build(), new THREE.MeshBasicMaterial({ color: 0x94a3b8 })));
-    }
-
-    // ---------- Maintenance Access Stairs & Ramps Down to Track Level ----------
-    const stairYellow = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.4 });
-    const stairSteel = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6, metalness: 0.8 });
-    const concreteRampMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.85 });
-
-    function buildMaintenanceStairs(anchorX, anchorZ, isNorthWall) {
-      const stairGroup = new THREE.Group();
-      const wallSign = isNorthWall ? 1 : -1;
-      const totalH = 4.6;
-      const numSteps = 24;
-      const stepRise = totalH / numSteps;
-      const stepRun = 0.42;
-
-      // Top concrete access portal / landing platform at street level (y = 0.0)
-      const topPlatform = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.35, 2.2), new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 }));
-      topPlatform.position.set(0, 0.0, 0);
-      stairGroup.add(topPlatform);
-
-      // Warning sign on access gate
-      const gateSign = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 0.06), new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3 }));
-      gateSign.position.set(0, 0.8, -wallSign * 1.0);
-      stairGroup.add(gateSign);
-
-      for (let i = 0; i < numSteps; i++) {
-        const stepY = -i * stepRise;
-        const stepX = (i + 1) * stepRun;
-        const stepZ = -wallSign * 0.9;
-        const step = new THREE.Mesh(new THREE.BoxGeometry(stepRun * 1.05, 0.06, 1.4), stairSteel);
-        step.position.set(stepX, stepY, stepZ);
-        stairGroup.add(step);
-
-        if (i % 4 === 0) {
-          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.0, 6), stairYellow);
-          post.position.set(stepX, stepY + 0.5, stepZ - wallSign * 0.65);
-          stairGroup.add(post);
+      return pts;
+    };
+    TRACK_OFFSETS.forEach(off => {
+      const line = corridorLine(off);
+      ribbon(railBedGB, line, 3.4, TRENCH_Y + 0.08, 4);
+      for (let i = 0; i < line.length - 1; i++) {
+        const a = line[i], b = line[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        for (let s2 = 0; s2 < L; s2 += 0.75) {
+          const px = a[0] + (b[0] - a[0]) * s2 / L, pz = a[1] + (b[1] - a[1]) * s2 / L;
+          const nx = -(b[1] - a[1]) / L * 1.3, nz = (b[0] - a[0]) / L * 1.3;
+          ribbon(tiesGB, [[px + nx, pz + nz], [px - nx, pz - nz]], 0.26, TRENCH_Y + 0.16, 1);
         }
       }
-
-      const railLen = numSteps * stepRun * 1.05;
-      const hRail = new THREE.Mesh(new THREE.BoxGeometry(railLen, 0.08, 0.08), stairYellow);
-      hRail.rotation.z = Math.atan2(-totalH, numSteps * stepRun);
-      hRail.position.set(railLen / 2, -totalH / 2 + 0.95, -wallSign * 1.55);
-      stairGroup.add(hRail);
-
-      const botPlatform = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.15, 2.4), new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 }));
-      botPlatform.position.set(numSteps * stepRun + 1.6, TRENCH_Y + 0.08, -wallSign * 1.2);
-      stairGroup.add(botPlatform);
-
-      stairGroup.position.set(anchorX, 0, anchorZ);
-      scene.add(stairGroup);
-    }
-
-    // 1. John Street Bridge South Stairs (leads down to tracks)
-    const johnZ = getUsrcZ(-188) + TRENCH_HALF_W;
-    buildMaintenanceStairs(-188, johnZ, false);
-
-    // 2. Lower Simcoe Bridge North Stairs (leads down to tracks)
-    const simcoeZ = getUsrcZ(-72) - TRENCH_HALF_W;
-    buildMaintenanceStairs(-72, simcoeZ, true);
-
-    // 3. SkyWalk Service Vehicle Ramp at x = -325 (South Wall)
-    {
-      const rampZ = getUsrcZ(-325) + TRENCH_HALF_W;
-      const rampLen = 34.0;
-      const rampW = 3.6;
-      const rampMesh = new THREE.Mesh(new THREE.BoxGeometry(rampLen, 0.35, rampW), concreteRampMat);
-      rampMesh.rotation.z = Math.atan2(4.6, rampLen);
-      rampMesh.position.set(-325 + rampLen / 2, -2.3, rampZ + rampW / 2);
-      scene.add(rampMesh);
-
-      const hazardBar = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.9, rampW + 0.4), stairYellow);
-      hazardBar.position.set(-325, 0.45, rampZ + rampW / 2);
-      scene.add(hazardBar);
-    }
-
-    // 3. Overpass Bridges spanning across the Railway Trench
-    const steelBeamMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.45, metalness: 0.8 });
-    const pierMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 });
-    const pedRedMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.35, metalness: 0.6 });
-    const bridgeAsphaltMat = new THREE.MeshStandardMaterial({ color: 0x1f242d, roughness: 0.88 });
-    const bridgeSidewalkMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.8 });
-    const bridgeYellowMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
-    const bridgeTimberMat = new THREE.MeshStandardMaterial({ color: 0x3e3228, roughness: 0.85 });
-
-    OVERPASS_BRIDGES.forEach(b => {
-      const bz = getUsrcZ(b.x);
-      const spanZ = (TRENCH_HALF_W + 3.5) * 2;
-      const zNorth = bz - TRENCH_HALF_W - 3.5;
-      const zSouth = bz + TRENCH_HALF_W + 3.5;
-
-      // Solid, visible bridge road deck / pedestrian deck at street level (y = 0.05)
-      const deckMat = b.isPed ? bridgeTimberMat : bridgeAsphaltMat;
-      const deck = new THREE.Mesh(new THREE.BoxGeometry(b.w, 0.45, spanZ), deckMat);
-      deck.position.set(b.x, 0.05, bz);
-      deck.receiveShadow = true;
-      scene.add(deck);
-
-      if (!b.isPed) {
-        // Raised pedestrian sidewalks on left and right sides of the bridge
-        [-1, 1].forEach(side => {
-          const swX = b.x + side * (b.w / 2 - 1.1);
-          const sw = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.55, spanZ), bridgeSidewalkMat);
-          sw.position.set(swX, 0.12, bz);
-          sw.receiveShadow = true;
-          scene.add(sw);
-        });
-
-        // Double yellow center stripe across the bridge
-        const yellowLine = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, spanZ), bridgeYellowMat);
-        yellowLine.position.set(b.x, 0.28, bz);
-        scene.add(yellowLine);
-      } else {
-        // Timber walkway surface for pedestrian bridges
-        const walk = new THREE.Mesh(new THREE.BoxGeometry(b.w - 0.6, 0.05, spanZ), new THREE.MeshStandardMaterial({ color: 0x78716c, roughness: 0.7 }));
-        walk.position.set(b.x, 0.28, bz);
-        walk.receiveShadow = true;
-        scene.add(walk);
-      }
-
-      // Heavy underside structural steel box girders supporting the bridge span
-      [-1, 1].forEach(side => {
-        const bx = b.x + side * (b.w / 2 - 0.25);
-        const girder = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.55, spanZ), steelBeamMat);
-        girder.position.set(bx, -0.32, bz);
-        scene.add(girder);
-
-        // Concrete bridge parapet & crash barrier at street level
-        const parapet = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.85, spanZ), pierMat);
-        parapet.position.set(bx, 0.52, bz);
-        parapet.receiveShadow = true;
-        scene.add(parapet);
-
-        // Tubular safety handrail on top of parapet
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, spanZ), steelBeamMat);
-        rail.position.set(bx, 1.0, bz);
-        scene.add(rail);
-
-        // Solid collision barrier strictly along the outer bridge edges (leaves center roadway/walkway 100% open)
-        addSolid({
-          type: 'poly',
-          pts: [
-            [bx - 0.3, zNorth], [bx + 0.3, zNorth],
-            [bx + 0.3, zSouth], [bx - 0.3, zSouth]
-          ],
-          h: 1.5,
-          name: b.name + ' Parapet'
-        });
-      });
-
-      // Concrete support piers resting on the trench floor
-      const pierHeight = -TRENCH_Y - 0.6;
-      [-1, 1].forEach(side => {
-        const pier = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.95, pierHeight, 14), pierMat);
-        pier.position.set(b.x + side * (b.w / 4), TRENCH_Y + pierHeight / 2, bz);
-        scene.add(pier);
-        addCircle(b.x + side * (b.w / 4), bz, 1.0);
-      });
-
-      // John Street Pedestrian Bridge: Iconic red steel suspension arch over the tracks
-      if (b.isPed && b.name.indexOf('John Street') >= 0) {
-        const archGeo = new THREE.TorusGeometry(16.5, 0.35, 12, 32, Math.PI);
-        const archMesh = new THREE.Mesh(archGeo, pedRedMat);
-        archMesh.rotation.y = Math.PI / 2;
-        archMesh.position.set(b.x, 0.2, bz);
-        scene.add(archMesh);
-
-        [-10, -5, 0, 5, 10].forEach(az => {
-          const suspH = Math.max(1.0, 16.5 - Math.hypot(0, az));
-          const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, suspH, 6), steelBeamMat);
-          cable.position.set(b.x, suspH / 2, bz + az);
-          scene.add(cable);
-        });
-      }
+      ribbon(railGB, offsetLine(line, 0.72), 0.14, TRENCH_Y + 0.24, 4);
+      ribbon(railGB, offsetLine(line, -0.72), 0.14, TRENCH_Y + 0.24, 4);
     });
+    scene.add(new THREE.Mesh(railBedGB.build(), new THREE.MeshLambertMaterial({ map: gravelTex, color: 0x9a948c })));
+    scene.add(new THREE.Mesh(railGB.build(), new THREE.MeshStandardMaterial({ color: 0xc4cbd4, metalness: 0.95, roughness: 0.25, envMapIntensity: 0.8 })));
+    scene.add(new THREE.Mesh(tiesGB.build(), new THREE.MeshLambertMaterial({ color: 0x2a2018 })));
 
-    // 4. Parapet safety barriers along the street-side lip of the rail cut (skipping bridge road openings)
-    const lipMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 });
-    for (let x = -880; x <= 840; x += 18) {
-      const isBridge = OVERPASS_BRIDGES.some(b => Math.abs(x - b.x) < (b.w / 2 + 2.5));
-      if (!isBridge) {
-        const cz = getUsrcZ(x);
-        // North lip barrier
-        const barN = new THREE.Mesh(new THREE.BoxGeometry(17.5, 0.9, 0.35), lipMat);
-        barN.position.set(x, 0.45, cz - TRENCH_HALF_W);
-        scene.add(barN);
-        addSolid({
-          type: 'poly',
-          pts: [
-            [x - 9, cz - TRENCH_HALF_W - 0.3], [x + 9, cz - TRENCH_HALF_W - 0.3],
-            [x + 9, cz - TRENCH_HALF_W + 0.3], [x - 9, cz - TRENCH_HALF_W + 0.3]
-          ],
-          h: 1.5,
-          name: 'Rail Trench North Barrier'
-        });
+    const nearBridge = (x, z, pad) => isOnBridge(x, z, pad);
+    const cutSteelMat = new THREE.MeshStandardMaterial({ color: 0x3b4553, roughness: 0.5, metalness: 0.8 });
+    const cutConcreteMat = new THREE.MeshStandardMaterial({ color: 0x7c8088, roughness: 0.85 });
 
-        // South lip barrier
-        const barS = new THREE.Mesh(new THREE.BoxGeometry(17.5, 0.9, 0.35), lipMat);
-        barS.position.set(x, 0.45, cz + TRENCH_HALF_W);
-        scene.add(barS);
-        addSolid({
-          type: 'poly',
-          pts: [
-            [x - 9, cz + TRENCH_HALF_W - 0.3], [x + 9, cz + TRENCH_HALF_W - 0.3],
-            [x + 9, cz + TRENCH_HALF_W + 0.3], [x - 9, cz + TRENCH_HALF_W + 0.3]
-          ],
-          h: 1.5,
-          name: 'Rail Trench South Barrier'
+    // Retaining-wall pilasters + low sodium lights on both walls: depth cues that read as "down there"
+    {
+      const pil = [], lamps = [];
+      for (let x = TRENCH_X0 + 6; x < TRENCH_X1 - 4; x += 12) {
+        const cz = getUsrcZ(x), dz = getUsrcZ(x + 1) - cz, yaw = Math.atan2(1, dz) - Math.PI / 2;
+        [-1, 1].forEach(side => {
+          const z = cz + side * (TRENCH_HALF_W - 0.25);
+          if (nearBridge(x, z, 2)) return;
+          pil.push([x, z, yaw]);
+          if (Math.round(x / 12) % 2 === 0) lamps.push([x, cz + side * (TRENCH_HALF_W - 0.45), yaw]);
         });
       }
+      const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), up = new THREE.Vector3(0, 1, 0), v = new THREE.Vector3();
+      const pilMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.7, -TRENCH_Y, 0.5), cutConcreteMat, pil.length);
+      pil.forEach((p, i) => { q4.setFromAxisAngle(up, p[2]); m4.compose(v.set(p[0], TRENCH_Y / 2, p[1]), q4, one); pilMesh.setMatrixAt(i, m4); });
+      pilMesh.receiveShadow = true; scene.add(pilMesh);
+      const lampMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.9, 0.18, 0.25), new THREE.MeshBasicMaterial({ color: 0xffb64d, toneMapped: false }), lamps.length);
+      lamps.forEach((p, i) => { q4.setFromAxisAngle(up, p[2]); m4.compose(v.set(p[0], TRENCH_Y + 5.2, p[1]), q4, one); lampMesh.setMatrixAt(i, m4); });
+      scene.add(lampMesh);
+    }
+
+    // Overhead wire: portal masts on the walls, cross-span and wires all below street level
+    {
+      const CW_Y = TRENCH_Y + 5.6;          // contact wire, ~1.2 m above a bi-level roof
+      const SPAN_Y = TRENCH_Y + 6.6;        // cross-span beam, still 1.4 m under the curb
+      const wireGB = new GeoBuilder();
+      TRACK_OFFSETS.forEach(off => {
+        const line = corridorLine(off);
+        ribbon(wireGB, line, 0.05, CW_Y, 4);
+        ribbon(wireGB, line, 0.04, CW_Y + 0.7, 4);
+      });
+      scene.add(new THREE.Mesh(wireGB.build(), new THREE.MeshBasicMaterial({ color: 0x5b6470 })));
+      for (let x = TRENCH_X0 + 25; x <= TRENCH_X1 - 25; x += 48) {
+        const cz = getUsrcZ(x);
+        if (nearBridge(x, cz, 10)) continue;
+        const dz = getUsrcZ(x + 1) - cz, L = Math.hypot(1, dz), nx = -dz / L, nz = 1 / L;
+        [-1, 1].forEach(side => {
+          const m = new THREE.Mesh(new THREE.BoxGeometry(0.35, SPAN_Y - TRENCH_Y, 0.35), cutSteelMat);
+          m.position.set(x + nx * side * (TRENCH_HALF_W - 0.9), (SPAN_Y + TRENCH_Y) / 2, cz + nz * side * (TRENCH_HALF_W - 0.9));
+          scene.add(m);
+        });
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.45, TRENCH_HALF_W * 2 - 1.8), cutSteelMat);
+        beam.position.set(x, SPAN_Y, cz); beam.rotation.y = Math.atan2(nx, nz) - 0;
+        beam.rotation.y = -Math.atan2(dz, 1);
+        scene.add(beam);
+      }
+    }
+
+    // Tunnel portals at both ends of the cut (the GO train runs in and out of them)
+    {
+      const darkMat = new THREE.MeshBasicMaterial({ color: 0x050607, side: THREE.BackSide });
+      [[TRENCH_X0, -1], [TRENCH_X1, 1]].forEach(([px, dir]) => {
+        const cz = getUsrcZ(px), W2 = TRENCH_HALF_W * 2, OPEN_H = 7.0;
+        const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.6, -TRENCH_Y - OPEN_H + 0.8, W2 + 1.2), cutConcreteMat);
+        lintel.position.set(px + dir * 0.8, (TRENCH_Y + OPEN_H + 0.8) / 2, cz); scene.add(lintel);
+        [-1, 1].forEach(side => {
+          const pier = new THREE.Mesh(new THREE.BoxGeometry(1.6, -TRENCH_Y + 0.8, 1.8), cutConcreteMat);
+          pier.position.set(px + dir * 0.8, (TRENCH_Y + 0.8) / 2, cz + side * (TRENCH_HALF_W - 0.3)); scene.add(pier);
+        });
+        const bore = new THREE.Mesh(new THREE.BoxGeometry(60, OPEN_H, W2 - 0.4), darkMat);   // dark interior
+        bore.position.set(px + dir * 31, TRENCH_Y + OPEN_H / 2, cz); scene.add(bore);
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, W2), new THREE.MeshBasicMaterial({ color: 0x0b0c0e }));
+        floor.rotation.x = -Math.PI / 2; floor.position.set(px + dir * 31, TRENCH_Y + 0.05, cz); scene.add(floor);
+      });
+    }
+
+    // Bridges: deck flush with the street, parapets on both edges, columns between the tracks
+    {
+      const deckMat = new THREE.MeshStandardMaterial({ color: 0x6b7078, roughness: 0.85 });
+      const asphaltMat = new THREE.MeshStandardMaterial({ color: 0x22262c, roughness: 0.9 });
+      const walkMat = new THREE.MeshStandardMaterial({ color: 0x9aa1aa, roughness: 0.85 });
+      const timberMat = new THREE.MeshStandardMaterial({ color: 0x6f6257, roughness: 0.8 });
+      const yellow = new THREE.MeshStandardMaterial({ color: 0xd9a514, roughness: 0.5 });
+      const red = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.35, metalness: 0.6 });
+      const DECK_T = 1.2;
+      const box = (len, h, w, mat, cx, cy, cz, br) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, len), mat);
+        m.position.set(cx, cy, cz); m.rotation.y = Math.atan2(br.fx, br.fz); m.receiveShadow = true; scene.add(m); return m;
+      };
+      BRIDGES.forEach(br => {
+        const mx = (br.a[0] + br.b[0]) / 2, mz = (br.a[1] + br.b[1]) / 2;
+        // structural slab: top 1 cm under the street so it never z-fights the ground at the ends
+        box(br.len, DECK_T, br.w, deckMat, mx, -0.01 - DECK_T / 2, mz, br);
+        if (br.ped) {
+          box(br.len, 0.04, br.w - 0.8, timberMat, mx, 0.03, mz, br);
+        } else {
+          if (!br.osm) box(br.len, 0.04, br.roadW, asphaltMat, mx, 0.045, mz, br);   // OSM streets draw their own asphalt
+          [-1, 1].forEach(sd => box(br.len, 0.05, 2.1, walkMat, mx + br.rx * sd * (br.w / 2 - 1.1), 0.04, mz + br.rz * sd * (br.w / 2 - 1.1), br));
+          if (!br.osm) [-0.11, 0.11].forEach(o => box(br.len, 0.02, 0.09, yellow, mx + br.rx * o, 0.07, mz + br.rz * o, br));
+        }
+        // the open span runs between where the deck centre-line meets each lip
+        let s0 = null, s1 = null;
+        for (let s2 = 0; s2 <= br.len; s2 += 0.5) {
+          const x = br.a[0] + br.fx * s2, z = br.a[1] + br.fz * s2;
+          if (isInsideTrench(x, z)) { if (s0 === null) s0 = s2; s1 = s2; }
+        }
+        if (s0 === null) return;
+        const pa = Math.max(0, s0 - 1.5), pb = Math.min(br.len, s1 + 1.5), plen = pb - pa, pm = (pa + pb) / 2;
+        const pcx = br.a[0] + br.fx * pm, pcz = br.a[1] + br.fz * pm;
+        [-1, 1].forEach(sd => {
+          const ex = pcx + br.rx * sd * (br.w / 2 - 0.2), ez = pcz + br.rz * sd * (br.w / 2 - 0.2);
+          box(plen, 1.05, 0.4, cutConcreteMat, ex, 0.52, ez, br);                                   // parapet
+          box(plen, 0.07, 0.1, cutSteelMat, ex, 1.2, ez, br);                                        // handrail
+          box(plen, DECK_T + 0.3, 0.25, cutSteelMat, pcx + br.rx * sd * (br.w / 2 + 0.02), -DECK_T / 2 - 0.1, pcz + br.rz * sd * (br.w / 2 + 0.02), br); // fascia girder
+          const hx = br.fx * plen / 2, hz = br.fz * plen / 2, wx = br.rx * 0.3, wz = br.rz * 0.3;
+          addSolid({
+            type: 'poly', name: br.name + ' parapet', h: 1.2,
+            pts: [[ex - hx - wx, ez - hz - wz], [ex + hx - wx, ez + hz - wz], [ex + hx + wx, ez + hz + wz], [ex - hx + wx, ez - hz + wz]]
+          });
+        });
+        // columns between tracks 2 and 3 and outside the outer tracks
+        for (let s2 = s0; s2 <= s1; s2 += 0.5) {
+          const x = br.a[0] + br.fx * s2, z = br.a[1] + br.fz * s2, off = z - getUsrcZ(x);
+          [0, -11.6, 11.6].forEach(target => {
+            if (Math.abs(off - target) > 0.25) return;
+            for (let l = -br.w / 2 + 2; l <= br.w / 2 - 2; l += Math.max(4, (br.w - 4) / 3)) {
+              const c = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, -TRENCH_Y - DECK_T, 12), cutConcreteMat);
+              c.position.set(x + br.rx * l, (TRENCH_Y - DECK_T) / 2, z + br.rz * l); scene.add(c);
+            }
+          });
+        }
+        if (br.arch) {
+          const arch = new THREE.Mesh(new THREE.TorusGeometry(plen / 2, 0.32, 10, 32, Math.PI), red);
+          arch.position.set(pcx, 0.1, pcz); arch.rotation.y = Math.atan2(br.fx, br.fz) - Math.PI / 2;
+          scene.add(arch);
+          for (let k = -2; k <= 2; k++) {
+            const d = (k / 2.5) * plen / 2, hgt = Math.sqrt(Math.max(0, (plen / 2) ** 2 - d * d));
+            if (hgt < 1.2) continue;
+            const cab = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, hgt, 6), cutSteelMat);
+            cab.position.set(pcx + br.fx * d, hgt / 2 + 0.1, pcz + br.fz * d); scene.add(cab);
+          }
+        }
+      });
+    }
+
+    // One barrier along both lips of the cut: concrete curb + black steel picket fence, with
+    // matching collision. It follows the curve exactly and opens only where a bridge deck lands.
+    {
+      const copingGB = new GeoBuilder(), fenceGB = new GeoBuilder();
+      const STEP = 2.0;
+      [-1, 1].forEach(side => {
+        let run = [];
+        const flush = () => {
+          if (run.length >= 2) {
+            const outer = run.map(p => [p[0], p[1] + side * 0.6]);
+            const mid = run.map(p => [p[0], p[1] + side * 0.3]);
+            ribbon(copingGB, mid, 0.6, 0.35, 2);                                 // curb top
+            wallStrip(copingGB, outer, 0, 0.0, 0.35);                            // street-side face
+            wallStrip(copingGB, outer.slice().reverse(), 0, 0.0, 0.35);
+            ribbon(fenceGB, mid, 0.06, 1.85, 2);                                 // top rail
+            ribbon(fenceGB, mid, 0.06, 0.6, 2);                                  // bottom rail
+            for (let i = 0; i < mid.length - 1; i++) {
+              const a = mid[i], b = mid[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+              for (let s2 = 0; s2 < L; s2 += 0.25) {
+                const px = a[0] + (b[0] - a[0]) * s2 / L, pz = a[1] + (b[1] - a[1]) * s2 / L;
+                const v0 = fenceGB.vert(px - 0.02, 0.35, pz, 0, 0, -side, 0, 0), v1 = fenceGB.vert(px + 0.02, 0.35, pz, 0, 0, -side, 1, 0);
+                const v2 = fenceGB.vert(px + 0.02, 1.9, pz, 0, 0, -side, 1, 1), v3 = fenceGB.vert(px - 0.02, 1.9, pz, 0, 0, -side, 0, 1);
+                fenceGB.quad(v0, v1, v2, v3); fenceGB.quad(v0, v3, v2, v1);
+              }
+              // collision for this piece: from the lip out to the fence line
+              addSolid({
+                type: 'poly', name: 'Rail cut barrier', h: 1.9,
+                pts: [[a[0], a[1] - side * 0.3], [b[0], b[1] - side * 0.3], [b[0], b[1] + side * 0.35], [a[0], a[1] + side * 0.35]]
+              });
+            }
+          }
+          run = [];
+        };
+        for (let x = TRENCH_X0; x <= TRENCH_X1 + 0.01; x += STEP) {
+          const p = [x, getUsrcZ(x) + side * TRENCH_HALF_W];
+          if (isOnBridge(p[0], p[1] + side * 0.3, 0.4)) flush(); else run.push(p);
+        }
+        flush();
+      });
+      const copingMesh = new THREE.Mesh(copingGB.build(), new THREE.MeshStandardMaterial({ color: 0x8c94a0, roughness: 0.75, side: THREE.DoubleSide }));
+      copingMesh.receiveShadow = true; scene.add(copingMesh);
+      const fenceMesh = new THREE.Mesh(fenceGB.build(), new THREE.MeshStandardMaterial({ color: 0x15181d, roughness: 0.4, metalness: 0.8, side: THREE.DoubleSide }));
+      scene.add(fenceMesh);
+      // the ends of the cut: a short wall above each portal
+      [TRENCH_X0, TRENCH_X1].forEach(px => {
+        const cz = getUsrcZ(px);
+        addSolid({ type: 'poly', name: 'Portal parapet', h: 1.2, pts: [[px - 0.4, cz - TRENCH_HALF_W], [px + 0.4, cz - TRENCH_HALF_W], [px + 0.4, cz + TRENCH_HALF_W], [px - 0.4, cz + TRENCH_HALF_W]] });
+        const w = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.1, TRENCH_HALF_W * 2), cutConcreteMat);
+        w.position.set(px, 0.55, cz); scene.add(w);
+      });
     }
 
     // ---------- Buildings ----------
@@ -4163,6 +4028,48 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       }
     }
 
+
+    // Buildings whose real footprint reaches over the rail cut stand on a deck: a concrete
+    // soffit and edge beam just under the street, carried on columns that sit between tracks.
+    const cutDeckGB = new GeoBuilder();
+    const cutColumns = [];
+    function coverCutUnder(pts) {
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      pts.forEach(p => { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); });
+      if (x1 < TRENCH_X0 || x0 > TRENCH_X1) return;
+      let over = false;
+      for (let x = x0; x <= x1 && !over; x += 2) for (let z = z0; z <= z1; z += 2) {
+        if (isInsideTrench(x, z) && pointInPoly(x, z, pts)) { over = true; break; }
+      }
+      if (!over) return;
+      const SOFFIT = -1.3;
+      // soffit (faces down)
+      try {
+        const tris = THREE.ShapeUtils.triangulateShape(pts.map(p => new THREE.Vector2(p[0], p[1])), []);
+        const base = cutDeckGB.pos.length / 3;
+        pts.forEach(p => cutDeckGB.vert(p[0], SOFFIT, p[1], 0, -1, 0, p[0] / 6, p[1] / 6));
+        tris.forEach(t => cutDeckGB.idx.push(base + t[0], base + t[2], base + t[1]));
+      } catch (e) { /* degenerate footprint */ }
+      // edge beam all round (outside the cut it is underground and never seen)
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (L < 0.01) continue;
+        const nx = (b[1] - a[1]) / L, nz = -(b[0] - a[0]) / L;
+        const q = [cutDeckGB.vert(a[0], SOFFIT, a[1], nx, 0, nz, 0, 0), cutDeckGB.vert(b[0], SOFFIT, b[1], nx, 0, nz, L / 4, 0),
+        cutDeckGB.vert(b[0], 0.0, b[1], nx, 0, nz, L / 4, 1), cutDeckGB.vert(a[0], 0.0, a[1], nx, 0, nz, 0, 1)];
+        cutDeckGB.quad(q[0], q[1], q[2], q[3]);
+      }
+      // columns: only in the clear gaps between tracks (centre, between tracks 1-2 / 3-4, outside track 4)
+      for (let x = Math.ceil(x0 / 10) * 10; x <= x1; x += 10) {
+        if (x < TRENCH_X0 || x > TRENCH_X1) continue;
+        const cz = getUsrcZ(x);
+        [0, -5, 5, -11.6, 11.6].forEach(off => {
+          const z = cz + off;
+          if (pointInPoly(x, z, pts)) cutColumns.push([x, z]);
+        });
+      }
+    }
+
     const landmarkFeet = {}; // real OSM footprints of hand-modelled landmarks
 
     // ---------- Downtown districts ----------
@@ -4170,9 +4077,11 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     // stone-and-glass Financial District, 19th-century brick Old Town), south of it the
     // all-glass Railway Lands / South Core / CityPlace / waterfront condos.
     const railBins = new Map();
-    (MAP.rails || []).forEach(r => { for (let i = 0; i < r.p.length; i += 2) {
-      const k = Math.round(r.p[i] / 50); const e = railBins.get(k) || [0, 0]; e[0] += r.p[i + 1]; e[1]++; railBins.set(k, e);
-    } });
+    (MAP.rails || []).forEach(r => {
+      for (let i = 0; i < r.p.length; i += 2) {
+        const k = Math.round(r.p[i] / 50); const e = railBins.get(k) || [0, 0]; e[0] += r.p[i + 1]; e[1]++; railBins.set(k, e);
+      }
+    });
     const railKeys = [...railBins.keys()].sort((a, b) => a - b);
     function railZAt(x) {
       if (!railKeys.length) return 60;
@@ -4259,10 +4168,10 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       // Custom-modelled landmarks keep their footprint (for placement + collision)
       const lmKey = name.indexOf("Ripley's Aquarium") >= 0 ? 'ripleys'
         : name.indexOf('John Street Roundhouse') >= 0 ? 'roundhouse'
-        : name.indexOf('Roy Thomson') >= 0 ? 'royThomson'
-        : name === 'Union Station' ? 'unionStation'
-        : name === 'Scotiabank Arena' ? 'scotiabank'
-        : name.indexOf('Fairmont Royal York') >= 0 ? 'royalYork' : null;
+          : name.indexOf('Roy Thomson') >= 0 ? 'royThomson'
+            : name === 'Union Station' ? 'unionStation'
+              : name === 'Scotiabank Arena' ? 'scotiabank'
+                : name.indexOf('Fairmont Royal York') >= 0 ? 'royalYork' : null;
       if (lmKey) {
         landmarkFeet[lmKey] = pts;
         if (lmKey !== 'unionStation' && lmKey !== 'royalYork') {
@@ -4308,6 +4217,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       addSolid({ type: 'poly', pts, bb: [x0, z0, x1, z1], h, name });
 
       if (h > 70 && roofLights.length < 60) roofLights.push(new THREE.Vector3(cx, h + 1.5, cz));
+      coverCutUnder(pts);
     });
 
     // ==========================================================================
@@ -4657,33 +4567,39 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       PLACES.forEach(pl => {
         const A = linesOf(pl.a), B = linesOf(pl.b);
         let best = null;
-        A.forEach(la => la.forEach(p => B.forEach(lb => { for (let i = 1; i < lb.length; i++) {
-          const q = segNearest(p[0], p[1], lb[i - 1], lb[i]);
-          if (!best || q.d < best.d) best = { x: (p[0] + q.x) / 2, z: (p[1] + q.z) / 2, d: q.d };
-        } })));
+        A.forEach(la => la.forEach(p => B.forEach(lb => {
+          for (let i = 1; i < lb.length; i++) {
+            const q = segNearest(p[0], p[1], lb[i - 1], lb[i]);
+            if (!best || q.d < best.d) best = { x: (p[0] + q.x) / 2, z: (p[1] + q.z) / 2, d: q.d };
+          }
+        })));
         if (!best || best.d > 30) return;
         // direction of the street the shop faces, at the corner
         let dA = null, dd = Infinity;
-        A.forEach(la => { for (let i = 1; i < la.length; i++) {
-          const q = segNearest(best.x, best.z, la[i - 1], la[i]);
-          if (q.d < dd) { dd = q.d; const L = Math.hypot(la[i][0] - la[i - 1][0], la[i][1] - la[i - 1][1]) || 1; dA = [(la[i][0] - la[i - 1][0]) / L, (la[i][1] - la[i - 1][1]) / L]; }
-        } });
+        A.forEach(la => {
+          for (let i = 1; i < la.length; i++) {
+            const q = segNearest(best.x, best.z, la[i - 1], la[i]);
+            if (q.d < dd) { dd = q.d; const L = Math.hypot(la[i][0] - la[i - 1][0], la[i][1] - la[i - 1][1]) || 1; dA = [(la[i][0] - la[i - 1][0]) / L, (la[i][1] - la[i - 1][1]) / L]; }
+          }
+        });
         const ql = Math.hypot(pl.quad[0], pl.quad[1]);
         const tx = best.x + pl.quad[0] / ql * 24, tz = best.z + pl.quad[1] / ql * 24;
         // nearest building wall that faces the intersection
         let hit = null;
-        footprints.forEach(pts => { for (let i = 0; i < pts.length; i++) {
-          const a = pts[i], b = pts[(i + 1) % pts.length], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-          if (len < 8) continue;
-          const nX = (b[1] - a[1]) / len, nZ = -(b[0] - a[0]) / len;
-          const q = segNearest(tx, tz, a, b);
-          if ((best.x - q.x) * nX + (best.z - q.z) * nZ <= 0) continue;   // must face the street corner
-          if (dA && Math.abs(nX * dA[0] + nZ * dA[1]) > 0.45) continue;      // ...and run along the shop's street
-          if (!hit || q.d < hit.d) {
-            const tt = Math.max(5 / len, Math.min(1 - 5 / len, q.t));
-            hit = { d: q.d, x: a[0] + (b[0] - a[0]) * tt, z: a[1] + (b[1] - a[1]) * tt, nx: nX, nz: nZ, len };
+        footprints.forEach(pts => {
+          for (let i = 0; i < pts.length; i++) {
+            const a = pts[i], b = pts[(i + 1) % pts.length], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+            if (len < 8) continue;
+            const nX = (b[1] - a[1]) / len, nZ = -(b[0] - a[0]) / len;
+            const q = segNearest(tx, tz, a, b);
+            if ((best.x - q.x) * nX + (best.z - q.z) * nZ <= 0) continue;   // must face the street corner
+            if (dA && Math.abs(nX * dA[0] + nZ * dA[1]) > 0.45) continue;      // ...and run along the shop's street
+            if (!hit || q.d < hit.d) {
+              const tt = Math.max(5 / len, Math.min(1 - 5 / len, q.t));
+              hit = { d: q.d, x: a[0] + (b[0] - a[0]) * tt, z: a[1] + (b[1] - a[1]) * tt, nx: nX, nz: nZ, len };
+            }
           }
-        } });
+        });
         if (hit && hit.d < 30) genericStores.push({ kind: pl.kind, x: hit.x, z: hit.z, nx: hit.nx, nz: hit.nz, len: hit.len, where: pl.a + ' & ' + pl.b });
       });
 
@@ -4733,6 +4649,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
           if (jx > minX - 40 && jx < maxX + 40 && jz > minZ - 40 && jz < maxZ + 40) continue;
           const sx = 22 + hash(jx * 0.7) * 30, sz = 22 + hash(jz * 0.9) * 30;
           if (onRoad(jx, jz, -Math.max(sx, sz) / 2, -1)) continue;
+          if (jx > TRENCH_X0 - 40 && jx < TRENCH_X1 + 40 && Math.abs(jz - getUsrcZ(jx)) < TRENCH_HALF_W + Math.max(sx, sz) * 0.75) continue;  // keep the rail cut open
           if (reservedLines.some(L => { const dx = L.b[0] - L.a[0], dz = L.b[1] - L.a[1], L2 = dx * dx + dz * dz; const t = Math.max(0, Math.min(1, ((jx - L.a[0]) * dx + (jz - L.a[1]) * dz) / L2)); return Math.hypot(L.a[0] + dx * t - jx, L.a[1] + dz * t - jz) < L.hw + Math.max(sx, sz) * 0.71; })) continue;
           if (solids.some(o => o.type === 'poly' && !(jx + sx / 2 + 4 < o.bb[0] || jx - sx / 2 - 4 > o.bb[2] || jz + sz / 2 + 4 < o.bb[1] || jz - sz / 2 - 4 > o.bb[3]))) continue;
           // taller toward the Financial District (north-east of the origin)
@@ -4750,6 +4667,17 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       }
     }
 
+    if (cutDeckGB.pos.length) {
+      const m = new THREE.Mesh(cutDeckGB.build(), new THREE.MeshStandardMaterial({ color: 0x5d6168, roughness: 0.9, side: THREE.DoubleSide }));
+      m.receiveShadow = true; scene.add(m);
+    }
+    if (cutColumns.length) {
+      const colH = -1.3 - TRENCH_Y;
+      const cols = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.6, colH, 12), new THREE.MeshStandardMaterial({ color: 0x7c8088, roughness: 0.85 }), cutColumns.length);
+      const m4 = new THREE.Matrix4();
+      cutColumns.forEach(([x, z], i) => { m4.makeTranslation(x, TRENCH_Y + colH / 2, z); cols.setMatrixAt(i, m4); });
+      scene.add(cols);
+    }
     STYLES.forEach(s => {
       if (!facadeGB[s].pos.length) return;
       const m = new THREE.Mesh(facadeGB[s].build(), facadeMats[s]);
@@ -5742,7 +5670,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         const nx = (b[1] - a[1]) / len, nz = -(b[0] - a[0]) / len;
         const ha = topFn(a, i), hb = topFn(b, (i + 1) % pts.length);
         const q = [gb.vert(a[0], y0, a[1], nx, 0, nz, u / uScale, y0 / vScale), gb.vert(b[0], y0, b[1], nx, 0, nz, (u + len) / uScale, y0 / vScale),
-                   gb.vert(b[0], hb, b[1], nx, 0, nz, (u + len) / uScale, hb / vScale), gb.vert(a[0], ha, a[1], nx, 0, nz, u / uScale, ha / vScale)];
+        gb.vert(b[0], hb, b[1], nx, 0, nz, (u + len) / uScale, hb / vScale), gb.vert(a[0], ha, a[1], nx, 0, nz, u / uScale, ha / vScale)];
         gb.quad(q[0], q[1], q[2], q[3]);
         u += len;
       }
@@ -5777,7 +5705,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         const nx = ez / L, nz = -ex / L, ny = 0.6;
         const nl = Math.hypot(nx, ny, nz);
         const q = [gb.vert(a[0], y0, a[1], nx / nl, ny / nl, nz / nl, 0, 0), gb.vert(b[0], y0, b[1], nx / nl, ny / nl, nz / nl, L / 4, 0),
-                   gb.vert(c[0], y1, c[1], nx / nl, ny / nl, nz / nl, L / 4, 1), gb.vert(d[0], y1, d[1], nx / nl, ny / nl, nz / nl, 0, 1)];
+        gb.vert(c[0], y1, c[1], nx / nl, ny / nl, nz / nl, L / 4, 1), gb.vert(d[0], y1, d[1], nx / nl, ny / nl, nz / nl, 0, 1)];
         gb.quad(q[0], q[1], q[2], q[3]);
       }
       return { geo: gb.build(), top };
@@ -5932,7 +5860,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         const gb = facesTable ? doorGB : winGB;
         const stall = 7.3, nStalls = Math.max(1, Math.round(len / stall)), uLen = facesTable ? nStalls : len / stall;
         const q = [gb.vert(a[0], 0, a[1], nx, 0, nz, 0, 0), gb.vert(b[0], 0, b[1], nx, 0, nz, uLen, 0),
-                   gb.vert(b[0], H, b[1], nx, 0, nz, uLen, 1), gb.vert(a[0], H, a[1], nx, 0, nz, 0, 1)];
+        gb.vert(b[0], H, b[1], nx, 0, nz, uLen, 1), gb.vert(a[0], H, a[1], nx, 0, nz, 0, 1)];
         gb.quad(q[0], q[1], q[2], q[3]);
         if (facesTable) for (let k = 0; k < nStalls; k++) {
           const f = (k + 0.5) / nStalls;
@@ -6782,7 +6710,9 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     // ---------- 3. Green & White Bi-Level GO Transit Train in Sunken Corridor ----------
     const goTrainCars = [];
     let goTrainDist = 550.0;
-    const USRC_SPAN = 1530.0;
+    // runs portal to portal: every car is fully inside a tunnel when it wraps around
+    const GO_X0 = TRENCH_X0 - 30;
+    const USRC_SPAN = (TRENCH_X1 + 30) - GO_X0;
 
     {
       const goGreen = new THREE.MeshStandardMaterial({ color: 0x136f38, roughness: 0.4, metalness: 0.3 });
@@ -7088,7 +7018,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         goTrainDist = (goTrainDist + dt * 26.0) % USRC_SPAN;
         for (let ci = 0; ci < goTrainCars.length; ci++) {
           const cd = (goTrainDist - ci * 23.5 + USRC_SPAN) % USRC_SPAN;
-          const cx = -680.0 + cd;
+          const cx = GO_X0 + cd;
           const cz = getUsrcZ(cx);
           const nextZ = getUsrcZ(cx + 2.0);
           const dx = 2.0, dz = nextZ - cz;
@@ -7441,6 +7371,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       isInsidePeaceZone,
       isInsideTrench,
       isOnBridge,
+      pushOutOfTrench,
+      trenchY: TRENCH_Y,
       getUsrcZ
     };
   }
@@ -11172,7 +11104,7 @@ function spawnSingleReinforcement(originX, originZ) {
     // Check world bounds
     if (city.bounds) {
       if (tx < city.bounds.minX + 15 || tx > city.bounds.maxX - 15 ||
-          tz < city.bounds.minZ + 15 || tz > city.bounds.maxZ - 15) {
+        tz < city.bounds.minZ + 15 || tz > city.bounds.maxZ - 15) {
         continue;
       }
     }
@@ -11182,8 +11114,8 @@ function spawnSingleReinforcement(originX, originZ) {
     const fromPlayer = Math.hypot(spot.x - player.pos.x, spot.z - player.pos.z);
 
     if (!city.isInsidePeaceZone(spot.x, spot.z) &&
-        fromPeace >= city.peaceZone.radius + 15 &&
-        fromPlayer >= 24 && fromPlayer <= 90) {
+      fromPeace >= city.peaceZone.radius + 15 &&
+      fromPlayer >= 24 && fromPlayer <= 90) {
       const { kind, archIdx } = pickEnemyTypeForCurrentDifficulty();
       return spawnEnemy(spot.x, spot.z, kind, archIdx);
     }
@@ -13695,6 +13627,7 @@ function animate(now) {
     applyCarKnockback(simDt);
     updateEnemies(simDt);
     if (traffic) traffic.update(simDt, trafficHooks);
+    keepPeopleOutOfRailCut();
     updatePickups(simDt);
     updateParticles(simDt);
     updateCombatTimers(simDt);
@@ -14066,6 +13999,24 @@ function canMoveTo(x, z) {
   return true;
 }
 
+// Knockback, crowd separation and car hits move people without collision checks. Anyone who
+// ends up standing over the open rail cut is put back on the nearest curb instead of floating.
+function keepPeopleOutOfRailCut() {
+  if (!city || !city.pushOutOfTrench) return;
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i];
+    if (!e.rig || e.isDeckEnemy) continue;
+    const p = e.rig.root.position;
+    if (p.y > 20) continue;
+    const fix = city.pushOutOfTrench(p.x, p.z, 1.2);
+    if (fix) { p.x = fix[0]; p.z = fix[1]; }
+  }
+  if (player.pos.y < 20 && !state.inElevator) {
+    const fix = city.pushOutOfTrench(player.pos.x, player.pos.z, 1.2);
+    if (fix && player.pos.y > -1) { player.pos.x = fix[0]; player.pos.z = fix[1]; }
+  }
+}
+
 function updateEnemies(dt) {
   let nearestStaggered = null;
   let minDist = 4.0;
@@ -14199,7 +14150,7 @@ function updateEnemies(dt) {
     }
 
     const isDifferentFloor = (enemy.isDeckEnemy && Math.abs(player.pos.y - enemy.rig.root.position.y) > 2.5) ||
-                             (!enemy.isDeckEnemy && player.pos.y > 50);
+      (!enemy.isDeckEnemy && player.pos.y > 50);
 
     // =========================================================================
     // CIVILIAN AI BEHAVIOR (NON-VIOLENT CITIZEN)

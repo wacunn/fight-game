@@ -2604,7 +2604,7 @@ function spawnSingleReinforcement(originX, originZ) {
     // Check world bounds
     if (city.bounds) {
       if (tx < city.bounds.minX + 15 || tx > city.bounds.maxX - 15 ||
-          tz < city.bounds.minZ + 15 || tz > city.bounds.maxZ - 15) {
+        tz < city.bounds.minZ + 15 || tz > city.bounds.maxZ - 15) {
         continue;
       }
     }
@@ -2614,8 +2614,8 @@ function spawnSingleReinforcement(originX, originZ) {
     const fromPlayer = Math.hypot(spot.x - player.pos.x, spot.z - player.pos.z);
 
     if (!city.isInsidePeaceZone(spot.x, spot.z) &&
-        fromPeace >= city.peaceZone.radius + 15 &&
-        fromPlayer >= 24 && fromPlayer <= 90) {
+      fromPeace >= city.peaceZone.radius + 15 &&
+      fromPlayer >= 24 && fromPlayer <= 90) {
       const { kind, archIdx } = pickEnemyTypeForCurrentDifficulty();
       return spawnEnemy(spot.x, spot.z, kind, archIdx);
     }
@@ -5127,6 +5127,7 @@ function animate(now) {
     applyCarKnockback(simDt);
     updateEnemies(simDt);
     if (traffic) traffic.update(simDt, trafficHooks);
+    keepPeopleOutOfRailCut();
     updatePickups(simDt);
     updateParticles(simDt);
     updateCombatTimers(simDt);
@@ -5498,6 +5499,24 @@ function canMoveTo(x, z) {
   return true;
 }
 
+// Knockback, crowd separation and car hits move people without collision checks. Anyone who
+// ends up standing over the open rail cut is put back on the nearest curb instead of floating.
+function keepPeopleOutOfRailCut() {
+  if (!city || !city.pushOutOfTrench) return;
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i];
+    if (!e.rig || e.isDeckEnemy) continue;
+    const p = e.rig.root.position;
+    if (p.y > 20) continue;
+    const fix = city.pushOutOfTrench(p.x, p.z, 1.2);
+    if (fix) { p.x = fix[0]; p.z = fix[1]; }
+  }
+  if (player.pos.y < 20 && !state.inElevator) {
+    const fix = city.pushOutOfTrench(player.pos.x, player.pos.z, 1.2);
+    if (fix && player.pos.y > -1) { player.pos.x = fix[0]; player.pos.z = fix[1]; }
+  }
+}
+
 function updateEnemies(dt) {
   let nearestStaggered = null;
   let minDist = 4.0;
@@ -5631,7 +5650,7 @@ function updateEnemies(dt) {
     }
 
     const isDifferentFloor = (enemy.isDeckEnemy && Math.abs(player.pos.y - enemy.rig.root.position.y) > 2.5) ||
-                             (!enemy.isDeckEnemy && player.pos.y > 50);
+      (!enemy.isDeckEnemy && player.pos.y > 50);
 
     // =========================================================================
     // CIVILIAN AI BEHAVIOR (NON-VIOLENT CITIZEN)
