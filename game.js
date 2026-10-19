@@ -2685,63 +2685,143 @@ if (city) {
 // CN TOWER GLASS ELEVATOR, 2-FLOOR OBSERVATION DECK & SKY SHOWDOWN SYSTEMS
 // ============================================================================
 
+const EYE_HEIGHT = 1.7;
+
 const elevatorController = {
-  cabY: 2.0,
-  startY: 2.0,
-  targetY: 2.0,
+  cabY: 0.15,
+  startY: 0.15,
+  targetY: 0.15,
+  fromStop: 0,
+  targetStop: 0,
   isMoving: false,
   direction: 0,
   progress: 0,
   duration: 5.5,
   doorProgress: 1.0, // 0 = closed, 1 = open
-  state: 'ground',   // 'ground', 'moving_up', 'floor1', 'floor2', 'floor3', 'moving_down'
+  state: 'ground',
   humTimer: 0
 };
 
-function startElevatorRide(targetY) {
+// Floor-select panel state
+const elevatorPanel = { open: false, highlight: 0 };
+
+function elevatorStops() {
+  return (city && city.cnElevator && city.cnElevator.stops) || [];
+}
+
+// Which stop the player is standing at, by feet height
+function currentStopIndex() {
+  const feet = player.pos.y - EYE_HEIGHT;
+  const stops = elevatorStops();
+  let best = 0, bestD = Infinity;
+  stops.forEach((s, i) => {
+    const d = Math.abs(feet - s.feet);
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  return best;
+}
+
+function buildElevatorPanel() {
+  const list = document.getElementById('elevator-floor-list');
+  if (!list) return;
+  const stops = elevatorStops();
+  const here = currentStopIndex();
+  list.innerHTML = '';
+  // Top floor first, like a real elevator panel
+  for (let i = stops.length - 1; i >= 0; i--) {
+    const s = stops[i];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'elev-floor-btn' + (i === here ? ' is-here' : '') + (i === elevatorPanel.highlight ? ' is-highlight' : '');
+    btn.dataset.stop = String(i);
+    btn.innerHTML =
+      `<span class="elev-floor-key">${i + 1}</span>` +
+      `<span class="elev-floor-text"><span class="elev-floor-label">${s.label}</span>` +
+      `<span class="elev-floor-name">${s.name}</span>` +
+      `<span class="elev-floor-sub">${i === here ? 'You are here' : s.sub}</span></span>`;
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      selectElevatorFloor(i);
+    });
+    list.appendChild(btn);
+  }
+}
+
+function openElevatorPanel() {
+  if (state.inElevator || !city || !city.cnElevator) return;
+  const here = currentStopIndex();
+  const n = elevatorStops().length;
+  // Pre-select the most likely trip: ground -> Level 1, anywhere up top -> ground
+  elevatorPanel.highlight = here === 0 ? 1 : 0;
+  if (elevatorPanel.highlight >= n) elevatorPanel.highlight = 0;
+  elevatorPanel.open = true;
+  buildElevatorPanel();
+  const el = document.getElementById('elevator-panel');
+  if (el) el.classList.remove('hidden');
+  audio.playElevatorDing();
+}
+
+function closeElevatorPanel() {
+  if (!elevatorPanel.open) return;
+  elevatorPanel.open = false;
+  const el = document.getElementById('elevator-panel');
+  if (el) el.classList.add('hidden');
+}
+
+function moveElevatorHighlight(delta) {
+  const n = elevatorStops().length;
+  if (!n) return;
+  elevatorPanel.highlight = (elevatorPanel.highlight + delta + n) % n;
+  buildElevatorPanel();
+}
+
+function selectElevatorFloor(idx) {
+  const stops = elevatorStops();
+  if (idx < 0 || idx >= stops.length) return;
+  closeElevatorPanel();
+  if (idx === currentStopIndex()) {
+    showAnnouncement(`🛗 YOU'RE ALREADY ON ${stops[idx].label}`, 1800);
+    return;
+  }
+  startElevatorRide(idx);
+}
+
+function startElevatorRide(targetIdx) {
   if (elevatorController.isMoving || !city || !city.cnElevator) return;
+  const stops = elevatorStops();
+  const from = currentStopIndex();
+  const target = stops[targetIdx];
+  if (!target) return;
+
+  // The cab comes to the player's floor first (doors are shut, so this is instant)
+  elevatorController.cabY = stops[from].y;
+  elevatorController.fromStop = from;
+  elevatorController.targetStop = targetIdx;
   elevatorController.startY = elevatorController.cabY;
-  elevatorController.targetY = targetY;
-  elevatorController.direction = targetY > elevatorController.cabY ? 1 : -1;
+  elevatorController.targetY = target.y;
+  elevatorController.direction = target.y > elevatorController.cabY ? 1 : -1;
   elevatorController.isMoving = true;
   elevatorController.progress = 0;
   elevatorController.doorProgress = 0;
-  const dist = Math.abs(targetY - elevatorController.startY);
+  const dist = Math.abs(target.y - elevatorController.startY);
   elevatorController.duration = Math.max(2.5, Math.min(8.5, dist / 42.0));
   state.inElevator = true;
+  if (state.telescopeActive) exitTelescope();
 
   audio.playElevatorDing();
 
-  // Position player directly in cab
-  player.pos.set(city.cnElevator.pos.x, elevatorController.cabY + 1.7, city.cnElevator.pos.z);
+  city.cnElevator.cab.position.y = elevatorController.cabY;
+  player.pos.set(city.cnElevator.pos.x, elevatorController.cabY + EYE_HEIGHT, city.cnElevator.pos.z);
   player.velocity.set(0, 0, 0);
 
-  // Update HUD
+  const verb = elevatorController.direction > 0 ? 'ASCENDING' : 'DESCENDING';
   const elevHud = document.getElementById('elevator-hud');
   if (elevHud) {
     elevHud.classList.remove('hidden');
     const levelName = document.getElementById('elev-level-name');
-    if (levelName) {
-      if (targetY >= 351.0) {
-        levelName.innerText = 'ASCENDING TO 354m 360 ROTATING RESTAURANT';
-      } else if (targetY >= 346.0) {
-        levelName.innerText = 'ASCENDING TO 348m MAIN LOOKOUT DECK';
-      } else if (targetY >= 340.0) {
-        levelName.innerText = elevatorController.direction > 0
-          ? 'ASCENDING TO 342m OBSERVATION DECK'
-          : 'DESCENDING TO 342m OBSERVATION DECK';
-      } else {
-        levelName.innerText = 'DESCENDING TO GROUND PLAZA';
-      }
-    }
+    if (levelName) levelName.innerText = `${verb} TO ${target.label} • ${target.name}`;
   }
-
-  showAnnouncement(
-    elevatorController.direction > 0
-      ? (targetY >= 351.0 ? '🚀 ELEVATOR ASCENDING: 360 ROTATING RESTAURANT (354m)!' : '🚀 ELEVATOR ASCENDING: 342m OBSERVATION DECK!')
-      : (targetY >= 340.0 ? '🚀 ELEVATOR DESCENDING: 342m OBSERVATION DECK' : '🚀 DESCENDING GLASS ELEVATOR: RETURNING TO PLAZA'),
-    3500
-  );
+  showAnnouncement(`🚀 GLASS ELEVATOR ${verb}: ${target.label} • ${target.name}`, 3000);
 }
 
 function updateElevator(dt) {
@@ -2752,179 +2832,129 @@ function updateElevator(dt) {
   if (elevatorController.isMoving) {
     elevatorController.progress += dt / elevatorController.duration;
     const t = Math.max(0, Math.min(1, elevatorController.progress));
-    // Smoothstep easing for high-speed panoramic elevator
     const smoothT = t * t * (3 - 2 * t);
     const startY = elevatorController.startY;
     elevatorController.cabY = startY + (elevatorController.targetY - startY) * smoothT;
 
-    // Motor hum sound effect
     elevatorController.humTimer += dt;
     if (elevatorController.humTimer > 0.45) {
       elevatorController.humTimer = 0;
       audio.playElevatorHum(0.8 + smoothT * 0.5);
     }
 
-    // Move 3D cab & player smoothly
     elevCab.position.y = elevatorController.cabY;
-    player.pos.set(city.cnElevator.pos.x, elevatorController.cabY + 1.7, city.cnElevator.pos.z);
+    player.pos.set(city.cnElevator.pos.x, elevatorController.cabY + EYE_HEIGHT, city.cnElevator.pos.z);
     player.velocity.set(0, 0, 0);
 
-    // Keep doors shut while moving
     if (doors && doors.length === 2) {
       doors[0].position.z = -0.7;
       doors[1].position.z = 0.7;
     }
 
-    // Dynamic Atmospheric Fog Thinning
-    // At ground: 0.0021 | High up at 342m+: 0.00065 for crystal-clear panoramic views of Toronto!
     const fogProg = Math.max(0, Math.min(1, (elevatorController.cabY - 2.0) / 340.0));
-    if (scene.fog) {
-      scene.fog.density = THREE.MathUtils.lerp(0.0021, 0.00065, fogProg);
-    }
+    if (scene.fog) scene.fog.density = THREE.MathUtils.lerp(0.0021, 0.00065, fogProg);
 
-    // Update HUD altitude readout & gauge
     const altVal = document.getElementById('elev-alt-val');
     if (altVal) altVal.innerText = `${Math.round(elevatorController.cabY)} m`;
     const gaugeFill = document.getElementById('elev-gauge-fill');
     if (gaugeFill) gaugeFill.style.width = `${Math.round((elevatorController.cabY / 354.0) * 100)}%`;
 
-    // Arrival check
-    if (elevatorController.progress >= 1.0) {
-      elevatorController.isMoving = false;
-      elevatorController.cabY = elevatorController.targetY;
-      elevCab.position.y = elevatorController.cabY;
-      state.inElevator = false;
-
-      audio.playElevatorArrival();
-
-      // Open sliding doors
-      if (doors && doors.length === 2) {
-        doors[0].position.z = -1.5;
-        doors[1].position.z = 1.5;
-      }
-
-      const elevHud = document.getElementById('elevator-hud');
-      if (elevHud) elevHud.classList.add('hidden');
-
-      if (elevatorController.targetY >= 351.0) {
-        elevatorController.state = 'floor3';
-        state.onObservationDeck = true;
-        player.pos.x += 2.2;
-        showAnnouncement('🍽️ WELCOME TO 360 THE RESTAURANT AT THE CN TOWER • 354m! 🍽️', 4500);
-      } else if (elevatorController.targetY >= 346.0) {
-        elevatorController.state = 'floor2';
-        state.onObservationDeck = true;
-        player.pos.x += 2.2;
-        showAnnouncement('🔭 LEVEL 2 • 348m MAIN 360° LOOKOUT & TELESCOPES 🔭', 4500);
-      } else if (elevatorController.targetY >= 340.0) {
-        elevatorController.state = 'floor1';
-        state.onObservationDeck = true;
-        player.pos.x += 2.2;
-        showAnnouncement('🌟 LEVEL 1 • 342m OUTDOOR DECK & SOUTH GLASS FLOOR 🌟', 4500);
-      } else {
-        elevatorController.state = 'ground';
-        state.onObservationDeck = false;
-        player.pos.x += 2.2;
-        showAnnouncement('🕊️ RETURNED TO CN TOWER PEACE SANCTUARY PLAZA', 3500);
-      }
-    }
-  } else {
-    // Keep doors open when docked
-    if (doors && doors.length === 2) {
-      doors[0].position.z = -1.5;
-      doors[1].position.z = 1.5;
-    }
+    if (elevatorController.progress >= 1.0) arriveElevator();
+  } else if (doors && doors.length === 2) {
+    doors[0].position.z = -1.5;
+    doors[1].position.z = 1.5;
   }
 }
 
-function getDeckFloorY(x, z, currentY) {
-  if (city && city.floorAt) return city.floorAt(x, z, currentY);
-  if (!city || !city.landmarks || !city.landmarks.cnTower) return 342.0;
-  const feetY = (currentY > 300 && (currentY - 340) % 6 > 1.0) ? (currentY - 1.7) : currentY;
-  const cx = city.landmarks.cnTower[0];
-  const cz = city.landmarks.cnTower[1];
-  const dx = x - cx;
-  const dz = z - cz;
-  const r = Math.hypot(dx, dz);
-  let angle = Math.atan2(dz, dx);
-  if (angle < 0) angle += Math.PI * 2;
+function arriveElevator() {
+  const elevCab = city.cnElevator.cab;
+  const doors = city.cnElevator.doors;
+  const idx = elevatorController.targetStop;
+  const stop = elevatorStops()[idx];
 
-  // 1. Check Lower Twin Grand Staircases (Level 1: 342m <-> Level 2: 348m)
-  if (r >= 9.0 && r <= 12.0) {
-    if (angle >= 1.25 && angle <= 1.75) {
-      const stairY = 342.0 + ((angle - 1.25) / 0.5) * 6.0;
-      if (Math.abs(feetY - stairY) <= 2.2) return stairY;
-    }
-    if (angle >= 3.85 && angle <= 4.35) {
-      const stairY = 342.0 + ((angle - 3.85) / 0.5) * 6.0;
-      if (Math.abs(feetY - stairY) <= 2.2) return stairY;
-    }
-
-    // 2. Check Upper Twin Grand Staircases (Level 2: 348m <-> Level 3: 354m)
-    if (angle >= 0.45 && angle <= 0.95) {
-      const stairY = 348.0 + ((angle - 0.45) / 0.5) * 6.0;
-      if (Math.abs(feetY - stairY) <= 2.2) return stairY;
-    }
-    if (angle >= 2.45 && angle <= 2.95) {
-      const stairY = 348.0 + ((angle - 2.45) / 0.5) * 6.0;
-      if (Math.abs(feetY - stairY) <= 2.2) return stairY;
-    }
+  elevatorController.isMoving = false;
+  elevatorController.cabY = elevatorController.targetY;
+  elevCab.position.y = elevatorController.cabY;
+  state.inElevator = false;
+  audio.playElevatorArrival();
+  if (doors && doors.length === 2) {
+    doors[0].position.z = -1.5;
+    doors[1].position.z = 1.5;
   }
+  const elevHud = document.getElementById('elevator-hud');
+  if (elevHud) elevHud.classList.add('hidden');
 
-  // 3. Level 3 (360 Restaurant): If currently at Level 3 elevation (feetY > 351.0)
-  if (feetY > 351.0) {
-    return 354.0;
-  }
+  // Step out through the doors onto solid floor, facing away from the cab
+  const exit = city.cnElevator.exitFor(idx);
+  player.pos.set(exit.x, exit.feet + EYE_HEIGHT, exit.z);
+  player.velocity.set(0, 0, 0);
+  player.isGrounded = true;
+  player.yaw = exit.yaw;
+  player.pitch = 0;
 
-  // 4. Level 2 (Main Lookout Deck): If currently at Level 2 elevation (feetY > 345.0)
-  if (feetY > 345.0) {
-    return 348.0;
-  }
+  elevatorController.state = stop.id;
+  state.onObservationDeck = idx > 0;
+  state.deckFloor = Math.max(1, idx);
+  if (scene.fog && idx === 0) scene.fog.density = 0.0021;
 
-  // 5. Level 1 (Outdoor Deck & South Glass Floor)
+  const msgs = [
+    '🕊️ BACK ON THE PLAZA • CN TOWER PEACE SANCTUARY',
+    '🌟 LEVEL 1 • 342m GLASS FLOOR & OUTDOOR SKYTERRACE 🌟',
+    '🔭 LEVEL 2 • 348m MAIN LOOKOUT & TELESCOPES 🔭',
+    '🍽️ LEVEL 3 • 354m 360 RESTAURANT 🍽️'
+  ];
+  showAnnouncement(msgs[idx] || stop.name, 4000);
+}
+
+// Kept for older callers: floor under (x, z) given EYE height
+function getDeckFloorY(x, z, eyeY) {
+  if (city && city.floorAt) return city.floorAt(x, z, eyeY - EYE_HEIGHT);
   return 342.0;
 }
 
 let activeDeckAction = null;
 
+function setDeckPrompt(key, text) {
+  const promptEl = document.getElementById('deck-action-prompt');
+  const actionText = document.getElementById('deck-action-text');
+  const actionKey = document.getElementById('deck-action-key');
+  if (promptEl && actionText && actionKey) {
+    actionKey.innerText = key;
+    actionText.innerText = text;
+    promptEl.classList.remove('hidden');
+  }
+}
+
 function updateObservationDeck(dt) {
   if (!city || !city.cnElevator) return;
   const elevPos = city.cnElevator.pos;
   const promptEl = document.getElementById('deck-action-prompt');
-  const actionText = document.getElementById('deck-action-text');
-  const actionKey = document.getElementById('deck-action-key');
   activeDeckAction = null;
 
   if (state.inElevator) {
     if (promptEl) promptEl.classList.add('hidden');
+    closeElevatorPanel();
     return;
   }
 
-  // 1. Check Ground Pavilion Elevator Entrance (y < 20)
-  if (player.pos.y < 20) {
-    const dElev = Math.hypot(player.pos.x - elevPos.x, player.pos.z - elevPos.z);
+  const feet = player.pos.y - EYE_HEIGHT;
+  const dElev = Math.hypot(player.pos.x - elevPos.x, player.pos.z - elevPos.z);
+  const elevCallR = (elevPos.shaftR || 2.35) + 1.9;
+
+  // Ground: the cab doors or the pavilion entrance
+  if (feet < 20) {
     const dPav = Math.hypot(player.pos.x - city.cnElevator.entrancePavilion.doorX, player.pos.z - city.cnElevator.entrancePavilion.doorZ);
-    if (dElev < 3.2 || dPav < 3.5) {
-      activeDeckAction = 'board_up';
-      if (promptEl && actionText && actionKey) {
-        actionKey.innerText = '[E]';
-        actionText.innerText = 'BOARD GLASS ELEVATOR TO OBSERVATION DECK & 360 RESTAURANT';
-        promptEl.classList.remove('hidden');
-      }
+    if (dElev < elevCallR || dPav < 4.5) {
+      activeDeckAction = 'elevator';
+      setDeckPrompt('[E]', 'CN TOWER ELEVATOR • CHOOSE A FLOOR');
       return;
     }
+    closeElevatorPanel();
   }
 
-  // 2. Observation Deck Level Checks (y > 50)
-  if (player.pos.y > 50) {
+  if (feet > 200) {
     state.onObservationDeck = true;
-    if (player.pos.y > 351.0) {
-      state.deckFloor = 3;
-    } else if (player.pos.y > 345.5) {
-      state.deckFloor = 2;
-    } else {
-      state.deckFloor = 1;
-    }
+    state.deckFloor = feet > 351.0 ? 3 : (feet > 345.0 ? 2 : 1);
 
     const cx = city.landmarks.cnTower[0];
     const cz = city.landmarks.cnTower[1];
@@ -2932,58 +2962,36 @@ function updateObservationDeck(dt) {
     const dz = player.pos.z - cz;
     const r = Math.hypot(dx, dz);
 
-    // Authentic Real CN Tower: Glass floor is strictly on the SOUTH side of Level 1 overlooking Lake Ontario & Roundhouse
-    // (dz < -5.0 && |dx| < 7.8, r: 8.8 to 17.8)
-    const onSouthGlassFloor = (state.deckFloor === 1 && dz < -5.0 && Math.abs(dx) < 7.8 && r >= 8.8 && r <= 17.8);
+    // Glass floor mesh sits on the SOUTH side (+z) of Level 1, r 9.5 to 17.5
+    const onSouthGlassFloor = (state.deckFloor === 1 && dz > 5.0 && Math.abs(dx) < 7.8 && r >= 9.5 && r <= 17.5);
     const glassFloorEl = document.getElementById('glass-floor-indicator');
-    if (glassFloorEl) {
-      if (onSouthGlassFloor) {
-        glassFloorEl.classList.remove('hidden');
-      } else {
-        glassFloorEl.classList.add('hidden');
-      }
-    }
+    if (glassFloorEl) glassFloorEl.classList.toggle('hidden', !onSouthGlassFloor);
 
-    // Elevator Doors on any deck floor (tightened trigger radius to 2.2m directly at door)
-    const dElevDeck = Math.hypot(player.pos.x - elevPos.x, player.pos.z - elevPos.z);
-    if (dElevDeck < 2.2) {
-      activeDeckAction = 'board_down';
-      if (promptEl && actionText && actionKey) {
-        actionKey.innerText = '[E]';
-        actionText.innerText = 'RIDE GLASS ELEVATOR DOWN TO GROUND PLAZA';
-        promptEl.classList.remove('hidden');
-      }
+    if (dElev < elevCallR && [342, 348, 354].some(y => Math.abs(feet - y) < 0.2)) {
+      activeDeckAction = 'elevator';
+      setDeckPrompt('[E]', 'GLASS ELEVATOR • CHOOSE A FLOOR');
       return;
     }
+    closeElevatorPanel();
 
-    // Check Tourist Telescopes on Floor 2
     if (state.deckFloor === 2 && city.cnElevator.viewfinders && !state.telescopeActive) {
       for (let i = 0; i < city.cnElevator.viewfinders.length; i++) {
         const vf = city.cnElevator.viewfinders[i];
         const dVf = Math.hypot(player.pos.x - vf.worldX, player.pos.z - vf.worldZ);
         if (dVf < 2.5) {
           activeDeckAction = { type: 'telescope', vf };
-          if (promptEl && actionText && actionKey) {
-            actionKey.innerText = '[E] / [V]';
-            actionText.innerText = `PEER THROUGH TELESCOPE: ${vf.name}`;
-            promptEl.classList.remove('hidden');
-          }
+          setDeckPrompt('[E] / [V]', `PEER THROUGH TELESCOPE: ${vf.name}`);
           return;
         }
       }
     }
 
-    // Check Sky Showdown Terminal on Floor 2
     if (state.deckFloor === 2 && !state.skyShowdownActive && city.cnElevator.terminal) {
       const term = city.cnElevator.terminal;
       const dTerm = Math.hypot(player.pos.x - term.x, player.pos.z - term.z);
       if (dTerm < 2.6) {
         activeDeckAction = 'start_showdown';
-        if (promptEl && actionText && actionKey) {
-          actionKey.innerText = '[G]';
-          actionText.innerText = 'START SKY SHOWDOWN MINI-GAME';
-          promptEl.classList.remove('hidden');
-        }
+        setDeckPrompt('[G]', 'START SKY SHOWDOWN MINI-GAME');
         return;
       }
     }
@@ -2998,16 +3006,9 @@ function updateObservationDeck(dt) {
 
 function handleDeckAction() {
   if (!activeDeckAction) return false;
-  if (activeDeckAction === 'board_up') {
-    startElevatorRide(342.0);
-    return true;
-  }
-  if (activeDeckAction === 'board_down') {
-    startElevatorRide(2.0);
-    return true;
-  }
-  if (activeDeckAction === 'board_restaurant') {
-    startElevatorRide(354.0);
+  if (activeDeckAction === 'elevator') {
+    if (elevatorPanel.open) closeElevatorPanel();
+    else openElevatorPanel();
     return true;
   }
   if (activeDeckAction.type === 'telescope') {

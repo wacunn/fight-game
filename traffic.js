@@ -522,6 +522,7 @@
         c.s = c.dir > 0 ? d : r.len - d;
         computeLogical(c);
         if (cars.some(o => o !== c && o.road && Math.hypot(o.lx - c.lx, o.lz - c.lz) < 9)) continue;
+        if (streetcars.some(o => o.mode !== 'hidden' && Math.hypot(o.vx - c.lx, o.vz - c.lz) < SC.L / 2 + 6)) continue;
         c.lane = 0;
         c.speed = r.limit * (0.6 + rnd() * 0.3);
         c.vx = c.lx; c.vz = c.lz; c.vh = c.lh;
@@ -532,7 +533,12 @@
     }
     function laneOffset(c) {
       const w = c.road.w;
-      if (c.laneSel === undefined) c.laneSel = rnd() < 0.5 ? 0 : 1;
+      if (c.laneSel === undefined) {
+        c.laneSel = rnd() < 0.5 ? 0 : 1;
+        // don't pick the inside (track) lane right where a streetcar already is
+        if (c.laneSel === 0 && streetcars.some(o => o.mode !== 'hidden' && Math.hypot(o.vx - (c.vx || 0), o.vz - (c.vz || 0)) < SC.L / 2 + 20)) c.laneSel = 1;
+      }
+      if (w >= 11 && c.road.n && c.road.n.indexOf('Queens Quay') === 0) return w * 0.375; // centre is a streetcar right-of-way
       return w >= 11 ? (c.laneSel ? w * 0.375 : w * 0.125) : w * 0.25;
     }
     function computeLogical(c) {
@@ -565,8 +571,252 @@
       c.laneSel = undefined;
     }
 
+    const SC = { L: 28.0, W: 2.54, H: 3.84 };   // TTC Flexity Outlook
+    const TRACK = city.streetcarTrackOffset || 1.5;
+    const streetcars = [];
     const anchor = city.start ? { x: city.start.x, z: city.start.z } : null;
     cars.forEach(c => placeCar(c, anchor, 25, 260) || placeCar(c, null));
+
+    const stopPoleSpots = [];
+
+    // ======================================================================
+    // TTC STREETCARS: 504 King and 509/510 Harbourfront, on fixed routes
+    // ======================================================================
+
+    const STOP_DWELL = 7.0;
+    const scRoutes = [];
+    const scTmpA = { x: 0, z: 0 }, scTmpB = { x: 0, z: 0 };
+
+    (city.streetcarRoutes || []).forEach(src => {
+      if (!src.pts || src.pts.length < 2 || typeof city.makeStreetcar !== 'function') return;
+      const rt = { id: src.id, pts: src.pts, limit: src.limit || 11, portal: src.portal, stops: [], cum: [0] };
+      for (let i = 1; i < rt.pts.length; i++) rt.cum.push(rt.cum[i - 1] + Math.hypot(rt.pts[i][0] - rt.pts[i - 1][0], rt.pts[i][1] - rt.pts[i - 1][1]));
+      rt.len = rt.cum[rt.cum.length - 1];
+      // Turnaround points: the car centre stops here. At a tunnel portal the whole 18 m car
+      // must be inside the 24 m portal before it vanishes.
+      rt.endLo = 0.5;
+      rt.endHi = rt.portal ? rt.len - (rt.portal.len / 2) : rt.len - 0.5;
+
+      // Stops roughly every 240 m, kept 30 m clear of signalised intersections
+      const clearOfSignals = d => {
+        const p = sample(rt, d);
+        return !signals.some(sg => Math.hypot(sg.x - p.x, sg.z - p.z) < 30);
+      };
+      for (let d = 140; d < rt.len - 80; d += 240) {
+        const pick = [0, 35, -35, 70, -70].map(o => d + o).find(dd => dd > 60 && dd < rt.len - 60 && clearOfSignals(dd));
+        if (pick !== undefined) rt.stops.push(pick);
+      }
+      scRoutes.push(rt);
+
+      const n = src.cars || 2;
+      for (let i = 0; i < n; i++) {
+        const sign = src.signs[i % src.signs.length];
+        const sc = {
+          isStreetcar: true, id: 10000 + streetcars.length, route: rt,
+          dir: i % 2 === 0 ? 1 : -1,
+          d: 40 + (rt.len - 80) * ((i + 0.5) / n),
+          speed: 0, mode: 'run', timer: 0, servedD: -1e9,
+          vx: 0, vz: 0, fx: 1, fz: 0, vh: 0,
+          design: SC, lenScale: 1, hitCd: 0, gongCd: 0, stuck: 0, ghost: 0, braking: false,
+          group: city.makeStreetcar(sign)
+        };
+        placeStreetcar(sc);
+        streetcars.push(sc);
+      }
+
+      // TTC stop poles on the right-hand curb for each direction (instanced, 3 draw calls total)
+      rt.stops.forEach(d => {
+        const p = sample(rt, d), tx = p.tx, tz = p.tz, cx = p.x, cz = p.z;
+        [1, -1].forEach(dir => {
+          const rx = -tz * dir, rz = tx * dir;            // right of travel
+          stopPoleSpots.push({ x: cx + rx * 6.4, z: cz + rz * 6.4, yaw: Math.atan2(tx * dir, tz * dir) });
+        });
+      });
+    });
+
+    function placeStreetcar(sc) {
+      const rt = sc.route, half = SC.L * 0.42;
+      const clampD = d => Math.max(0, Math.min(rt.len, d));
+      // Whole-car pose: used for collisions, look-ahead and the minimap
+      let p = sample(rt, clampD(sc.d + sc.dir * half)); scTmpA.x = p.x; scTmpA.z = p.z;
+      p = sample(rt, clampD(sc.d - sc.dir * half)); scTmpB.x = p.x; scTmpB.z = p.z;
+      let fx = scTmpA.x - scTmpB.x, fz = scTmpA.z - scTmpB.z;
+      const fl = Math.hypot(fx, fz);
+      if (fl < 0.5) { p = sample(rt, clampD(sc.d)); fx = p.tx * sc.dir; fz = p.tz * sc.dir; }
+      else { fx /= fl; fz /= fl; }
+      sc.fx = fx; sc.fz = fz;
+      sc.vx = (scTmpA.x + scTmpB.x) / 2 - fz * TRACK;
+      sc.vz = (scTmpA.z + scTmpB.z) / 2 + fx * TRACK;
+      sc.vh = Math.atan2(fx, fz);
+
+      const secs = sc.group.userData.sections;
+      if (!secs) { sc.group.position.set(sc.vx, 0.05, sc.vz); sc.group.rotation.y = sc.vh; return; }
+      // Articulated: each section sits on its own stretch of track, so the car bends through curves
+      secs.forEach(s => {
+        const c = sc.d + sc.dir * s.offset, h = s.len / 2;
+        let q = sample(rt, clampD(c + sc.dir * h)); const ax = q.x, az = q.z;
+        q = sample(rt, clampD(c - sc.dir * h)); const bx = q.x, bz = q.z;
+        let sx = ax - bx, sz = az - bz;
+        const sl = Math.hypot(sx, sz);
+        if (sl < 0.2) { sx = fx; sz = fz; } else { sx /= sl; sz /= sl; }
+        s.group.position.set((ax + bx) / 2 - sz * TRACK, 0.05, (az + bz) / 2 + sx * TRACK);
+        s.group.rotation.y = Math.atan2(sx, sz);
+      });
+    }
+
+    function streetcarGong(dist) {
+      if (!audio || !audio.ctx || audio.isMuted) return;
+      const ctx = audio.ctx, t0 = ctx.currentTime, vol = 0.25 / (1 + dist / 15);
+      [0, 0.22].forEach(off => {
+        const t = t0 + off;
+        [1318, 1975].forEach((f, k) => {
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          o.type = 'triangle'; o.frequency.value = f;
+          g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol * (k ? 0.4 : 1), t + 0.005);
+          g.gain.exponentialRampToValueAtTime(0.0005, t + 0.6);
+          o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 0.65);
+        });
+      });
+    }
+
+    function updateStreetcars(dt, ctx, people, P) {
+      streetcars.forEach(sc => {
+        const rt = sc.route;
+        sc.hitCd -= dt; sc.gongCd -= dt; sc.ghost -= dt;
+
+        if (sc.mode === 'hidden') {
+          sc.timer -= dt;
+          if (sc.timer > 0) return;
+          // don't pop out on top of another car on the same track
+          const blocked = streetcars.some(o => o !== sc && o.route === rt && o.mode !== 'hidden' && o.dir === sc.dir && Math.abs(o.d - sc.d) < SC.L + 12);
+          if (blocked) { sc.timer = 1; return; }
+          sc.mode = 'run'; sc.group.visible = true; sc.speed = 2;
+        }
+
+        if (sc.mode === 'dwell') {
+          sc.timer -= dt;
+          sc.speed = 0; sc.braking = true;
+          if (sc.timer <= 0) { sc.mode = 'run'; if (sc.gongCd <= 0) { streetcarGong(Math.hypot(sc.vx - P.x, sc.vz - P.z)); sc.gongCd = 4; } }
+        }
+
+        let gap = Infinity, personAhead = false, waitingForTraffic = false;
+        if (sc.mode === 'run') {
+          // measured from the car's centre, so add half a car: you see 14-45 m past the nose
+          const look = SC.L / 2 + Math.max(14, Math.min(45, 8 + sc.speed * 2.6));
+          const rem = sc.dir > 0 ? rt.endHi - sc.d : sc.d - rt.endLo;
+          gap = rem + 3.2;                                        // roll right to the end of the line
+
+          // next stop
+          let stopRem = Infinity;
+          rt.stops.forEach(sd => {
+            if (Math.abs(sd - sc.servedD) < 1) return;
+            const r = (sd - sc.d) * sc.dir;
+            if (r > -0.3 && r < stopRem) stopRem = r;
+          });
+          if (stopRem < Infinity) gap = Math.min(gap, Math.max(0, stopRem) + 3.0);
+          if (stopRem < 0.5 && sc.speed < 0.6) {
+            sc.mode = 'dwell'; sc.timer = STOP_DWELL; sc.servedD = sc.d + stopRem * sc.dir; sc.speed = 0;
+          }
+
+          // traffic lights (same ones the cars use)
+          signals.forEach(sg => {
+            if (sg.fx * sc.fx + sg.fz * sc.fz < 0.8) return;
+            const r = rel(sc, sg.x, sg.z);
+            if (r.f < SC.L / 2 || r.f > 70 || Math.abs(r.l) > 8) return;
+            const dStop = r.f - 5.2 - SC.L / 2;
+            if (sg.state === 'red' || (sg.state === 'yellow' && dStop > 10)) {
+              if (dStop + 2.5 < gap) { gap = dStop + 2.5; waitingForTraffic = true; }
+            }
+          });
+
+          if (sc.ghost <= 0) {
+            cars.forEach(o => {
+              if (!o.road) return;
+              const r = rel(sc, o.vx, o.vz);
+              if (r.f <= SC.L / 2 || r.f > look + SC.L / 2 || Math.abs(r.l) > 1.9) return; // only cars clear ahead of our nose
+              if (sc.fx * o.fx + sc.fz * o.fz < -0.5) return;     // oncoming
+              gap = Math.min(gap, r.f - (SC.L + o.design.L * o.lenScale) / 2);
+            });
+            streetcars.forEach(o => {
+              if (o === sc || o.mode === 'hidden') return;
+              const r = rel(sc, o.vx, o.vz);
+              if (r.f <= 0 || r.f > look + SC.L || Math.abs(r.l) > 1.9) return;
+              if (sc.fx * o.fx + sc.fz * o.fz < -0.5) return;
+              gap = Math.min(gap, r.f - SC.L - 2);
+            });
+          }
+          people.forEach(p => {
+            const r = rel(sc, p.x, p.z);
+            if (r.f > 0 && r.f < look && Math.abs(r.l) < SC.W / 2 + 0.7) {
+              const g = r.f - SC.L / 2 - 0.4;
+              if (g < gap) { gap = g; personAhead = !!p.isPlayer; }
+            }
+          });
+          if (personAhead && gap < 14 && sc.gongCd <= 0) { streetcarGong(Math.hypot(sc.vx - P.x, sc.vz - P.z)); sc.gongCd = 2.5; }
+
+          // speed: streetcars pull away gently and brake smoothly
+          const target = Math.min(rt.limit, Math.max(0, (gap - 3) * 0.8));
+          const decel = gap < 6 ? 9 : 4;
+          sc.speed += Math.max(-decel * dt, Math.min(1.4 * dt, target - sc.speed));
+          sc.speed = Math.max(0, sc.speed);
+          sc.braking = target < sc.speed - 0.3;
+
+          if (sc.speed < 0.3 && gap < 6 && !personAhead && !waitingForTraffic) { sc.stuck += dt; if (sc.stuck > 8) { sc.ghost = 3; sc.stuck = 0; } }
+          else sc.stuck = 0;
+
+          sc.d += sc.dir * sc.speed * dt;
+          // end of the line: off the map or into the Union Station tunnel; come back the other way
+          if ((sc.dir > 0 && sc.d >= rt.endHi) || (sc.dir < 0 && sc.d <= rt.endLo)) {
+            sc.d = Math.max(rt.endLo, Math.min(rt.endHi, sc.d));
+            sc.dir *= -1; sc.mode = 'hidden'; sc.timer = rt.portal && sc.dir < 0 ? 14 : 9;
+            sc.servedD = -1e9; sc.speed = 0; sc.group.visible = false;
+          }
+        }
+
+        placeStreetcar(sc);
+        if (sc.mode === 'hidden') return;
+
+        // collisions with people: same rules as cars, but a streetcar is not going to stop for you
+        const hx = SC.L / 2 + 0.15, hz = SC.W / 2 + 0.15;
+        people.forEach(p => {
+          const r = rel(sc, p.x, p.z);
+          const R = p.isPlayer ? 0.45 : 0.5;
+          if (Math.abs(r.f) > hx + R || Math.abs(r.l) > hz + R) return;
+          if (p.isPlayer && city.isInsidePeaceZone(p.x, p.z)) return;
+          if (sc.speed > 3 && sc.hitCd <= 0) {
+            const side = r.l >= 0 ? 1 : -1;
+            const kx = sc.fx * sc.speed * 1.1 + -sc.fz * side * 4, kz = sc.fz * sc.speed * 1.1 + sc.fx * side * 4;
+            const dmg = Math.round(12 + sc.speed * 3);
+            if (p.isPlayer) ctx.onHitPlayer(dmg, kx, kz, sc);
+            else ctx.onHitEnemy(p.enemy, dmg * 2, kx * 1.3, kz * 1.3, sc);
+            crunch(); streetcarGong(0);
+            sc.hitCd = 0.8; sc.gongCd = 3; sc.speed *= 0.5;
+          } else {
+            const pf = hx + R - Math.abs(r.f), pl = hz + R - Math.abs(r.l);
+            if (pl < pf) { const s = (r.l >= 0 ? 1 : -1) * pl; ctx.pushOut(p, -sc.fz * s, sc.fx * s); }
+            else { const s = (r.f >= 0 ? 1 : -1) * pf; ctx.pushOut(p, sc.fx * s, sc.fz * s); }
+          }
+        });
+      });
+    }
+
+    // Build the stop poles now that every route has its stops
+    if (stopPoleSpots.length) {
+      const poleMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.06, 0.06, 3.0, 8),
+        new THREE.MeshStandardMaterial({ color: 0x9ca3af, metalness: 0.6, roughness: 0.4 }), stopPoleSpots.length);
+      const signMeshI = new THREE.InstancedMesh(new THREE.BoxGeometry(0.05, 0.6, 0.45),
+        new THREE.MeshStandardMaterial({ color: 0xda251d, roughness: 0.5 }), stopPoleSpots.length);
+      const bandMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.06, 0.16, 0.46),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }), stopPoleSpots.length);
+      const mm = new THREE.Matrix4(), qq = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), pp = new THREE.Vector3(), upv = new THREE.Vector3(0, 1, 0);
+      stopPoleSpots.forEach((sp, i) => {
+        qq.setFromAxisAngle(upv, sp.yaw);
+        mm.compose(pp.set(sp.x, 1.5, sp.z), qq, one); poleMesh.setMatrixAt(i, mm);
+        mm.compose(pp.set(sp.x, 2.7, sp.z), qq, one); signMeshI.setMatrixAt(i, mm);
+        mm.compose(pp.set(sp.x, 2.55, sp.z), qq, one); bandMesh.setMatrixAt(i, mm);
+      });
+      [poleMesh, signMeshI, bandMesh].forEach(m => { m.instanceMatrix.needsUpdate = true; scene.add(m); });
+    }
 
     // ---------- audio ----------
     let engine = null;
@@ -697,6 +947,18 @@
             gap = Math.min(gap, r.f - (L + o.design.L * o.lenScale) / 2);
           });
         }
+        let streetcarAhead = false;
+        streetcars.forEach(o => {
+          if (o.mode === 'hidden') return;
+          const inside = rel(o, c.vx, c.vz);
+          if (Math.abs(inside.f) < SC.L / 2 + 1 && Math.abs(inside.l) < SC.W / 2 + 0.8) return;
+          for (let k = -0.5; k <= 0.51; k += 0.1) {            // every ~2.8 m along the car
+            const r = rel(c, o.vx + o.fx * SC.L * k, o.vz + o.fz * SC.L * k);
+            if (r.f <= 0 || r.f > look || Math.abs(r.l) > 1.9) continue;
+            const g = r.f - L / 2 - 1.0;
+            if (g < gap) { gap = g; streetcarAhead = true; }
+          }
+        });
         people.forEach(p => {
           const r = rel(c, p.x, p.z);
           if (r.f > 0 && r.f < look && Math.abs(r.l) < c.design.W / 2 + 0.7) {
@@ -738,7 +1000,7 @@
         if (personAhead && gap < 10 && c.speed > 2 && c.honkCd <= 0) { honk(Math.hypot(c.vx - P.x, c.vz - P.z)); c.honkCd = 2.5; }
 
         // gridlock breaker: if stuck behind cars for a while, ghost through
-        if (c.speed < 0.3 && gap < 6 && !personAhead && !isWaitingAtRed) { c.stuck += dt; if (c.stuck > 6) { c.ghost = 2.5; c.stuck = 0; } } else c.stuck = 0;
+        if (c.speed < 0.3 && gap < 6 && !personAhead && !isWaitingAtRed && !streetcarAhead) { c.stuck += dt; if (c.stuck > 6) { c.ghost = 2.5; c.stuck = 0; } } else c.stuck = 0;
 
         // ---- move along the network ----
         c.s += c.speed * dt;
@@ -786,6 +1048,8 @@
 
         writeCar(c);
       });
+
+      updateStreetcars(dt, ctx, people, P);
 
       Object.values(meshes).forEach(m => {
         ['paint', 'glass', 'trim', 'head', 'tail', 'sign'].forEach(g => { if (m[g]) m[g].instanceMatrix.needsUpdate = true; });
@@ -838,7 +1102,11 @@
       return { inCrosswalk: false, isSafe: false, street: '', signal: '' };
     }
 
-    return { cars, update, silence, getIntersections: () => signalIntersections, isSafeCrossing };
+    function streetcarDots() {
+      return streetcars.filter(sc => sc.mode !== 'hidden').map(sc => ({ x: sc.vx, z: sc.vz }));
+    }
+
+    return { cars, streetcars, streetcarDots, update, silence, getIntersections: () => signalIntersections, isSafeCrossing };
   }
 
   window.createTraffic = createTraffic;

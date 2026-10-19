@@ -1840,5 +1840,57 @@ body.telescope-mode #crosshair-wrapper {
   display: none !important;
 }
 
-
-
+/* CN Tower elevator floor-select panel */
+#elevator-panel {
+  position: absolute;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 150;
+  width: 300px;
+  padding: 14px 14px 10px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1.5px solid #38bdf8;
+  border-radius: 14px;
+  box-shadow: 0 0 22px rgba(56, 189, 248, 0.45), inset 0 0 12px rgba(56, 189, 248, 0.15);
+  color: #f8fafc;
+  pointer-events: auto;
+}
+#elevator-panel.hidden { display: none; }
+#elevator-panel .elev-panel-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 10px;
+}
+#elevator-panel .elev-panel-title {
+  font-family: 'Teko', sans-serif; font-size: 22px; font-weight: 700; color: #38bdf8; line-height: 1;
+}
+#elevator-panel .elev-panel-hint { font-size: 11px; color: #94a3b8; }
+#elevator-floor-list { display: flex; flex-direction: column; gap: 6px; }
+.elev-floor-btn {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 8px 10px;
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  color: inherit; text-align: left; cursor: pointer;
+  font: inherit;
+}
+.elev-floor-btn:hover, .elev-floor-btn.is-highlight {
+  border-color: #fbbf24; background: rgba(251, 191, 36, 0.12);
+}
+.elev-floor-btn.is-here { opacity: 0.55; }
+.elev-floor-key {
+  flex: 0 0 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid #fbbf24; color: #fbbf24;
+  font-family: 'Teko', sans-serif; font-size: 24px; font-weight: 700; line-height: 1;
+}
+.elev-floor-btn.is-here .elev-floor-key { border-color: #64748b; color: #94a3b8; }
+.elev-floor-text { display: flex; flex-direction: column; min-width: 0; }
+.elev-floor-label { font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 1px; }
+.elev-floor-name { font-size: 14px; font-weight: 700; }
+.elev-floor-sub { font-size: 11px; color: #cbd5e1; }
+#elevator-panel .elev-panel-foot { margin-top: 10px; font-size: 11px; color: #94a3b8; text-align: center; }
+@media (max-width: 700px) {
+  #elevator-panel { right: 50%; transform: translate(50%, -50%); width: min(300px, 90vw); }
+}

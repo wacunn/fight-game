@@ -418,7 +418,7 @@
     if (!MAP) throw new Error('TORONTO_MAP data missing (toronto_map.js not loaded)');
 
     const [[minX, minZ], [maxX, maxZ]] = MAP.bounds;
-    const PLAY = { minX: minX + 25, maxX: maxX - 25, minZ: minZ + 25, maxZ: maxZ - 25 };
+    const PLAY = { minX: Math.min(minX, -960), maxX: Math.max(maxX, 1020), minZ: Math.min(minZ, -760), maxZ: Math.max(maxZ, 600) };
     const LM = Object.assign({}, MAP.landmarks);
 
     // ---------- CN Tower vertical walkables ----------
@@ -445,15 +445,34 @@
       return { r: Math.hypot(dx, dz), a };
     }
 
+    function podCanMoveTo(fromX, fromZ, toX, toZ, feetY, radius = 0.6) {
+      const cx = LM.cnTower[0], cz = LM.cnTower[1];
+      const toR = Math.hypot(toX - cx, toZ - cz);
+      // Central concrete core
+      if (toR < 6.8 + radius * 0.2) return false;
+      // Outer glass perimeter / SkyTerrace rail
+      if (toR > 22.8 - radius * 0.2) return false;
+      // Elevator shaft cylinder (unless cab is at this floor level)
+      const dShaft = Math.hypot(toX - railX, toZ - railZ);
+      if (dShaft < 2.35) {
+        const cabAtLevel = elevatorCab && Math.abs(elevatorCab.position.y - (feetY + 0.15)) < 1.0;
+        if (!cabAtLevel) {
+          const fromShaft = Math.hypot(fromX - railX, fromZ - railZ);
+          if (dShaft < fromShaft) return false;
+        }
+      }
+      return true;
+    }
+
     function floorAt(x, z, y) {
       if (y !== undefined && y > 50) {
-        const feetY = (y > 300 && (y - 340) % 6 > 1.0) ? (y - 1.7) : y;
+        const feetY = (y > 300 && (y - 340) % 6 > 1.0 && y % 1 > 0.4) ? (y - 1.7) : y;
         if (elevatorCab) {
           const dCab = Math.hypot(x - elevatorCab.position.x, z - elevatorCab.position.z);
-          if (dCab <= 2.0) return elevatorCab.position.y;
+          if (dCab <= 2.2) return elevatorCab.position.y;
         } else {
           const dCab = Math.hypot(x - railX, z - railZ);
-          if (dCab <= 2.0) return 342.0;
+          if (dCab <= 2.2) return 342.0;
         }
         const pol = towerPolar(x, z);
         const r = pol.r;
@@ -464,27 +483,27 @@
           // 1. Lower Stairs (342 -> 348)
           if (a >= 1.25 && a <= 1.75) {
             const stairY = 342.0 + ((a - 1.25) / 0.5) * 6.0;
-            if (Math.abs(feetY - stairY) <= 2.2) return stairY;
+            if (Math.abs(feetY - stairY) <= 2.0) return stairY;
           }
           if (a >= 3.85 && a <= 4.35) {
             const stairY = 342.0 + ((a - 3.85) / 0.5) * 6.0;
-            if (Math.abs(feetY - stairY) <= 2.2) return stairY;
+            if (Math.abs(feetY - stairY) <= 2.0) return stairY;
           }
 
           // 2. Upper Stairs (348 -> 354)
           if (a >= 0.45 && a <= 0.95) {
             const stairY = 348.0 + ((a - 0.45) / 0.5) * 6.0;
-            if (Math.abs(feetY - stairY) <= 2.2) return stairY;
+            if (Math.abs(feetY - stairY) <= 2.0) return stairY;
           }
           if (a >= 2.45 && a <= 2.95) {
             const stairY = 348.0 + ((a - 2.45) / 0.5) * 6.0;
-            if (Math.abs(feetY - stairY) <= 2.2) return stairY;
+            if (Math.abs(feetY - stairY) <= 2.0) return stairY;
           }
         }
 
-        // Decks
-        if (feetY > 351.0) return 354.0;
-        if (feetY > 345.0) return 348.0;
+        // Decks: latch to floor level so jumps (up to 1.7m) don't jump floors
+        if (Math.abs(feetY - 354.0) < 3.2 || feetY >= 351.0) return 354.0;
+        if (Math.abs(feetY - 348.0) < 3.2 || (feetY >= 345.0 && feetY < 351.0)) return 348.0;
         return 342.0;
       }
       return 0.0;
@@ -1619,33 +1638,33 @@
     const level1Group = new THREE.Group();
     level1Group.position.y = 342.0;
 
-    // A) Solid Dark Granite / Slate Promenade Floor (North, East, West arc from -0.25pi to 1.25pi)
-    const f1SolidGeo = new THREE.RingGeometry(6.6, 23.2, 48, 1, -Math.PI * 0.25, Math.PI * 1.5);
-    f1SolidGeo.rotateX(-Math.PI / 2);
+    // A) Solid Dark Granite / Slate Promenade Floor (North, East, West arc)
+    const f1SolidGeo = new THREE.RingGeometry(6.6, 23.2, 48, 1, Math.PI * 0.75, Math.PI * 1.5);
+    f1SolidGeo.rotateX(Math.PI / 2);
     const f1SolidMesh = new THREE.Mesh(f1SolidGeo, deckFloor1Mat);
     level1Group.add(f1SolidMesh);
 
-    // In South quadrant (z < 0): solid walkways wrap inner and outer edges of Glass Floor
+    // In South quadrant (z > 0): solid walkways wrap inner and outer edges of Glass Floor
     // Inner solid walkway (r: 6.6 to 9.5)
-    const f1SouthInnerGeo = new THREE.RingGeometry(6.6, 9.5, 24, 1, -Math.PI * 0.75, Math.PI * 0.5);
-    f1SouthInnerGeo.rotateX(-Math.PI / 2);
+    const f1SouthInnerGeo = new THREE.RingGeometry(6.6, 9.5, 24, 1, Math.PI * 0.25, Math.PI * 0.5);
+    f1SouthInnerGeo.rotateX(Math.PI / 2);
     level1Group.add(new THREE.Mesh(f1SouthInnerGeo, deckFloor1Mat));
     // Outer SkyTerrace walkway (r: 17.5 to 23.2)
-    const f1SouthOuterGeo = new THREE.RingGeometry(17.5, 23.2, 24, 1, -Math.PI * 0.75, Math.PI * 0.5);
-    f1SouthOuterGeo.rotateX(-Math.PI / 2);
+    const f1SouthOuterGeo = new THREE.RingGeometry(17.5, 23.2, 24, 1, Math.PI * 0.25, Math.PI * 0.5);
+    f1SouthOuterGeo.rotateX(Math.PI / 2);
     level1Group.add(new THREE.Mesh(f1SouthOuterGeo, deckFloor1Mat));
 
-    // B) THE ICONIC GLASS FLOOR (South Section Only: r = 9.5 to 17.5, a = -0.75pi to -0.25pi)
+    // B) THE ICONIC GLASS FLOOR (South Section Only: r = 9.5 to 17.5, z > 0 toward Lake Ontario)
     // 12 individual 2.5-inch thick laminated glass panes with direct 342m drop through open cone!
-    const glassFloorGeo = new THREE.RingGeometry(9.5, 17.5, 24, 1, -Math.PI * 0.75, Math.PI * 0.5);
-    glassFloorGeo.rotateX(-Math.PI / 2);
+    const glassFloorGeo = new THREE.RingGeometry(9.5, 17.5, 24, 1, Math.PI * 0.25, Math.PI * 0.5);
+    glassFloorGeo.rotateX(Math.PI / 2);
     const glassFloorMesh = new THREE.Mesh(glassFloorGeo, glassFloorMat);
     level1Group.add(glassFloorMesh);
 
     // Supporting structural steel radial joists under the glass floor
     const joistGeo = new THREE.BoxGeometry(0.16, 0.2, 8.2);
     for (let i = 0; i < 9; i++) {
-      const ba = -Math.PI * 0.75 + (i * Math.PI * 0.5) / 8;
+      const ba = Math.PI * 0.25 + (i * Math.PI * 0.5) / 8;
       const joist = new THREE.Mesh(joistGeo, steelDarkMat);
       joist.position.set(Math.cos(ba) * 13.5, -0.1, Math.sin(ba) * 13.5);
       joist.rotation.y = -ba + Math.PI / 2;
@@ -1656,7 +1675,7 @@
       const arcGeo = new THREE.TorusGeometry(r, 0.08, 6, 24, Math.PI * 0.5);
       const arcMesh = new THREE.Mesh(arcGeo, steelDarkMat);
       arcMesh.rotation.x = Math.PI / 2;
-      arcMesh.rotation.z = -Math.PI * 0.75;
+      arcMesh.rotation.z = Math.PI * 0.25;
       arcMesh.position.y = -0.1;
       level1Group.add(arcMesh);
     });
@@ -1665,7 +1684,7 @@
     [9.5, 17.5].forEach(r => {
       const hazardBorder = new THREE.Mesh(new THREE.TorusGeometry(r, 0.1, 6, 32, Math.PI * 0.5), hazardStripeMat);
       hazardBorder.rotation.x = Math.PI / 2;
-      hazardBorder.rotation.z = -Math.PI * 0.75;
+      hazardBorder.rotation.z = Math.PI * 0.25;
       hazardBorder.position.y = 0.03;
       level1Group.add(hazardBorder);
     });
@@ -1675,8 +1694,8 @@
       'CN TOWER GLASS FLOOR • 2.5 INCH SOLID LAMINATED GLASS • 342m VERTICAL DROP • CAN HOLD 35 MOOSE',
       4.2, 0.55, '#facc15'
     );
-    glassFloorSign.position.set(0, 0.5, -9.2);
-    glassFloorSign.rotation.x = -Math.PI / 4;
+    glassFloorSign.position.set(0, 0.5, 8.8);
+    glassFloorSign.rotation.x = Math.PI / 4;
     level1Group.add(glassFloorSign);
 
     // C) Outdoor SkyTerrace perimeter safety cable fence along r = 23.0
@@ -3165,97 +3184,238 @@
       scene.add(scMesh);
     }
 
-    // ---------- 2. Red & White TTC Flexity Outlook Streetcars ----------
-    const scRedMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.35, metalness: 0.45 });
-    const scWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4, metalness: 0.2 });
-    const scDarkGlass = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.1, metalness: 0.85 });
-    const scRoofMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.65 });
-    const scChromeMat = new THREE.MeshStandardMaterial({ color: 0xcfd4dc, metalness: 0.85, roughness: 0.3 });
-    const scHeadLightMat = new THREE.MeshBasicMaterial({ color: 0xfff3d6 });
+    // ---------- 2. TTC Flexity Outlook Streetcars & Routes ----------
+    const streetcarRoutes = [
+      {
+        id: '504',
+        name: '504 King',
+        pts: [
+          [-917.8, -165.6], [-905.8, -168.9], [-836.3, -189.2], [-803.9, -198.9],
+          [-719.5, -224.2], [-700.2, -230.0], [-510.9, -286.3], [-494.0, -291.3],
+          [-216.5, -374.4], [-200.8, -378.8], [-118.4, -403.4], [-93.0, -411.2],
+          [-12.4, -435.2], [-2.8, -438.1], [66.9, -459.2], [250.0, -514.1],
+          [271.8, -520.7], [378.4, -552.6], [443.0, -571.9], [459.4, -576.8],
+          [609.5, -621.2], [643.1, -631.1], [714.2, -652.1], [725.4, -655.2],
+          [750.6, -662.8], [773.0, -669.5], [925.9, -715.6]
+        ],
+        limit: 12,
+        cars: 2,
+        signs: ['504 KING / BROADVIEW', '504 KING / DUNDAS WEST']
+      },
+      {
+        id: '509_510',
+        name: '509 Harbourfront / 510 Spadina',
+        pts: [
+          [-734.1, 538.1], [-706.2, 555.0], [-550.0, 552.0], [-380.0, 548.0],
+          [-160.4, 543.3], [-139.4, 538.1], [-95.2, 527.7], [-62.8, 520.2],
+          [-15.1, 508.2], [42.9, 493.6], [59.5, 490.1], [105.6, 479.2],
+          [153.1, 467.9], [190.9, 459.2], [211.8, 455.1]
+        ],
+        limit: 11,
+        cars: 2,
+        portal: true,
+        signs: ['509 HARBOURFRONT / UNION', '510 SPADINA / UNION']
+      }
+    ];
 
-    function buildTTCStreetcar(x, z, rotY, routeText = '504 KING') {
-      const carGroup = new THREE.Group();
+    // Build Union Station underground tunnel portal at the end of routes with portal: true
+    streetcarRoutes.forEach(rt => {
+      if (!rt.portal) return;
+      const n = rt.pts.length, e = rt.pts[n - 1];
+      // walk back ~32 m for the portal's axis
+      let back = n - 2, acc = 0;
+      while (back > 0 && acc + Math.hypot(rt.pts[back + 1][0] - rt.pts[back][0], rt.pts[back + 1][1] - rt.pts[back][1]) < 32) {
+        acc += Math.hypot(rt.pts[back + 1][0] - rt.pts[back][0], rt.pts[back + 1][1] - rt.pts[back][1]); back--;
+      }
+      const b = rt.pts[back];
+      const dx = e[0] - b[0], dz = e[1] - b[1], L = Math.hypot(dx, dz) || 1;
+      const fx = dx / L, fz = dz / L;
+      const PL = 32, PW = 6.0, PH = 4.6;
+      const cx = e[0] - fx * PL / 2, cz = e[1] - fz * PL / 2;
+      const g = new THREE.Group();
+      const concrete = new THREE.MeshStandardMaterial({ color: 0x8b8f96, roughness: 0.9 });
+      const portalInteriorMat = new THREE.MeshBasicMaterial({ color: 0x05070a });
 
-      // Articulated low-floor body (L = 18m, W = 2.45m, H = 3.3m)
-      const body = new THREE.Mesh(new THREE.BoxGeometry(2.45, 2.2, 18.0), scRedMat);
-      body.position.y = 1.6;
-      body.castShadow = true;
-      carGroup.add(body);
+      // Concrete tunnel mouth portal
+      const portalMesh = new THREE.Mesh(new THREE.BoxGeometry(PW, PH, PL), concrete);
+      portalMesh.position.y = PH / 2;
+      g.add(portalMesh);
 
-      // Signature crisp white waistline accent band
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.48, 0.55, 18.02), scWhiteMat);
-      stripe.position.y = 1.25;
-      carGroup.add(stripe);
+      // Dark tunnel interior
+      const darkInner = new THREE.Mesh(new THREE.BoxGeometry(PW - 0.8, PH - 0.6, PL + 0.1), portalInteriorMat);
+      darkInner.position.y = (PH - 0.6) / 2;
+      g.add(darkInner);
 
-      // Dark panoramic side windows
-      [-1, 1].forEach(side => {
-        const win = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.95, 16.5), scDarkGlass);
-        win.position.set(side * 1.23, 2.1, 0);
-        carGroup.add(win);
+      // Warning sign above tunnel portal
+      const portSign = signMesh(['TTC QUEENS QUAY UNDERGROUND PORTAL \u2022 TO UNION STATION'], 5.2, 0.5, { bg: '#0f172a', fg: '#f59e0b', borderColor: '#334155', size: 52 });
+      portSign.position.set(0, PH + 0.35, -PL / 2 + 0.1);
+      g.add(portSign);
+
+      g.position.set(cx, 0, cz);
+      g.rotation.y = Math.atan2(fx, fz);
+      scene.add(g);
+      rt.portal = { x: cx, z: cz, len: PL };
+    });
+
+    // 28 m, 2.54 m wide, 3.84 m high, five articulated sections (A-B-C-D-E). A, C and E sit on
+    // skirted bogies; B and D are suspended between them. Single-ended: driver's cab at the
+    // front only, four doors on the right-hand side, amber LED destination signs front/rear/sides,
+    // twin blue accessibility lights on the nose, single-arm pantograph.
+    // Each section is its own group so traffic.js can lay it along the track through curves.
+    const FLEX = {
+      W: 2.54,
+      sections: [ // offset = centre of the section from the centre of the car, front positive
+        { id: 'A', len: 7.0, offset: 10.5, bogie: true },
+        { id: 'B', len: 3.6, offset: 5.2 },
+        { id: 'C', len: 6.8, offset: 0.0, bogie: true, pantograph: true },
+        { id: 'D', len: 3.6, offset: -5.2 },
+        { id: 'E', len: 7.0, offset: -10.5, bogie: true }
+      ],
+      // livery (tweak here)
+      red: 0xd71920, glass: 0x0b0f17, roof: 0xc9ced6, pod: 0xb8bec7, skirt: 0x2b2f36,
+      under: 0x1a1d22, door: 0x9aa1ab, bellows: 0x15171b, chrome: 0xc7ccd3, wheel: 0x3a3d42
+    };
+    const flexPaintMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.35 });
+    const flexLightMat = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
+    const flexSignCache = new Map();
+    const _fm = new THREE.Matrix4(), _fq = new THREE.Quaternion(), _fe = new THREE.Euler(), _fv = new THREE.Vector3(), _fs = new THREE.Vector3(1, 1, 1);
+    const _fy = new THREE.Vector3(0, 1, 0), _fd = new THREE.Vector3();
+
+    function flexPart(list, geo, color, x, y, z, rx, ry, rz) {
+      const g = geo.index ? geo.toNonIndexed() : geo.clone();
+      _fe.set(rx || 0, ry || 0, rz || 0);
+      _fm.compose(_fv.set(x, y, z), _fq.setFromEuler(_fe), _fs);
+      g.applyMatrix4(_fm);
+      list.push({ g, c: new THREE.Color(color) });
+    }
+    function flexBox(list, w, h, d, color, x, y, z, rx, ry, rz) {
+      flexPart(list, new THREE.BoxGeometry(w, h, d), color, x, y, z, rx, ry, rz);
+    }
+    // thin rod between two points (pantograph arms)
+    function flexRod(list, a, b, r, color) {
+      _fd.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      const len = _fd.length();
+      const g = new THREE.CylinderGeometry(r, r, len, 6).toNonIndexed();
+      _fq.setFromUnitVectors(_fy, _fd.normalize());
+      _fm.compose(_fv.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), _fq, _fs);
+      g.applyMatrix4(_fm);
+      list.push({ g, c: new THREE.Color(color) });
+    }
+    function flexMerge(list) {
+      let n = 0;
+      list.forEach(p => { n += p.g.attributes.position.count; });
+      const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3);
+      let o = 0;
+      list.forEach(p => {
+        const P = p.g.attributes.position.array, N = p.g.attributes.normal.array;
+        pos.set(P, o * 3); nor.set(N, o * 3);
+        for (let i = 0; i < p.g.attributes.position.count; i++) {
+          col[(o + i) * 3] = p.c.r; col[(o + i) * 3 + 1] = p.c.g; col[(o + i) * 3 + 2] = p.c.b;
+        }
+        o += p.g.attributes.position.count;
+        p.g.dispose();
       });
-
-      // Front & Rear curved windshields
-      [-1, 1].forEach(side => {
-        const fWin = new THREE.Mesh(new THREE.BoxGeometry(2.35, 1.1, 0.06), scDarkGlass);
-        fWin.position.set(0, 2.05, side * 9.01);
-        carGroup.add(fWin);
-      });
-
-      // Roof HVAC pods & equipment covers
-      const roofPod = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.45, 15.0), scRoofMat);
-      roofPod.position.set(0, 2.85, 0);
-      carGroup.add(roofPod);
-
-      // Articulated Pantograph assembly on roof
-      const pantoBase = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.25, 1.8), scChromeMat);
-      pantoBase.position.set(0, 3.15, 4.0);
-      carGroup.add(pantoBase);
-      const pantoArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.2, 8), scChromeMat);
-      pantoArm.rotation.x = Math.PI / 4;
-      pantoArm.position.set(0, 3.8, 3.4);
-      carGroup.add(pantoArm);
-      const pantoHead = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 0.25), scChromeMat);
-      pantoHead.position.set(0, 4.5, 2.6);
-      carGroup.add(pantoHead);
-
-      // Glowing Amber Route Destination LED signs ("504 KING" / "510 SPADINA")
-      const routeSign = signMesh([routeText], 2.2, 0.45, { bg: '#000000', fg: '#ff9900', borderColor: '#332200', size: 68 });
-      routeSign.position.set(0, 2.7, 9.04);
-      carGroup.add(routeSign);
-      const rearSign = signMesh([routeText], 2.2, 0.45, { bg: '#000000', fg: '#ff9900', borderColor: '#332200', size: 68 });
-      rearSign.position.set(0, 2.7, -9.04);
-      rearSign.rotation.y = Math.PI;
-      carGroup.add(rearSign);
-
-      // Dual front LED headlights
-      const headL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.08), scHeadLightMat);
-      headL.position.set(-0.75, 0.9, 9.02); carGroup.add(headL);
-      const headR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.08), scHeadLightMat);
-      headR.position.set(0.75, 0.9, 9.02); carGroup.add(headR);
-
-      carGroup.position.set(x, 0.05, z);
-      carGroup.rotation.y = rotY;
-      carGroup.matrixAutoUpdate = false; carGroup.updateMatrix();
-      scene.add(carGroup);
-
-      // Rotate oriented bounding box [-1.25, -9.0] to [1.25, 9.0] by rotY
-      const cosR = Math.cos(rotY), sinR = Math.sin(rotY);
-      const rotL = (lx, lz) => [x + lx * cosR + lz * sinR, z - lx * sinR + lz * cosR];
-      const pts = [
-        rotL(-1.25, -9.0),
-        rotL(1.25, -9.0),
-        rotL(1.25, 9.0),
-        rotL(-1.25, 9.0)
-      ];
-      addSolid({ type: 'poly', pts, h: 3.5, name: 'TTC Streetcar' });
-      return carGroup;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      g.computeBoundingSphere();
+      return g;
+    }
+    function flexSign(text, w, h) {
+      const key = text + '|' + w + '|' + h;
+      if (!flexSignCache.has(key)) {
+        flexSignCache.set(key, signMesh([text], w, h, { bg: '#050505', fg: '#ffb000', borderColor: '#050505', size: 76 }));
+      }
+      return flexSignCache.get(key).clone(); // shares geometry, texture and material
     }
 
-    // Place iconic TTC Flexity Streetcars along King Street West/East and Spadina
-    buildTTCStreetcar(45.0, -450.0, 1.86, '504 KING');
-    buildTTCStreetcar(-220.0, -370.0, 1.86, '504 KING');
-    buildTTCStreetcar(450.0, -570.0, 1.86, '504 KING');
-    buildTTCStreetcar(-605.0, -180.0, 0.28, '510 SPADINA');
+    function makeStreetcar(routeText = '504 KING') {
+      const carGroup = new THREE.Group();
+      const W = FLEX.W, hw = W / 2;
+      const sections = [];
+
+      FLEX.sections.forEach((sec, si) => {
+        const L = sec.len - 0.24;            // leave room for the bellows at each joint
+        const hl = L / 2;
+        const paint = [], lights = [];
+        const g = new THREE.Group();
+
+        // Body: red lower panel, full-height black glazing band, red top rail, light grey roof
+        flexBox(paint, W - 0.2, 0.2, L, FLEX.under, 0, 0.22, 0);
+        flexBox(paint, W, 0.88, L, FLEX.red, 0, 0.76, 0);
+        flexBox(paint, W, 1.35, L, FLEX.glass, 0, 1.875, 0);
+        flexBox(paint, W, 0.6, L, FLEX.red, 0, 2.85, 0);
+        flexBox(paint, W - 0.08, 0.1, L, FLEX.roof, 0, 3.2, 0);
+        // Roof equipment pods (the low-floor design puts it all up here)
+        flexBox(paint, W - 0.5, sec.bogie ? 0.58 : 0.32, L * 0.7, FLEX.pod, 0, sec.bogie ? 3.54 : 3.41, 0);
+
+        // Bogie with skirts and a glimpse of wheels
+        if (sec.bogie) {
+          flexBox(paint, W + 0.04, 0.62, 2.8, FLEX.skirt, 0, 0.44, 0);
+          [-0.95, 0.95].forEach(wz => [-0.72, 0.72].forEach(wx => {
+            flexPart(paint, new THREE.CylinderGeometry(0.33, 0.33, 0.12, 14), FLEX.wheel, wx, 0.33, wz, 0, 0, Math.PI / 2);
+          }));
+        }
+
+        // Doors: right-hand side only (local -x when facing +z). 1 = single, 2 = double.
+        const doors = { A: [[2.0, 0.95]], B: [[0, 1.35]], D: [[0, 1.35]], E: [[-2.0, 0.95]] }[sec.id] || [];
+        doors.forEach(([dz, dw]) => {
+          flexBox(paint, 0.05, 2.15, dw, FLEX.door, -hw - 0.02, 1.43, dz);
+          flexBox(paint, 0.05, 1.35, dw - 0.16, FLEX.glass, -hw - 0.045, 1.72, dz);
+          if (dw > 1.2) flexBox(paint, 0.06, 2.15, 0.04, FLEX.under, -hw - 0.05, 1.43, dz);
+        });
+
+        // Bellows to the next section
+        if (si < FLEX.sections.length - 1) flexBox(paint, W - 0.12, 2.9, 0.26, FLEX.bellows, 0, 1.75, -hl - 0.12);
+
+        if (sec.id === 'A') {
+          // Cab nose: raked black windscreen over a red front apron and black bumper
+          flexBox(paint, W - 0.06, 1.0, 0.32, FLEX.red, 0, 0.72, hl + 0.12);
+          flexBox(paint, W - 0.12, 0.16, 0.36, FLEX.under, 0, 0.28, hl + 0.16);
+          flexBox(paint, W - 0.1, 1.75, 0.1, FLEX.glass, 0, 2.08, hl + 0.16, -0.17, 0, 0);
+          flexBox(paint, W - 0.06, 0.45, 0.2, FLEX.red, 0, 3.0, hl + 0.02);
+          // Headlights, and the two blue bullseye accessibility lights
+          [-0.85, 0.85].forEach(x => flexBox(lights, 0.34, 0.14, 0.04, 0xfff3d6, x, 0.86, hl + 0.3));
+          [-0.48, 0.48].forEach(x => flexPart(lights, new THREE.CircleGeometry(0.075, 14), 0x2f7bff, x, 1.08, hl + 0.29));
+          const front = flexSign(routeText, 1.9, 0.32);
+          front.position.set(0, 3.0, hl + 0.125); g.add(front);
+          [-1, 1].forEach(side => {
+            const s = flexSign(routeText, 1.8, 0.3);
+            s.position.set(side * (hw + 0.012), 2.82, 1.0);
+            s.rotation.y = side * Math.PI / 2;
+            g.add(s);
+          });
+        }
+        if (sec.id === 'E') {
+          // Flat rear end: rear window, tail lights, rear sign
+          flexBox(paint, W - 0.3, 1.1, 0.04, FLEX.glass, 0, 1.95, -hl - 0.02);
+          [-0.9, 0.9].forEach(x => flexBox(lights, 0.3, 0.14, 0.04, 0xff2a2a, x, 0.86, -hl - 0.03));
+          const rear = flexSign(routeText, 1.9, 0.32);
+          rear.position.set(0, 3.0, -hl - 0.012); rear.rotation.y = Math.PI; g.add(rear);
+        }
+
+        if (sec.pantograph) {
+          // Single-arm pantograph, raised to the contact wire
+          flexBox(paint, 1.1, 0.1, 1.4, FLEX.under, 0, 3.88, 0);
+          [-0.28, 0.28].forEach(x => flexRod(paint, [x, 3.95, -0.55], [0, 4.6, 0.65], 0.035, FLEX.chrome));
+          flexRod(paint, [0, 4.6, 0.65], [0, 5.25, -0.15], 0.03, FLEX.chrome);
+          flexBox(paint, 1.7, 0.05, 0.26, FLEX.chrome, 0, 5.27, -0.15);
+        }
+
+        const body = new THREE.Mesh(flexMerge(paint), flexPaintMat);
+        body.castShadow = true;
+        g.add(body);
+        if (lights.length) g.add(new THREE.Mesh(flexMerge(lights), flexLightMat));
+        carGroup.add(g);
+        sections.push({ group: g, offset: sec.offset, len: sec.len });
+      });
+
+      carGroup.userData.sections = sections;
+      carGroup.userData.length = 28.0;
+      scene.add(carGroup);
+      return carGroup;
+    }
 
     // ---------- 3. Green & White Bi-Level GO Transit Train in Corridor ----------
     let goTrainGroup = null;
@@ -3825,6 +3985,7 @@
 
     return {
       canMoveTo,
+      podCanMoveTo,
       floorAt,
       findOpenSpot,
       update,
@@ -3834,14 +3995,32 @@
       bounds: PLAY,
       landmarks: LM,
       attribution: MAP.attribution,
+      // TTC Streetcars & Transit Network
+      streetcarRoutes,
+      streetcarTrackOffset: 1.5,
+      makeStreetcar,
       // CN Tower Glass Elevator, Observation Decks & 360 Restaurant reference
       cnElevator: {
         cab: elevatorCab,
         doors: [cabDoorLeft, cabDoorRight],
         rotatingRestaurantRing: rotatingRestaurantRing,
+        stops: [
+          { id: 'ground', label: 'GROUND', name: 'PLAZA & SANCTUARY', sub: 'Peace Zone · 0 m', y: 0.15, feet: 0 },
+          { id: 'floor1', label: 'LEVEL 1', name: 'GLASS FLOOR & SKYTERRACE', sub: 'Outdoor walk · 342 m', y: 342.15, feet: 342.0 },
+          { id: 'floor2', label: 'LEVEL 2', name: 'LOOKOUT & TELESCOPES', sub: '360° panorama · 348 m', y: 348.15, feet: 348.0 },
+          { id: 'floor3', label: 'LEVEL 3', name: '360 RESTAURANT', sub: 'Revolving dining · 354 m', y: 354.15, feet: 354.0 }
+        ],
+        exitFor: (idx) => {
+          const feet = [0, 342.0, 348.0, 354.0][idx] || 0;
+          if (idx === 0) {
+            return { x: pavX + 3.2 * cosElev, z: pavZ + 3.2 * sinElev, feet: 0, yaw: Math.atan2(cosElev, sinElev) };
+          }
+          return { x: railX + 3.2 * cosElev, z: railZ + 3.2 * sinElev, feet, yaw: Math.atan2(cosElev, sinElev) };
+        },
         pos: {
           x: railX,
           z: railZ,
+          shaftR: 2.35,
           groundY: 2.0,
           floor1Y: 342.0,
           floor2Y: 348.0,
@@ -3874,7 +4053,7 @@
       trafficRoads: groundRoads
         .filter(r => ['service', 'pedestrian', 'living_street'].indexOf(r.t) < 0)
         .filter(r => !r.pts.some(p => Math.hypot(p[0] - peaceCenter[0], p[1] - peaceCenter[1]) < PEACE_RADIUS + 8))
-        .map(r => ({ pts: r.pts, w: r.w, t: r.t, y: r.y, major: !!MAJOR[r.t] })),
+        .map(r => ({ pts: r.pts, w: r.w, t: r.t, y: r.y, n: (MAP.roads[r.id] || {}).n || '', major: !!MAJOR[r.t] })),
       peaceZone: {
         x: peaceCenter[0],
         z: peaceCenter[1],

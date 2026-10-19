@@ -1848,8 +1848,60 @@ body.telescope-mode #crosshair-wrapper {
   display: none !important;
 }
 
-
-
+/* CN Tower elevator floor-select panel */
+#elevator-panel {
+  position: absolute;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 150;
+  width: 300px;
+  padding: 14px 14px 10px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1.5px solid #38bdf8;
+  border-radius: 14px;
+  box-shadow: 0 0 22px rgba(56, 189, 248, 0.45), inset 0 0 12px rgba(56, 189, 248, 0.15);
+  color: #f8fafc;
+  pointer-events: auto;
+}
+#elevator-panel.hidden { display: none; }
+#elevator-panel .elev-panel-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 10px;
+}
+#elevator-panel .elev-panel-title {
+  font-family: 'Teko', sans-serif; font-size: 22px; font-weight: 700; color: #38bdf8; line-height: 1;
+}
+#elevator-panel .elev-panel-hint { font-size: 11px; color: #94a3b8; }
+#elevator-floor-list { display: flex; flex-direction: column; gap: 6px; }
+.elev-floor-btn {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 8px 10px;
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  color: inherit; text-align: left; cursor: pointer;
+  font: inherit;
+}
+.elev-floor-btn:hover, .elev-floor-btn.is-highlight {
+  border-color: #fbbf24; background: rgba(251, 191, 36, 0.12);
+}
+.elev-floor-btn.is-here { opacity: 0.55; }
+.elev-floor-key {
+  flex: 0 0 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid #fbbf24; color: #fbbf24;
+  font-family: 'Teko', sans-serif; font-size: 24px; font-weight: 700; line-height: 1;
+}
+.elev-floor-btn.is-here .elev-floor-key { border-color: #64748b; color: #94a3b8; }
+.elev-floor-text { display: flex; flex-direction: column; min-width: 0; }
+.elev-floor-label { font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 1px; }
+.elev-floor-name { font-size: 14px; font-weight: 700; }
+.elev-floor-sub { font-size: 11px; color: #cbd5e1; }
+#elevator-panel .elev-panel-foot { margin-top: 10px; font-size: 11px; color: #94a3b8; text-align: center; }
+@media (max-width: 700px) {
+  #elevator-panel { right: 50%; transform: translate(50%, -50%); width: min(300px, 90vw); }
+}
 
 </style>
   <!-- Three.js + Postprocessing + Tween.js for ultra-smooth dynamic combat -->
@@ -1948,6 +2000,16 @@ body.telescope-mode #crosshair-wrapper {
         <span class="elev-alt-val" id="elev-alt-val">12 m</span>
       </div>
       <div class="elev-tip">👀 MOUSE LOOK ACTIVE • ENJOY THE 360° SCENIC TORONTO VIEW</div>
+    </div>
+
+    <!-- CN Tower elevator floor-select panel -->
+    <div id="elevator-panel" class="hidden">
+      <div class="elev-panel-head">
+        <span class="elev-panel-title">CN TOWER GLASS ELEVATOR</span>
+        <span class="elev-panel-hint">Press a number</span>
+      </div>
+      <div id="elevator-floor-list"></div>
+      <div class="elev-panel-foot">[1]–[4] pick floor · ↑↓ + ENTER · [E] close</div>
     </div>
 
     <!-- Interactive Prompt Pill (Elevator, Telescopes, Sky Showdown) -->
@@ -2645,7 +2707,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     if (!MAP) throw new Error('TORONTO_MAP data missing (toronto_map.js not loaded)');
 
     const [[minX, minZ], [maxX, maxZ]] = MAP.bounds;
-    const PLAY = { minX: minX + 25, maxX: maxX - 25, minZ: minZ + 25, maxZ: maxZ - 25 };
+    const PLAY = { minX: Math.min(minX, -960), maxX: Math.max(maxX, 1020), minZ: Math.min(minZ, -760), maxZ: Math.max(maxZ, 600) };
     const LM = Object.assign({}, MAP.landmarks);
 
     // ---------- CN Tower vertical walkables ----------
@@ -2672,15 +2734,34 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       return { r: Math.hypot(dx, dz), a };
     }
 
+    function podCanMoveTo(fromX, fromZ, toX, toZ, feetY, radius = 0.6) {
+      const cx = LM.cnTower[0], cz = LM.cnTower[1];
+      const toR = Math.hypot(toX - cx, toZ - cz);
+      // Central concrete core
+      if (toR < 6.8 + radius * 0.2) return false;
+      // Outer glass perimeter / SkyTerrace rail
+      if (toR > 22.8 - radius * 0.2) return false;
+      // Elevator shaft cylinder (unless cab is at this floor level)
+      const dShaft = Math.hypot(toX - railX, toZ - railZ);
+      if (dShaft < 2.35) {
+        const cabAtLevel = elevatorCab && Math.abs(elevatorCab.position.y - (feetY + 0.15)) < 1.0;
+        if (!cabAtLevel) {
+          const fromShaft = Math.hypot(fromX - railX, fromZ - railZ);
+          if (dShaft < fromShaft) return false;
+        }
+      }
+      return true;
+    }
+
     function floorAt(x, z, y) {
       if (y !== undefined && y > 50) {
-        const feetY = (y > 300 && (y - 340) % 6 > 1.0) ? (y - 1.7) : y;
+        const feetY = (y > 300 && (y - 340) % 6 > 1.0 && y % 1 > 0.4) ? (y - 1.7) : y;
         if (elevatorCab) {
           const dCab = Math.hypot(x - elevatorCab.position.x, z - elevatorCab.position.z);
-          if (dCab <= 2.0) return elevatorCab.position.y;
+          if (dCab <= 2.2) return elevatorCab.position.y;
         } else {
           const dCab = Math.hypot(x - railX, z - railZ);
-          if (dCab <= 2.0) return 342.0;
+          if (dCab <= 2.2) return 342.0;
         }
         const pol = towerPolar(x, z);
         const r = pol.r;
@@ -2691,27 +2772,27 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
           // 1. Lower Stairs (342 -> 348)
           if (a >= 1.25 && a <= 1.75) {
             const stairY = 342.0 + ((a - 1.25) / 0.5) * 6.0;
-            if (Math.abs(feetY - stairY) <= 2.2) return stairY;
+            if (Math.abs(feetY - stairY) <= 2.0) return stairY;
           }
           if (a >= 3.85 && a <= 4.35) {
             const stairY = 342.0 + ((a - 3.85) / 0.5) * 6.0;
-            if (Math.abs(feetY - stairY) <= 2.2) return stairY;
+            if (Math.abs(feetY - stairY) <= 2.0) return stairY;
           }
 
           // 2. Upper Stairs (348 -> 354)
           if (a >= 0.45 && a <= 0.95) {
             const stairY = 348.0 + ((a - 0.45) / 0.5) * 6.0;
-            if (Math.abs(feetY - stairY) <= 2.2) return stairY;
+            if (Math.abs(feetY - stairY) <= 2.0) return stairY;
           }
           if (a >= 2.45 && a <= 2.95) {
             const stairY = 348.0 + ((a - 2.45) / 0.5) * 6.0;
-            if (Math.abs(feetY - stairY) <= 2.2) return stairY;
+            if (Math.abs(feetY - stairY) <= 2.0) return stairY;
           }
         }
 
-        // Decks
-        if (feetY > 351.0) return 354.0;
-        if (feetY > 345.0) return 348.0;
+        // Decks: latch to floor level so jumps (up to 1.7m) don't jump floors
+        if (Math.abs(feetY - 354.0) < 3.2 || feetY >= 351.0) return 354.0;
+        if (Math.abs(feetY - 348.0) < 3.2 || (feetY >= 345.0 && feetY < 351.0)) return 348.0;
         return 342.0;
       }
       return 0.0;
@@ -3846,33 +3927,33 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     const level1Group = new THREE.Group();
     level1Group.position.y = 342.0;
 
-    // A) Solid Dark Granite / Slate Promenade Floor (North, East, West arc from -0.25pi to 1.25pi)
-    const f1SolidGeo = new THREE.RingGeometry(6.6, 23.2, 48, 1, -Math.PI * 0.25, Math.PI * 1.5);
-    f1SolidGeo.rotateX(-Math.PI / 2);
+    // A) Solid Dark Granite / Slate Promenade Floor (North, East, West arc)
+    const f1SolidGeo = new THREE.RingGeometry(6.6, 23.2, 48, 1, Math.PI * 0.75, Math.PI * 1.5);
+    f1SolidGeo.rotateX(Math.PI / 2);
     const f1SolidMesh = new THREE.Mesh(f1SolidGeo, deckFloor1Mat);
     level1Group.add(f1SolidMesh);
 
-    // In South quadrant (z < 0): solid walkways wrap inner and outer edges of Glass Floor
+    // In South quadrant (z > 0): solid walkways wrap inner and outer edges of Glass Floor
     // Inner solid walkway (r: 6.6 to 9.5)
-    const f1SouthInnerGeo = new THREE.RingGeometry(6.6, 9.5, 24, 1, -Math.PI * 0.75, Math.PI * 0.5);
-    f1SouthInnerGeo.rotateX(-Math.PI / 2);
+    const f1SouthInnerGeo = new THREE.RingGeometry(6.6, 9.5, 24, 1, Math.PI * 0.25, Math.PI * 0.5);
+    f1SouthInnerGeo.rotateX(Math.PI / 2);
     level1Group.add(new THREE.Mesh(f1SouthInnerGeo, deckFloor1Mat));
     // Outer SkyTerrace walkway (r: 17.5 to 23.2)
-    const f1SouthOuterGeo = new THREE.RingGeometry(17.5, 23.2, 24, 1, -Math.PI * 0.75, Math.PI * 0.5);
-    f1SouthOuterGeo.rotateX(-Math.PI / 2);
+    const f1SouthOuterGeo = new THREE.RingGeometry(17.5, 23.2, 24, 1, Math.PI * 0.25, Math.PI * 0.5);
+    f1SouthOuterGeo.rotateX(Math.PI / 2);
     level1Group.add(new THREE.Mesh(f1SouthOuterGeo, deckFloor1Mat));
 
-    // B) THE ICONIC GLASS FLOOR (South Section Only: r = 9.5 to 17.5, a = -0.75pi to -0.25pi)
+    // B) THE ICONIC GLASS FLOOR (South Section Only: r = 9.5 to 17.5, z > 0 toward Lake Ontario)
     // 12 individual 2.5-inch thick laminated glass panes with direct 342m drop through open cone!
-    const glassFloorGeo = new THREE.RingGeometry(9.5, 17.5, 24, 1, -Math.PI * 0.75, Math.PI * 0.5);
-    glassFloorGeo.rotateX(-Math.PI / 2);
+    const glassFloorGeo = new THREE.RingGeometry(9.5, 17.5, 24, 1, Math.PI * 0.25, Math.PI * 0.5);
+    glassFloorGeo.rotateX(Math.PI / 2);
     const glassFloorMesh = new THREE.Mesh(glassFloorGeo, glassFloorMat);
     level1Group.add(glassFloorMesh);
 
     // Supporting structural steel radial joists under the glass floor
     const joistGeo = new THREE.BoxGeometry(0.16, 0.2, 8.2);
     for (let i = 0; i < 9; i++) {
-      const ba = -Math.PI * 0.75 + (i * Math.PI * 0.5) / 8;
+      const ba = Math.PI * 0.25 + (i * Math.PI * 0.5) / 8;
       const joist = new THREE.Mesh(joistGeo, steelDarkMat);
       joist.position.set(Math.cos(ba) * 13.5, -0.1, Math.sin(ba) * 13.5);
       joist.rotation.y = -ba + Math.PI / 2;
@@ -3883,7 +3964,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       const arcGeo = new THREE.TorusGeometry(r, 0.08, 6, 24, Math.PI * 0.5);
       const arcMesh = new THREE.Mesh(arcGeo, steelDarkMat);
       arcMesh.rotation.x = Math.PI / 2;
-      arcMesh.rotation.z = -Math.PI * 0.75;
+      arcMesh.rotation.z = Math.PI * 0.25;
       arcMesh.position.y = -0.1;
       level1Group.add(arcMesh);
     });
@@ -3892,7 +3973,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     [9.5, 17.5].forEach(r => {
       const hazardBorder = new THREE.Mesh(new THREE.TorusGeometry(r, 0.1, 6, 32, Math.PI * 0.5), hazardStripeMat);
       hazardBorder.rotation.x = Math.PI / 2;
-      hazardBorder.rotation.z = -Math.PI * 0.75;
+      hazardBorder.rotation.z = Math.PI * 0.25;
       hazardBorder.position.y = 0.03;
       level1Group.add(hazardBorder);
     });
@@ -3902,8 +3983,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       'CN TOWER GLASS FLOOR • 2.5 INCH SOLID LAMINATED GLASS • 342m VERTICAL DROP • CAN HOLD 35 MOOSE',
       4.2, 0.55, '#facc15'
     );
-    glassFloorSign.position.set(0, 0.5, -9.2);
-    glassFloorSign.rotation.x = -Math.PI / 4;
+    glassFloorSign.position.set(0, 0.5, 8.8);
+    glassFloorSign.rotation.x = Math.PI / 4;
     level1Group.add(glassFloorSign);
 
     // C) Outdoor SkyTerrace perimeter safety cable fence along r = 23.0
@@ -5392,97 +5473,238 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       scene.add(scMesh);
     }
 
-    // ---------- 2. Red & White TTC Flexity Outlook Streetcars ----------
-    const scRedMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.35, metalness: 0.45 });
-    const scWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4, metalness: 0.2 });
-    const scDarkGlass = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.1, metalness: 0.85 });
-    const scRoofMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.65 });
-    const scChromeMat = new THREE.MeshStandardMaterial({ color: 0xcfd4dc, metalness: 0.85, roughness: 0.3 });
-    const scHeadLightMat = new THREE.MeshBasicMaterial({ color: 0xfff3d6 });
+    // ---------- 2. TTC Flexity Outlook Streetcars & Routes ----------
+    const streetcarRoutes = [
+      {
+        id: '504',
+        name: '504 King',
+        pts: [
+          [-917.8, -165.6], [-905.8, -168.9], [-836.3, -189.2], [-803.9, -198.9],
+          [-719.5, -224.2], [-700.2, -230.0], [-510.9, -286.3], [-494.0, -291.3],
+          [-216.5, -374.4], [-200.8, -378.8], [-118.4, -403.4], [-93.0, -411.2],
+          [-12.4, -435.2], [-2.8, -438.1], [66.9, -459.2], [250.0, -514.1],
+          [271.8, -520.7], [378.4, -552.6], [443.0, -571.9], [459.4, -576.8],
+          [609.5, -621.2], [643.1, -631.1], [714.2, -652.1], [725.4, -655.2],
+          [750.6, -662.8], [773.0, -669.5], [925.9, -715.6]
+        ],
+        limit: 12,
+        cars: 2,
+        signs: ['504 KING / BROADVIEW', '504 KING / DUNDAS WEST']
+      },
+      {
+        id: '509_510',
+        name: '509 Harbourfront / 510 Spadina',
+        pts: [
+          [-734.1, 538.1], [-706.2, 555.0], [-550.0, 552.0], [-380.0, 548.0],
+          [-160.4, 543.3], [-139.4, 538.1], [-95.2, 527.7], [-62.8, 520.2],
+          [-15.1, 508.2], [42.9, 493.6], [59.5, 490.1], [105.6, 479.2],
+          [153.1, 467.9], [190.9, 459.2], [211.8, 455.1]
+        ],
+        limit: 11,
+        cars: 2,
+        portal: true,
+        signs: ['509 HARBOURFRONT / UNION', '510 SPADINA / UNION']
+      }
+    ];
 
-    function buildTTCStreetcar(x, z, rotY, routeText = '504 KING') {
-      const carGroup = new THREE.Group();
+    // Build Union Station underground tunnel portal at the end of routes with portal: true
+    streetcarRoutes.forEach(rt => {
+      if (!rt.portal) return;
+      const n = rt.pts.length, e = rt.pts[n - 1];
+      // walk back ~32 m for the portal's axis
+      let back = n - 2, acc = 0;
+      while (back > 0 && acc + Math.hypot(rt.pts[back + 1][0] - rt.pts[back][0], rt.pts[back + 1][1] - rt.pts[back][1]) < 32) {
+        acc += Math.hypot(rt.pts[back + 1][0] - rt.pts[back][0], rt.pts[back + 1][1] - rt.pts[back][1]); back--;
+      }
+      const b = rt.pts[back];
+      const dx = e[0] - b[0], dz = e[1] - b[1], L = Math.hypot(dx, dz) || 1;
+      const fx = dx / L, fz = dz / L;
+      const PL = 32, PW = 6.0, PH = 4.6;
+      const cx = e[0] - fx * PL / 2, cz = e[1] - fz * PL / 2;
+      const g = new THREE.Group();
+      const concrete = new THREE.MeshStandardMaterial({ color: 0x8b8f96, roughness: 0.9 });
+      const portalInteriorMat = new THREE.MeshBasicMaterial({ color: 0x05070a });
 
-      // Articulated low-floor body (L = 18m, W = 2.45m, H = 3.3m)
-      const body = new THREE.Mesh(new THREE.BoxGeometry(2.45, 2.2, 18.0), scRedMat);
-      body.position.y = 1.6;
-      body.castShadow = true;
-      carGroup.add(body);
+      // Concrete tunnel mouth portal
+      const portalMesh = new THREE.Mesh(new THREE.BoxGeometry(PW, PH, PL), concrete);
+      portalMesh.position.y = PH / 2;
+      g.add(portalMesh);
 
-      // Signature crisp white waistline accent band
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.48, 0.55, 18.02), scWhiteMat);
-      stripe.position.y = 1.25;
-      carGroup.add(stripe);
+      // Dark tunnel interior
+      const darkInner = new THREE.Mesh(new THREE.BoxGeometry(PW - 0.8, PH - 0.6, PL + 0.1), portalInteriorMat);
+      darkInner.position.y = (PH - 0.6) / 2;
+      g.add(darkInner);
 
-      // Dark panoramic side windows
-      [-1, 1].forEach(side => {
-        const win = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.95, 16.5), scDarkGlass);
-        win.position.set(side * 1.23, 2.1, 0);
-        carGroup.add(win);
+      // Warning sign above tunnel portal
+      const portSign = signMesh(['TTC QUEENS QUAY UNDERGROUND PORTAL \u2022 TO UNION STATION'], 5.2, 0.5, { bg: '#0f172a', fg: '#f59e0b', borderColor: '#334155', size: 52 });
+      portSign.position.set(0, PH + 0.35, -PL / 2 + 0.1);
+      g.add(portSign);
+
+      g.position.set(cx, 0, cz);
+      g.rotation.y = Math.atan2(fx, fz);
+      scene.add(g);
+      rt.portal = { x: cx, z: cz, len: PL };
+    });
+
+    // 28 m, 2.54 m wide, 3.84 m high, five articulated sections (A-B-C-D-E). A, C and E sit on
+    // skirted bogies; B and D are suspended between them. Single-ended: driver's cab at the
+    // front only, four doors on the right-hand side, amber LED destination signs front/rear/sides,
+    // twin blue accessibility lights on the nose, single-arm pantograph.
+    // Each section is its own group so traffic.js can lay it along the track through curves.
+    const FLEX = {
+      W: 2.54,
+      sections: [ // offset = centre of the section from the centre of the car, front positive
+        { id: 'A', len: 7.0, offset: 10.5, bogie: true },
+        { id: 'B', len: 3.6, offset: 5.2 },
+        { id: 'C', len: 6.8, offset: 0.0, bogie: true, pantograph: true },
+        { id: 'D', len: 3.6, offset: -5.2 },
+        { id: 'E', len: 7.0, offset: -10.5, bogie: true }
+      ],
+      // livery (tweak here)
+      red: 0xd71920, glass: 0x0b0f17, roof: 0xc9ced6, pod: 0xb8bec7, skirt: 0x2b2f36,
+      under: 0x1a1d22, door: 0x9aa1ab, bellows: 0x15171b, chrome: 0xc7ccd3, wheel: 0x3a3d42
+    };
+    const flexPaintMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.35 });
+    const flexLightMat = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
+    const flexSignCache = new Map();
+    const _fm = new THREE.Matrix4(), _fq = new THREE.Quaternion(), _fe = new THREE.Euler(), _fv = new THREE.Vector3(), _fs = new THREE.Vector3(1, 1, 1);
+    const _fy = new THREE.Vector3(0, 1, 0), _fd = new THREE.Vector3();
+
+    function flexPart(list, geo, color, x, y, z, rx, ry, rz) {
+      const g = geo.index ? geo.toNonIndexed() : geo.clone();
+      _fe.set(rx || 0, ry || 0, rz || 0);
+      _fm.compose(_fv.set(x, y, z), _fq.setFromEuler(_fe), _fs);
+      g.applyMatrix4(_fm);
+      list.push({ g, c: new THREE.Color(color) });
+    }
+    function flexBox(list, w, h, d, color, x, y, z, rx, ry, rz) {
+      flexPart(list, new THREE.BoxGeometry(w, h, d), color, x, y, z, rx, ry, rz);
+    }
+    // thin rod between two points (pantograph arms)
+    function flexRod(list, a, b, r, color) {
+      _fd.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      const len = _fd.length();
+      const g = new THREE.CylinderGeometry(r, r, len, 6).toNonIndexed();
+      _fq.setFromUnitVectors(_fy, _fd.normalize());
+      _fm.compose(_fv.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), _fq, _fs);
+      g.applyMatrix4(_fm);
+      list.push({ g, c: new THREE.Color(color) });
+    }
+    function flexMerge(list) {
+      let n = 0;
+      list.forEach(p => { n += p.g.attributes.position.count; });
+      const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3);
+      let o = 0;
+      list.forEach(p => {
+        const P = p.g.attributes.position.array, N = p.g.attributes.normal.array;
+        pos.set(P, o * 3); nor.set(N, o * 3);
+        for (let i = 0; i < p.g.attributes.position.count; i++) {
+          col[(o + i) * 3] = p.c.r; col[(o + i) * 3 + 1] = p.c.g; col[(o + i) * 3 + 2] = p.c.b;
+        }
+        o += p.g.attributes.position.count;
+        p.g.dispose();
       });
-
-      // Front & Rear curved windshields
-      [-1, 1].forEach(side => {
-        const fWin = new THREE.Mesh(new THREE.BoxGeometry(2.35, 1.1, 0.06), scDarkGlass);
-        fWin.position.set(0, 2.05, side * 9.01);
-        carGroup.add(fWin);
-      });
-
-      // Roof HVAC pods & equipment covers
-      const roofPod = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.45, 15.0), scRoofMat);
-      roofPod.position.set(0, 2.85, 0);
-      carGroup.add(roofPod);
-
-      // Articulated Pantograph assembly on roof
-      const pantoBase = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.25, 1.8), scChromeMat);
-      pantoBase.position.set(0, 3.15, 4.0);
-      carGroup.add(pantoBase);
-      const pantoArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.2, 8), scChromeMat);
-      pantoArm.rotation.x = Math.PI / 4;
-      pantoArm.position.set(0, 3.8, 3.4);
-      carGroup.add(pantoArm);
-      const pantoHead = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 0.25), scChromeMat);
-      pantoHead.position.set(0, 4.5, 2.6);
-      carGroup.add(pantoHead);
-
-      // Glowing Amber Route Destination LED signs ("504 KING" / "510 SPADINA")
-      const routeSign = signMesh([routeText], 2.2, 0.45, { bg: '#000000', fg: '#ff9900', borderColor: '#332200', size: 68 });
-      routeSign.position.set(0, 2.7, 9.04);
-      carGroup.add(routeSign);
-      const rearSign = signMesh([routeText], 2.2, 0.45, { bg: '#000000', fg: '#ff9900', borderColor: '#332200', size: 68 });
-      rearSign.position.set(0, 2.7, -9.04);
-      rearSign.rotation.y = Math.PI;
-      carGroup.add(rearSign);
-
-      // Dual front LED headlights
-      const headL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.08), scHeadLightMat);
-      headL.position.set(-0.75, 0.9, 9.02); carGroup.add(headL);
-      const headR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.08), scHeadLightMat);
-      headR.position.set(0.75, 0.9, 9.02); carGroup.add(headR);
-
-      carGroup.position.set(x, 0.05, z);
-      carGroup.rotation.y = rotY;
-      carGroup.matrixAutoUpdate = false; carGroup.updateMatrix();
-      scene.add(carGroup);
-
-      // Rotate oriented bounding box [-1.25, -9.0] to [1.25, 9.0] by rotY
-      const cosR = Math.cos(rotY), sinR = Math.sin(rotY);
-      const rotL = (lx, lz) => [x + lx * cosR + lz * sinR, z - lx * sinR + lz * cosR];
-      const pts = [
-        rotL(-1.25, -9.0),
-        rotL(1.25, -9.0),
-        rotL(1.25, 9.0),
-        rotL(-1.25, 9.0)
-      ];
-      addSolid({ type: 'poly', pts, h: 3.5, name: 'TTC Streetcar' });
-      return carGroup;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      g.computeBoundingSphere();
+      return g;
+    }
+    function flexSign(text, w, h) {
+      const key = text + '|' + w + '|' + h;
+      if (!flexSignCache.has(key)) {
+        flexSignCache.set(key, signMesh([text], w, h, { bg: '#050505', fg: '#ffb000', borderColor: '#050505', size: 76 }));
+      }
+      return flexSignCache.get(key).clone(); // shares geometry, texture and material
     }
 
-    // Place iconic TTC Flexity Streetcars along King Street West/East and Spadina
-    buildTTCStreetcar(45.0, -450.0, 1.86, '504 KING');
-    buildTTCStreetcar(-220.0, -370.0, 1.86, '504 KING');
-    buildTTCStreetcar(450.0, -570.0, 1.86, '504 KING');
-    buildTTCStreetcar(-605.0, -180.0, 0.28, '510 SPADINA');
+    function makeStreetcar(routeText = '504 KING') {
+      const carGroup = new THREE.Group();
+      const W = FLEX.W, hw = W / 2;
+      const sections = [];
+
+      FLEX.sections.forEach((sec, si) => {
+        const L = sec.len - 0.24;            // leave room for the bellows at each joint
+        const hl = L / 2;
+        const paint = [], lights = [];
+        const g = new THREE.Group();
+
+        // Body: red lower panel, full-height black glazing band, red top rail, light grey roof
+        flexBox(paint, W - 0.2, 0.2, L, FLEX.under, 0, 0.22, 0);
+        flexBox(paint, W, 0.88, L, FLEX.red, 0, 0.76, 0);
+        flexBox(paint, W, 1.35, L, FLEX.glass, 0, 1.875, 0);
+        flexBox(paint, W, 0.6, L, FLEX.red, 0, 2.85, 0);
+        flexBox(paint, W - 0.08, 0.1, L, FLEX.roof, 0, 3.2, 0);
+        // Roof equipment pods (the low-floor design puts it all up here)
+        flexBox(paint, W - 0.5, sec.bogie ? 0.58 : 0.32, L * 0.7, FLEX.pod, 0, sec.bogie ? 3.54 : 3.41, 0);
+
+        // Bogie with skirts and a glimpse of wheels
+        if (sec.bogie) {
+          flexBox(paint, W + 0.04, 0.62, 2.8, FLEX.skirt, 0, 0.44, 0);
+          [-0.95, 0.95].forEach(wz => [-0.72, 0.72].forEach(wx => {
+            flexPart(paint, new THREE.CylinderGeometry(0.33, 0.33, 0.12, 14), FLEX.wheel, wx, 0.33, wz, 0, 0, Math.PI / 2);
+          }));
+        }
+
+        // Doors: right-hand side only (local -x when facing +z). 1 = single, 2 = double.
+        const doors = { A: [[2.0, 0.95]], B: [[0, 1.35]], D: [[0, 1.35]], E: [[-2.0, 0.95]] }[sec.id] || [];
+        doors.forEach(([dz, dw]) => {
+          flexBox(paint, 0.05, 2.15, dw, FLEX.door, -hw - 0.02, 1.43, dz);
+          flexBox(paint, 0.05, 1.35, dw - 0.16, FLEX.glass, -hw - 0.045, 1.72, dz);
+          if (dw > 1.2) flexBox(paint, 0.06, 2.15, 0.04, FLEX.under, -hw - 0.05, 1.43, dz);
+        });
+
+        // Bellows to the next section
+        if (si < FLEX.sections.length - 1) flexBox(paint, W - 0.12, 2.9, 0.26, FLEX.bellows, 0, 1.75, -hl - 0.12);
+
+        if (sec.id === 'A') {
+          // Cab nose: raked black windscreen over a red front apron and black bumper
+          flexBox(paint, W - 0.06, 1.0, 0.32, FLEX.red, 0, 0.72, hl + 0.12);
+          flexBox(paint, W - 0.12, 0.16, 0.36, FLEX.under, 0, 0.28, hl + 0.16);
+          flexBox(paint, W - 0.1, 1.75, 0.1, FLEX.glass, 0, 2.08, hl + 0.16, -0.17, 0, 0);
+          flexBox(paint, W - 0.06, 0.45, 0.2, FLEX.red, 0, 3.0, hl + 0.02);
+          // Headlights, and the two blue bullseye accessibility lights
+          [-0.85, 0.85].forEach(x => flexBox(lights, 0.34, 0.14, 0.04, 0xfff3d6, x, 0.86, hl + 0.3));
+          [-0.48, 0.48].forEach(x => flexPart(lights, new THREE.CircleGeometry(0.075, 14), 0x2f7bff, x, 1.08, hl + 0.29));
+          const front = flexSign(routeText, 1.9, 0.32);
+          front.position.set(0, 3.0, hl + 0.125); g.add(front);
+          [-1, 1].forEach(side => {
+            const s = flexSign(routeText, 1.8, 0.3);
+            s.position.set(side * (hw + 0.012), 2.82, 1.0);
+            s.rotation.y = side * Math.PI / 2;
+            g.add(s);
+          });
+        }
+        if (sec.id === 'E') {
+          // Flat rear end: rear window, tail lights, rear sign
+          flexBox(paint, W - 0.3, 1.1, 0.04, FLEX.glass, 0, 1.95, -hl - 0.02);
+          [-0.9, 0.9].forEach(x => flexBox(lights, 0.3, 0.14, 0.04, 0xff2a2a, x, 0.86, -hl - 0.03));
+          const rear = flexSign(routeText, 1.9, 0.32);
+          rear.position.set(0, 3.0, -hl - 0.012); rear.rotation.y = Math.PI; g.add(rear);
+        }
+
+        if (sec.pantograph) {
+          // Single-arm pantograph, raised to the contact wire
+          flexBox(paint, 1.1, 0.1, 1.4, FLEX.under, 0, 3.88, 0);
+          [-0.28, 0.28].forEach(x => flexRod(paint, [x, 3.95, -0.55], [0, 4.6, 0.65], 0.035, FLEX.chrome));
+          flexRod(paint, [0, 4.6, 0.65], [0, 5.25, -0.15], 0.03, FLEX.chrome);
+          flexBox(paint, 1.7, 0.05, 0.26, FLEX.chrome, 0, 5.27, -0.15);
+        }
+
+        const body = new THREE.Mesh(flexMerge(paint), flexPaintMat);
+        body.castShadow = true;
+        g.add(body);
+        if (lights.length) g.add(new THREE.Mesh(flexMerge(lights), flexLightMat));
+        carGroup.add(g);
+        sections.push({ group: g, offset: sec.offset, len: sec.len });
+      });
+
+      carGroup.userData.sections = sections;
+      carGroup.userData.length = 28.0;
+      scene.add(carGroup);
+      return carGroup;
+    }
 
     // ---------- 3. Green & White Bi-Level GO Transit Train in Corridor ----------
     let goTrainGroup = null;
@@ -6052,6 +6274,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
 
     return {
       canMoveTo,
+      podCanMoveTo,
       floorAt,
       findOpenSpot,
       update,
@@ -6061,14 +6284,32 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       bounds: PLAY,
       landmarks: LM,
       attribution: MAP.attribution,
+      // TTC Streetcars & Transit Network
+      streetcarRoutes,
+      streetcarTrackOffset: 1.5,
+      makeStreetcar,
       // CN Tower Glass Elevator, Observation Decks & 360 Restaurant reference
       cnElevator: {
         cab: elevatorCab,
         doors: [cabDoorLeft, cabDoorRight],
         rotatingRestaurantRing: rotatingRestaurantRing,
+        stops: [
+          { id: 'ground', label: 'GROUND', name: 'PLAZA & SANCTUARY', sub: 'Peace Zone · 0 m', y: 0.15, feet: 0 },
+          { id: 'floor1', label: 'LEVEL 1', name: 'GLASS FLOOR & SKYTERRACE', sub: 'Outdoor walk · 342 m', y: 342.15, feet: 342.0 },
+          { id: 'floor2', label: 'LEVEL 2', name: 'LOOKOUT & TELESCOPES', sub: '360° panorama · 348 m', y: 348.15, feet: 348.0 },
+          { id: 'floor3', label: 'LEVEL 3', name: '360 RESTAURANT', sub: 'Revolving dining · 354 m', y: 354.15, feet: 354.0 }
+        ],
+        exitFor: (idx) => {
+          const feet = [0, 342.0, 348.0, 354.0][idx] || 0;
+          if (idx === 0) {
+            return { x: pavX + 3.2 * cosElev, z: pavZ + 3.2 * sinElev, feet: 0, yaw: Math.atan2(cosElev, sinElev) };
+          }
+          return { x: railX + 3.2 * cosElev, z: railZ + 3.2 * sinElev, feet, yaw: Math.atan2(cosElev, sinElev) };
+        },
         pos: {
           x: railX,
           z: railZ,
+          shaftR: 2.35,
           groundY: 2.0,
           floor1Y: 342.0,
           floor2Y: 348.0,
@@ -6101,7 +6342,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       trafficRoads: groundRoads
         .filter(r => ['service', 'pedestrian', 'living_street'].indexOf(r.t) < 0)
         .filter(r => !r.pts.some(p => Math.hypot(p[0] - peaceCenter[0], p[1] - peaceCenter[1]) < PEACE_RADIUS + 8))
-        .map(r => ({ pts: r.pts, w: r.w, t: r.t, y: r.y, major: !!MAJOR[r.t] })),
+        .map(r => ({ pts: r.pts, w: r.w, t: r.t, y: r.y, n: (MAP.roads[r.id] || {}).n || '', major: !!MAJOR[r.t] })),
       peaceZone: {
         x: peaceCenter[0],
         z: peaceCenter[1],
@@ -6640,6 +6881,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         c.s = c.dir > 0 ? d : r.len - d;
         computeLogical(c);
         if (cars.some(o => o !== c && o.road && Math.hypot(o.lx - c.lx, o.lz - c.lz) < 9)) continue;
+        if (streetcars.some(o => o.mode !== 'hidden' && Math.hypot(o.vx - c.lx, o.vz - c.lz) < SC.L / 2 + 6)) continue;
         c.lane = 0;
         c.speed = r.limit * (0.6 + rnd() * 0.3);
         c.vx = c.lx; c.vz = c.lz; c.vh = c.lh;
@@ -6650,7 +6892,12 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     }
     function laneOffset(c) {
       const w = c.road.w;
-      if (c.laneSel === undefined) c.laneSel = rnd() < 0.5 ? 0 : 1;
+      if (c.laneSel === undefined) {
+        c.laneSel = rnd() < 0.5 ? 0 : 1;
+        // don't pick the inside (track) lane right where a streetcar already is
+        if (c.laneSel === 0 && streetcars.some(o => o.mode !== 'hidden' && Math.hypot(o.vx - (c.vx || 0), o.vz - (c.vz || 0)) < SC.L / 2 + 20)) c.laneSel = 1;
+      }
+      if (w >= 11 && c.road.n && c.road.n.indexOf('Queens Quay') === 0) return w * 0.375; // centre is a streetcar right-of-way
       return w >= 11 ? (c.laneSel ? w * 0.375 : w * 0.125) : w * 0.25;
     }
     function computeLogical(c) {
@@ -6683,8 +6930,252 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       c.laneSel = undefined;
     }
 
+    const SC = { L: 28.0, W: 2.54, H: 3.84 };   // TTC Flexity Outlook
+    const TRACK = city.streetcarTrackOffset || 1.5;
+    const streetcars = [];
     const anchor = city.start ? { x: city.start.x, z: city.start.z } : null;
     cars.forEach(c => placeCar(c, anchor, 25, 260) || placeCar(c, null));
+
+    const stopPoleSpots = [];
+
+    // ======================================================================
+    // TTC STREETCARS: 504 King and 509/510 Harbourfront, on fixed routes
+    // ======================================================================
+
+    const STOP_DWELL = 7.0;
+    const scRoutes = [];
+    const scTmpA = { x: 0, z: 0 }, scTmpB = { x: 0, z: 0 };
+
+    (city.streetcarRoutes || []).forEach(src => {
+      if (!src.pts || src.pts.length < 2 || typeof city.makeStreetcar !== 'function') return;
+      const rt = { id: src.id, pts: src.pts, limit: src.limit || 11, portal: src.portal, stops: [], cum: [0] };
+      for (let i = 1; i < rt.pts.length; i++) rt.cum.push(rt.cum[i - 1] + Math.hypot(rt.pts[i][0] - rt.pts[i - 1][0], rt.pts[i][1] - rt.pts[i - 1][1]));
+      rt.len = rt.cum[rt.cum.length - 1];
+      // Turnaround points: the car centre stops here. At a tunnel portal the whole 18 m car
+      // must be inside the 24 m portal before it vanishes.
+      rt.endLo = 0.5;
+      rt.endHi = rt.portal ? rt.len - (rt.portal.len / 2) : rt.len - 0.5;
+
+      // Stops roughly every 240 m, kept 30 m clear of signalised intersections
+      const clearOfSignals = d => {
+        const p = sample(rt, d);
+        return !signals.some(sg => Math.hypot(sg.x - p.x, sg.z - p.z) < 30);
+      };
+      for (let d = 140; d < rt.len - 80; d += 240) {
+        const pick = [0, 35, -35, 70, -70].map(o => d + o).find(dd => dd > 60 && dd < rt.len - 60 && clearOfSignals(dd));
+        if (pick !== undefined) rt.stops.push(pick);
+      }
+      scRoutes.push(rt);
+
+      const n = src.cars || 2;
+      for (let i = 0; i < n; i++) {
+        const sign = src.signs[i % src.signs.length];
+        const sc = {
+          isStreetcar: true, id: 10000 + streetcars.length, route: rt,
+          dir: i % 2 === 0 ? 1 : -1,
+          d: 40 + (rt.len - 80) * ((i + 0.5) / n),
+          speed: 0, mode: 'run', timer: 0, servedD: -1e9,
+          vx: 0, vz: 0, fx: 1, fz: 0, vh: 0,
+          design: SC, lenScale: 1, hitCd: 0, gongCd: 0, stuck: 0, ghost: 0, braking: false,
+          group: city.makeStreetcar(sign)
+        };
+        placeStreetcar(sc);
+        streetcars.push(sc);
+      }
+
+      // TTC stop poles on the right-hand curb for each direction (instanced, 3 draw calls total)
+      rt.stops.forEach(d => {
+        const p = sample(rt, d), tx = p.tx, tz = p.tz, cx = p.x, cz = p.z;
+        [1, -1].forEach(dir => {
+          const rx = -tz * dir, rz = tx * dir;            // right of travel
+          stopPoleSpots.push({ x: cx + rx * 6.4, z: cz + rz * 6.4, yaw: Math.atan2(tx * dir, tz * dir) });
+        });
+      });
+    });
+
+    function placeStreetcar(sc) {
+      const rt = sc.route, half = SC.L * 0.42;
+      const clampD = d => Math.max(0, Math.min(rt.len, d));
+      // Whole-car pose: used for collisions, look-ahead and the minimap
+      let p = sample(rt, clampD(sc.d + sc.dir * half)); scTmpA.x = p.x; scTmpA.z = p.z;
+      p = sample(rt, clampD(sc.d - sc.dir * half)); scTmpB.x = p.x; scTmpB.z = p.z;
+      let fx = scTmpA.x - scTmpB.x, fz = scTmpA.z - scTmpB.z;
+      const fl = Math.hypot(fx, fz);
+      if (fl < 0.5) { p = sample(rt, clampD(sc.d)); fx = p.tx * sc.dir; fz = p.tz * sc.dir; }
+      else { fx /= fl; fz /= fl; }
+      sc.fx = fx; sc.fz = fz;
+      sc.vx = (scTmpA.x + scTmpB.x) / 2 - fz * TRACK;
+      sc.vz = (scTmpA.z + scTmpB.z) / 2 + fx * TRACK;
+      sc.vh = Math.atan2(fx, fz);
+
+      const secs = sc.group.userData.sections;
+      if (!secs) { sc.group.position.set(sc.vx, 0.05, sc.vz); sc.group.rotation.y = sc.vh; return; }
+      // Articulated: each section sits on its own stretch of track, so the car bends through curves
+      secs.forEach(s => {
+        const c = sc.d + sc.dir * s.offset, h = s.len / 2;
+        let q = sample(rt, clampD(c + sc.dir * h)); const ax = q.x, az = q.z;
+        q = sample(rt, clampD(c - sc.dir * h)); const bx = q.x, bz = q.z;
+        let sx = ax - bx, sz = az - bz;
+        const sl = Math.hypot(sx, sz);
+        if (sl < 0.2) { sx = fx; sz = fz; } else { sx /= sl; sz /= sl; }
+        s.group.position.set((ax + bx) / 2 - sz * TRACK, 0.05, (az + bz) / 2 + sx * TRACK);
+        s.group.rotation.y = Math.atan2(sx, sz);
+      });
+    }
+
+    function streetcarGong(dist) {
+      if (!audio || !audio.ctx || audio.isMuted) return;
+      const ctx = audio.ctx, t0 = ctx.currentTime, vol = 0.25 / (1 + dist / 15);
+      [0, 0.22].forEach(off => {
+        const t = t0 + off;
+        [1318, 1975].forEach((f, k) => {
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          o.type = 'triangle'; o.frequency.value = f;
+          g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol * (k ? 0.4 : 1), t + 0.005);
+          g.gain.exponentialRampToValueAtTime(0.0005, t + 0.6);
+          o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 0.65);
+        });
+      });
+    }
+
+    function updateStreetcars(dt, ctx, people, P) {
+      streetcars.forEach(sc => {
+        const rt = sc.route;
+        sc.hitCd -= dt; sc.gongCd -= dt; sc.ghost -= dt;
+
+        if (sc.mode === 'hidden') {
+          sc.timer -= dt;
+          if (sc.timer > 0) return;
+          // don't pop out on top of another car on the same track
+          const blocked = streetcars.some(o => o !== sc && o.route === rt && o.mode !== 'hidden' && o.dir === sc.dir && Math.abs(o.d - sc.d) < SC.L + 12);
+          if (blocked) { sc.timer = 1; return; }
+          sc.mode = 'run'; sc.group.visible = true; sc.speed = 2;
+        }
+
+        if (sc.mode === 'dwell') {
+          sc.timer -= dt;
+          sc.speed = 0; sc.braking = true;
+          if (sc.timer <= 0) { sc.mode = 'run'; if (sc.gongCd <= 0) { streetcarGong(Math.hypot(sc.vx - P.x, sc.vz - P.z)); sc.gongCd = 4; } }
+        }
+
+        let gap = Infinity, personAhead = false, waitingForTraffic = false;
+        if (sc.mode === 'run') {
+          // measured from the car's centre, so add half a car: you see 14-45 m past the nose
+          const look = SC.L / 2 + Math.max(14, Math.min(45, 8 + sc.speed * 2.6));
+          const rem = sc.dir > 0 ? rt.endHi - sc.d : sc.d - rt.endLo;
+          gap = rem + 3.2;                                        // roll right to the end of the line
+
+          // next stop
+          let stopRem = Infinity;
+          rt.stops.forEach(sd => {
+            if (Math.abs(sd - sc.servedD) < 1) return;
+            const r = (sd - sc.d) * sc.dir;
+            if (r > -0.3 && r < stopRem) stopRem = r;
+          });
+          if (stopRem < Infinity) gap = Math.min(gap, Math.max(0, stopRem) + 3.0);
+          if (stopRem < 0.5 && sc.speed < 0.6) {
+            sc.mode = 'dwell'; sc.timer = STOP_DWELL; sc.servedD = sc.d + stopRem * sc.dir; sc.speed = 0;
+          }
+
+          // traffic lights (same ones the cars use)
+          signals.forEach(sg => {
+            if (sg.fx * sc.fx + sg.fz * sc.fz < 0.8) return;
+            const r = rel(sc, sg.x, sg.z);
+            if (r.f < SC.L / 2 || r.f > 70 || Math.abs(r.l) > 8) return;
+            const dStop = r.f - 5.2 - SC.L / 2;
+            if (sg.state === 'red' || (sg.state === 'yellow' && dStop > 10)) {
+              if (dStop + 2.5 < gap) { gap = dStop + 2.5; waitingForTraffic = true; }
+            }
+          });
+
+          if (sc.ghost <= 0) {
+            cars.forEach(o => {
+              if (!o.road) return;
+              const r = rel(sc, o.vx, o.vz);
+              if (r.f <= SC.L / 2 || r.f > look + SC.L / 2 || Math.abs(r.l) > 1.9) return; // only cars clear ahead of our nose
+              if (sc.fx * o.fx + sc.fz * o.fz < -0.5) return;     // oncoming
+              gap = Math.min(gap, r.f - (SC.L + o.design.L * o.lenScale) / 2);
+            });
+            streetcars.forEach(o => {
+              if (o === sc || o.mode === 'hidden') return;
+              const r = rel(sc, o.vx, o.vz);
+              if (r.f <= 0 || r.f > look + SC.L || Math.abs(r.l) > 1.9) return;
+              if (sc.fx * o.fx + sc.fz * o.fz < -0.5) return;
+              gap = Math.min(gap, r.f - SC.L - 2);
+            });
+          }
+          people.forEach(p => {
+            const r = rel(sc, p.x, p.z);
+            if (r.f > 0 && r.f < look && Math.abs(r.l) < SC.W / 2 + 0.7) {
+              const g = r.f - SC.L / 2 - 0.4;
+              if (g < gap) { gap = g; personAhead = !!p.isPlayer; }
+            }
+          });
+          if (personAhead && gap < 14 && sc.gongCd <= 0) { streetcarGong(Math.hypot(sc.vx - P.x, sc.vz - P.z)); sc.gongCd = 2.5; }
+
+          // speed: streetcars pull away gently and brake smoothly
+          const target = Math.min(rt.limit, Math.max(0, (gap - 3) * 0.8));
+          const decel = gap < 6 ? 9 : 4;
+          sc.speed += Math.max(-decel * dt, Math.min(1.4 * dt, target - sc.speed));
+          sc.speed = Math.max(0, sc.speed);
+          sc.braking = target < sc.speed - 0.3;
+
+          if (sc.speed < 0.3 && gap < 6 && !personAhead && !waitingForTraffic) { sc.stuck += dt; if (sc.stuck > 8) { sc.ghost = 3; sc.stuck = 0; } }
+          else sc.stuck = 0;
+
+          sc.d += sc.dir * sc.speed * dt;
+          // end of the line: off the map or into the Union Station tunnel; come back the other way
+          if ((sc.dir > 0 && sc.d >= rt.endHi) || (sc.dir < 0 && sc.d <= rt.endLo)) {
+            sc.d = Math.max(rt.endLo, Math.min(rt.endHi, sc.d));
+            sc.dir *= -1; sc.mode = 'hidden'; sc.timer = rt.portal && sc.dir < 0 ? 14 : 9;
+            sc.servedD = -1e9; sc.speed = 0; sc.group.visible = false;
+          }
+        }
+
+        placeStreetcar(sc);
+        if (sc.mode === 'hidden') return;
+
+        // collisions with people: same rules as cars, but a streetcar is not going to stop for you
+        const hx = SC.L / 2 + 0.15, hz = SC.W / 2 + 0.15;
+        people.forEach(p => {
+          const r = rel(sc, p.x, p.z);
+          const R = p.isPlayer ? 0.45 : 0.5;
+          if (Math.abs(r.f) > hx + R || Math.abs(r.l) > hz + R) return;
+          if (p.isPlayer && city.isInsidePeaceZone(p.x, p.z)) return;
+          if (sc.speed > 3 && sc.hitCd <= 0) {
+            const side = r.l >= 0 ? 1 : -1;
+            const kx = sc.fx * sc.speed * 1.1 + -sc.fz * side * 4, kz = sc.fz * sc.speed * 1.1 + sc.fx * side * 4;
+            const dmg = Math.round(12 + sc.speed * 3);
+            if (p.isPlayer) ctx.onHitPlayer(dmg, kx, kz, sc);
+            else ctx.onHitEnemy(p.enemy, dmg * 2, kx * 1.3, kz * 1.3, sc);
+            crunch(); streetcarGong(0);
+            sc.hitCd = 0.8; sc.gongCd = 3; sc.speed *= 0.5;
+          } else {
+            const pf = hx + R - Math.abs(r.f), pl = hz + R - Math.abs(r.l);
+            if (pl < pf) { const s = (r.l >= 0 ? 1 : -1) * pl; ctx.pushOut(p, -sc.fz * s, sc.fx * s); }
+            else { const s = (r.f >= 0 ? 1 : -1) * pf; ctx.pushOut(p, sc.fx * s, sc.fz * s); }
+          }
+        });
+      });
+    }
+
+    // Build the stop poles now that every route has its stops
+    if (stopPoleSpots.length) {
+      const poleMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.06, 0.06, 3.0, 8),
+        new THREE.MeshStandardMaterial({ color: 0x9ca3af, metalness: 0.6, roughness: 0.4 }), stopPoleSpots.length);
+      const signMeshI = new THREE.InstancedMesh(new THREE.BoxGeometry(0.05, 0.6, 0.45),
+        new THREE.MeshStandardMaterial({ color: 0xda251d, roughness: 0.5 }), stopPoleSpots.length);
+      const bandMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.06, 0.16, 0.46),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }), stopPoleSpots.length);
+      const mm = new THREE.Matrix4(), qq = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), pp = new THREE.Vector3(), upv = new THREE.Vector3(0, 1, 0);
+      stopPoleSpots.forEach((sp, i) => {
+        qq.setFromAxisAngle(upv, sp.yaw);
+        mm.compose(pp.set(sp.x, 1.5, sp.z), qq, one); poleMesh.setMatrixAt(i, mm);
+        mm.compose(pp.set(sp.x, 2.7, sp.z), qq, one); signMeshI.setMatrixAt(i, mm);
+        mm.compose(pp.set(sp.x, 2.55, sp.z), qq, one); bandMesh.setMatrixAt(i, mm);
+      });
+      [poleMesh, signMeshI, bandMesh].forEach(m => { m.instanceMatrix.needsUpdate = true; scene.add(m); });
+    }
 
     // ---------- audio ----------
     let engine = null;
@@ -6815,6 +7306,18 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
             gap = Math.min(gap, r.f - (L + o.design.L * o.lenScale) / 2);
           });
         }
+        let streetcarAhead = false;
+        streetcars.forEach(o => {
+          if (o.mode === 'hidden') return;
+          const inside = rel(o, c.vx, c.vz);
+          if (Math.abs(inside.f) < SC.L / 2 + 1 && Math.abs(inside.l) < SC.W / 2 + 0.8) return;
+          for (let k = -0.5; k <= 0.51; k += 0.1) {            // every ~2.8 m along the car
+            const r = rel(c, o.vx + o.fx * SC.L * k, o.vz + o.fz * SC.L * k);
+            if (r.f <= 0 || r.f > look || Math.abs(r.l) > 1.9) continue;
+            const g = r.f - L / 2 - 1.0;
+            if (g < gap) { gap = g; streetcarAhead = true; }
+          }
+        });
         people.forEach(p => {
           const r = rel(c, p.x, p.z);
           if (r.f > 0 && r.f < look && Math.abs(r.l) < c.design.W / 2 + 0.7) {
@@ -6856,7 +7359,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         if (personAhead && gap < 10 && c.speed > 2 && c.honkCd <= 0) { honk(Math.hypot(c.vx - P.x, c.vz - P.z)); c.honkCd = 2.5; }
 
         // gridlock breaker: if stuck behind cars for a while, ghost through
-        if (c.speed < 0.3 && gap < 6 && !personAhead && !isWaitingAtRed) { c.stuck += dt; if (c.stuck > 6) { c.ghost = 2.5; c.stuck = 0; } } else c.stuck = 0;
+        if (c.speed < 0.3 && gap < 6 && !personAhead && !isWaitingAtRed && !streetcarAhead) { c.stuck += dt; if (c.stuck > 6) { c.ghost = 2.5; c.stuck = 0; } } else c.stuck = 0;
 
         // ---- move along the network ----
         c.s += c.speed * dt;
@@ -6904,6 +7407,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
 
         writeCar(c);
       });
+
+      updateStreetcars(dt, ctx, people, P);
 
       Object.values(meshes).forEach(m => {
         ['paint', 'glass', 'trim', 'head', 'tail', 'sign'].forEach(g => { if (m[g]) m[g].instanceMatrix.needsUpdate = true; });
@@ -6956,7 +7461,11 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       return { inCrosswalk: false, isSafe: false, street: '', signal: '' };
     }
 
-    return { cars, update, silence, getIntersections: () => signalIntersections, isSafeCrossing };
+    function streetcarDots() {
+      return streetcars.filter(sc => sc.mode !== 'hidden').map(sc => ({ x: sc.vx, z: sc.vz }));
+    }
+
+    return { cars, streetcars, streetcarDots, update, silence, getIntersections: () => signalIntersections, isSafeCrossing };
   }
 
   window.createTraffic = createTraffic;
@@ -9651,63 +10160,143 @@ if (city) {
 // CN TOWER GLASS ELEVATOR, 2-FLOOR OBSERVATION DECK & SKY SHOWDOWN SYSTEMS
 // ============================================================================
 
+const EYE_HEIGHT = 1.7;
+
 const elevatorController = {
-  cabY: 2.0,
-  startY: 2.0,
-  targetY: 2.0,
+  cabY: 0.15,
+  startY: 0.15,
+  targetY: 0.15,
+  fromStop: 0,
+  targetStop: 0,
   isMoving: false,
   direction: 0,
   progress: 0,
   duration: 5.5,
   doorProgress: 1.0, // 0 = closed, 1 = open
-  state: 'ground',   // 'ground', 'moving_up', 'floor1', 'floor2', 'floor3', 'moving_down'
+  state: 'ground',
   humTimer: 0
 };
 
-function startElevatorRide(targetY) {
+// Floor-select panel state
+const elevatorPanel = { open: false, highlight: 0 };
+
+function elevatorStops() {
+  return (city && city.cnElevator && city.cnElevator.stops) || [];
+}
+
+// Which stop the player is standing at, by feet height
+function currentStopIndex() {
+  const feet = player.pos.y - EYE_HEIGHT;
+  const stops = elevatorStops();
+  let best = 0, bestD = Infinity;
+  stops.forEach((s, i) => {
+    const d = Math.abs(feet - s.feet);
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  return best;
+}
+
+function buildElevatorPanel() {
+  const list = document.getElementById('elevator-floor-list');
+  if (!list) return;
+  const stops = elevatorStops();
+  const here = currentStopIndex();
+  list.innerHTML = '';
+  // Top floor first, like a real elevator panel
+  for (let i = stops.length - 1; i >= 0; i--) {
+    const s = stops[i];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'elev-floor-btn' + (i === here ? ' is-here' : '') + (i === elevatorPanel.highlight ? ' is-highlight' : '');
+    btn.dataset.stop = String(i);
+    btn.innerHTML =
+      `<span class="elev-floor-key">${i + 1}</span>` +
+      `<span class="elev-floor-text"><span class="elev-floor-label">${s.label}</span>` +
+      `<span class="elev-floor-name">${s.name}</span>` +
+      `<span class="elev-floor-sub">${i === here ? 'You are here' : s.sub}</span></span>`;
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      selectElevatorFloor(i);
+    });
+    list.appendChild(btn);
+  }
+}
+
+function openElevatorPanel() {
+  if (state.inElevator || !city || !city.cnElevator) return;
+  const here = currentStopIndex();
+  const n = elevatorStops().length;
+  // Pre-select the most likely trip: ground -> Level 1, anywhere up top -> ground
+  elevatorPanel.highlight = here === 0 ? 1 : 0;
+  if (elevatorPanel.highlight >= n) elevatorPanel.highlight = 0;
+  elevatorPanel.open = true;
+  buildElevatorPanel();
+  const el = document.getElementById('elevator-panel');
+  if (el) el.classList.remove('hidden');
+  audio.playElevatorDing();
+}
+
+function closeElevatorPanel() {
+  if (!elevatorPanel.open) return;
+  elevatorPanel.open = false;
+  const el = document.getElementById('elevator-panel');
+  if (el) el.classList.add('hidden');
+}
+
+function moveElevatorHighlight(delta) {
+  const n = elevatorStops().length;
+  if (!n) return;
+  elevatorPanel.highlight = (elevatorPanel.highlight + delta + n) % n;
+  buildElevatorPanel();
+}
+
+function selectElevatorFloor(idx) {
+  const stops = elevatorStops();
+  if (idx < 0 || idx >= stops.length) return;
+  closeElevatorPanel();
+  if (idx === currentStopIndex()) {
+    showAnnouncement(`🛗 YOU'RE ALREADY ON ${stops[idx].label}`, 1800);
+    return;
+  }
+  startElevatorRide(idx);
+}
+
+function startElevatorRide(targetIdx) {
   if (elevatorController.isMoving || !city || !city.cnElevator) return;
+  const stops = elevatorStops();
+  const from = currentStopIndex();
+  const target = stops[targetIdx];
+  if (!target) return;
+
+  // The cab comes to the player's floor first (doors are shut, so this is instant)
+  elevatorController.cabY = stops[from].y;
+  elevatorController.fromStop = from;
+  elevatorController.targetStop = targetIdx;
   elevatorController.startY = elevatorController.cabY;
-  elevatorController.targetY = targetY;
-  elevatorController.direction = targetY > elevatorController.cabY ? 1 : -1;
+  elevatorController.targetY = target.y;
+  elevatorController.direction = target.y > elevatorController.cabY ? 1 : -1;
   elevatorController.isMoving = true;
   elevatorController.progress = 0;
   elevatorController.doorProgress = 0;
-  const dist = Math.abs(targetY - elevatorController.startY);
+  const dist = Math.abs(target.y - elevatorController.startY);
   elevatorController.duration = Math.max(2.5, Math.min(8.5, dist / 42.0));
   state.inElevator = true;
+  if (state.telescopeActive) exitTelescope();
 
   audio.playElevatorDing();
 
-  // Position player directly in cab
-  player.pos.set(city.cnElevator.pos.x, elevatorController.cabY + 1.7, city.cnElevator.pos.z);
+  city.cnElevator.cab.position.y = elevatorController.cabY;
+  player.pos.set(city.cnElevator.pos.x, elevatorController.cabY + EYE_HEIGHT, city.cnElevator.pos.z);
   player.velocity.set(0, 0, 0);
 
-  // Update HUD
+  const verb = elevatorController.direction > 0 ? 'ASCENDING' : 'DESCENDING';
   const elevHud = document.getElementById('elevator-hud');
   if (elevHud) {
     elevHud.classList.remove('hidden');
     const levelName = document.getElementById('elev-level-name');
-    if (levelName) {
-      if (targetY >= 351.0) {
-        levelName.innerText = 'ASCENDING TO 354m 360 ROTATING RESTAURANT';
-      } else if (targetY >= 346.0) {
-        levelName.innerText = 'ASCENDING TO 348m MAIN LOOKOUT DECK';
-      } else if (targetY >= 340.0) {
-        levelName.innerText = elevatorController.direction > 0
-          ? 'ASCENDING TO 342m OBSERVATION DECK'
-          : 'DESCENDING TO 342m OBSERVATION DECK';
-      } else {
-        levelName.innerText = 'DESCENDING TO GROUND PLAZA';
-      }
-    }
+    if (levelName) levelName.innerText = `${verb} TO ${target.label} • ${target.name}`;
   }
-
-  showAnnouncement(
-    elevatorController.direction > 0
-      ? (targetY >= 351.0 ? '🚀 ELEVATOR ASCENDING: 360 ROTATING RESTAURANT (354m)!' : '🚀 ELEVATOR ASCENDING: 342m OBSERVATION DECK!')
-      : (targetY >= 340.0 ? '🚀 ELEVATOR DESCENDING: 342m OBSERVATION DECK' : '🚀 DESCENDING GLASS ELEVATOR: RETURNING TO PLAZA'),
-    3500
-  );
+  showAnnouncement(`🚀 GLASS ELEVATOR ${verb}: ${target.label} • ${target.name}`, 3000);
 }
 
 function updateElevator(dt) {
@@ -9718,179 +10307,129 @@ function updateElevator(dt) {
   if (elevatorController.isMoving) {
     elevatorController.progress += dt / elevatorController.duration;
     const t = Math.max(0, Math.min(1, elevatorController.progress));
-    // Smoothstep easing for high-speed panoramic elevator
     const smoothT = t * t * (3 - 2 * t);
     const startY = elevatorController.startY;
     elevatorController.cabY = startY + (elevatorController.targetY - startY) * smoothT;
 
-    // Motor hum sound effect
     elevatorController.humTimer += dt;
     if (elevatorController.humTimer > 0.45) {
       elevatorController.humTimer = 0;
       audio.playElevatorHum(0.8 + smoothT * 0.5);
     }
 
-    // Move 3D cab & player smoothly
     elevCab.position.y = elevatorController.cabY;
-    player.pos.set(city.cnElevator.pos.x, elevatorController.cabY + 1.7, city.cnElevator.pos.z);
+    player.pos.set(city.cnElevator.pos.x, elevatorController.cabY + EYE_HEIGHT, city.cnElevator.pos.z);
     player.velocity.set(0, 0, 0);
 
-    // Keep doors shut while moving
     if (doors && doors.length === 2) {
       doors[0].position.z = -0.7;
       doors[1].position.z = 0.7;
     }
 
-    // Dynamic Atmospheric Fog Thinning
-    // At ground: 0.0021 | High up at 342m+: 0.00065 for crystal-clear panoramic views of Toronto!
     const fogProg = Math.max(0, Math.min(1, (elevatorController.cabY - 2.0) / 340.0));
-    if (scene.fog) {
-      scene.fog.density = THREE.MathUtils.lerp(0.0021, 0.00065, fogProg);
-    }
+    if (scene.fog) scene.fog.density = THREE.MathUtils.lerp(0.0021, 0.00065, fogProg);
 
-    // Update HUD altitude readout & gauge
     const altVal = document.getElementById('elev-alt-val');
     if (altVal) altVal.innerText = `${Math.round(elevatorController.cabY)} m`;
     const gaugeFill = document.getElementById('elev-gauge-fill');
     if (gaugeFill) gaugeFill.style.width = `${Math.round((elevatorController.cabY / 354.0) * 100)}%`;
 
-    // Arrival check
-    if (elevatorController.progress >= 1.0) {
-      elevatorController.isMoving = false;
-      elevatorController.cabY = elevatorController.targetY;
-      elevCab.position.y = elevatorController.cabY;
-      state.inElevator = false;
-
-      audio.playElevatorArrival();
-
-      // Open sliding doors
-      if (doors && doors.length === 2) {
-        doors[0].position.z = -1.5;
-        doors[1].position.z = 1.5;
-      }
-
-      const elevHud = document.getElementById('elevator-hud');
-      if (elevHud) elevHud.classList.add('hidden');
-
-      if (elevatorController.targetY >= 351.0) {
-        elevatorController.state = 'floor3';
-        state.onObservationDeck = true;
-        player.pos.x += 2.2;
-        showAnnouncement('🍽️ WELCOME TO 360 THE RESTAURANT AT THE CN TOWER • 354m! 🍽️', 4500);
-      } else if (elevatorController.targetY >= 346.0) {
-        elevatorController.state = 'floor2';
-        state.onObservationDeck = true;
-        player.pos.x += 2.2;
-        showAnnouncement('🔭 LEVEL 2 • 348m MAIN 360° LOOKOUT & TELESCOPES 🔭', 4500);
-      } else if (elevatorController.targetY >= 340.0) {
-        elevatorController.state = 'floor1';
-        state.onObservationDeck = true;
-        player.pos.x += 2.2;
-        showAnnouncement('🌟 LEVEL 1 • 342m OUTDOOR DECK & SOUTH GLASS FLOOR 🌟', 4500);
-      } else {
-        elevatorController.state = 'ground';
-        state.onObservationDeck = false;
-        player.pos.x += 2.2;
-        showAnnouncement('🕊️ RETURNED TO CN TOWER PEACE SANCTUARY PLAZA', 3500);
-      }
-    }
-  } else {
-    // Keep doors open when docked
-    if (doors && doors.length === 2) {
-      doors[0].position.z = -1.5;
-      doors[1].position.z = 1.5;
-    }
+    if (elevatorController.progress >= 1.0) arriveElevator();
+  } else if (doors && doors.length === 2) {
+    doors[0].position.z = -1.5;
+    doors[1].position.z = 1.5;
   }
 }
 
-function getDeckFloorY(x, z, currentY) {
-  if (city && city.floorAt) return city.floorAt(x, z, currentY);
-  if (!city || !city.landmarks || !city.landmarks.cnTower) return 342.0;
-  const feetY = (currentY > 300 && (currentY - 340) % 6 > 1.0) ? (currentY - 1.7) : currentY;
-  const cx = city.landmarks.cnTower[0];
-  const cz = city.landmarks.cnTower[1];
-  const dx = x - cx;
-  const dz = z - cz;
-  const r = Math.hypot(dx, dz);
-  let angle = Math.atan2(dz, dx);
-  if (angle < 0) angle += Math.PI * 2;
+function arriveElevator() {
+  const elevCab = city.cnElevator.cab;
+  const doors = city.cnElevator.doors;
+  const idx = elevatorController.targetStop;
+  const stop = elevatorStops()[idx];
 
-  // 1. Check Lower Twin Grand Staircases (Level 1: 342m <-> Level 2: 348m)
-  if (r >= 9.0 && r <= 12.0) {
-    if (angle >= 1.25 && angle <= 1.75) {
-      const stairY = 342.0 + ((angle - 1.25) / 0.5) * 6.0;
-      if (Math.abs(feetY - stairY) <= 2.2) return stairY;
-    }
-    if (angle >= 3.85 && angle <= 4.35) {
-      const stairY = 342.0 + ((angle - 3.85) / 0.5) * 6.0;
-      if (Math.abs(feetY - stairY) <= 2.2) return stairY;
-    }
-
-    // 2. Check Upper Twin Grand Staircases (Level 2: 348m <-> Level 3: 354m)
-    if (angle >= 0.45 && angle <= 0.95) {
-      const stairY = 348.0 + ((angle - 0.45) / 0.5) * 6.0;
-      if (Math.abs(feetY - stairY) <= 2.2) return stairY;
-    }
-    if (angle >= 2.45 && angle <= 2.95) {
-      const stairY = 348.0 + ((angle - 2.45) / 0.5) * 6.0;
-      if (Math.abs(feetY - stairY) <= 2.2) return stairY;
-    }
+  elevatorController.isMoving = false;
+  elevatorController.cabY = elevatorController.targetY;
+  elevCab.position.y = elevatorController.cabY;
+  state.inElevator = false;
+  audio.playElevatorArrival();
+  if (doors && doors.length === 2) {
+    doors[0].position.z = -1.5;
+    doors[1].position.z = 1.5;
   }
+  const elevHud = document.getElementById('elevator-hud');
+  if (elevHud) elevHud.classList.add('hidden');
 
-  // 3. Level 3 (360 Restaurant): If currently at Level 3 elevation (feetY > 351.0)
-  if (feetY > 351.0) {
-    return 354.0;
-  }
+  // Step out through the doors onto solid floor, facing away from the cab
+  const exit = city.cnElevator.exitFor(idx);
+  player.pos.set(exit.x, exit.feet + EYE_HEIGHT, exit.z);
+  player.velocity.set(0, 0, 0);
+  player.isGrounded = true;
+  player.yaw = exit.yaw;
+  player.pitch = 0;
 
-  // 4. Level 2 (Main Lookout Deck): If currently at Level 2 elevation (feetY > 345.0)
-  if (feetY > 345.0) {
-    return 348.0;
-  }
+  elevatorController.state = stop.id;
+  state.onObservationDeck = idx > 0;
+  state.deckFloor = Math.max(1, idx);
+  if (scene.fog && idx === 0) scene.fog.density = 0.0021;
 
-  // 5. Level 1 (Outdoor Deck & South Glass Floor)
+  const msgs = [
+    '🕊️ BACK ON THE PLAZA • CN TOWER PEACE SANCTUARY',
+    '🌟 LEVEL 1 • 342m GLASS FLOOR & OUTDOOR SKYTERRACE 🌟',
+    '🔭 LEVEL 2 • 348m MAIN LOOKOUT & TELESCOPES 🔭',
+    '🍽️ LEVEL 3 • 354m 360 RESTAURANT 🍽️'
+  ];
+  showAnnouncement(msgs[idx] || stop.name, 4000);
+}
+
+// Kept for older callers: floor under (x, z) given EYE height
+function getDeckFloorY(x, z, eyeY) {
+  if (city && city.floorAt) return city.floorAt(x, z, eyeY - EYE_HEIGHT);
   return 342.0;
 }
 
 let activeDeckAction = null;
 
+function setDeckPrompt(key, text) {
+  const promptEl = document.getElementById('deck-action-prompt');
+  const actionText = document.getElementById('deck-action-text');
+  const actionKey = document.getElementById('deck-action-key');
+  if (promptEl && actionText && actionKey) {
+    actionKey.innerText = key;
+    actionText.innerText = text;
+    promptEl.classList.remove('hidden');
+  }
+}
+
 function updateObservationDeck(dt) {
   if (!city || !city.cnElevator) return;
   const elevPos = city.cnElevator.pos;
   const promptEl = document.getElementById('deck-action-prompt');
-  const actionText = document.getElementById('deck-action-text');
-  const actionKey = document.getElementById('deck-action-key');
   activeDeckAction = null;
 
   if (state.inElevator) {
     if (promptEl) promptEl.classList.add('hidden');
+    closeElevatorPanel();
     return;
   }
 
-  // 1. Check Ground Pavilion Elevator Entrance (y < 20)
-  if (player.pos.y < 20) {
-    const dElev = Math.hypot(player.pos.x - elevPos.x, player.pos.z - elevPos.z);
+  const feet = player.pos.y - EYE_HEIGHT;
+  const dElev = Math.hypot(player.pos.x - elevPos.x, player.pos.z - elevPos.z);
+  const elevCallR = (elevPos.shaftR || 2.35) + 1.9;
+
+  // Ground: the cab doors or the pavilion entrance
+  if (feet < 20) {
     const dPav = Math.hypot(player.pos.x - city.cnElevator.entrancePavilion.doorX, player.pos.z - city.cnElevator.entrancePavilion.doorZ);
-    if (dElev < 3.2 || dPav < 3.5) {
-      activeDeckAction = 'board_up';
-      if (promptEl && actionText && actionKey) {
-        actionKey.innerText = '[E]';
-        actionText.innerText = 'BOARD GLASS ELEVATOR TO OBSERVATION DECK & 360 RESTAURANT';
-        promptEl.classList.remove('hidden');
-      }
+    if (dElev < elevCallR || dPav < 4.5) {
+      activeDeckAction = 'elevator';
+      setDeckPrompt('[E]', 'CN TOWER ELEVATOR • CHOOSE A FLOOR');
       return;
     }
+    closeElevatorPanel();
   }
 
-  // 2. Observation Deck Level Checks (y > 50)
-  if (player.pos.y > 50) {
+  if (feet > 200) {
     state.onObservationDeck = true;
-    if (player.pos.y > 351.0) {
-      state.deckFloor = 3;
-    } else if (player.pos.y > 345.5) {
-      state.deckFloor = 2;
-    } else {
-      state.deckFloor = 1;
-    }
+    state.deckFloor = feet > 351.0 ? 3 : (feet > 345.0 ? 2 : 1);
 
     const cx = city.landmarks.cnTower[0];
     const cz = city.landmarks.cnTower[1];
@@ -9898,58 +10437,36 @@ function updateObservationDeck(dt) {
     const dz = player.pos.z - cz;
     const r = Math.hypot(dx, dz);
 
-    // Authentic Real CN Tower: Glass floor is strictly on the SOUTH side of Level 1 overlooking Lake Ontario & Roundhouse
-    // (dz < -5.0 && |dx| < 7.8, r: 8.8 to 17.8)
-    const onSouthGlassFloor = (state.deckFloor === 1 && dz < -5.0 && Math.abs(dx) < 7.8 && r >= 8.8 && r <= 17.8);
+    // Glass floor mesh sits on the SOUTH side (+z) of Level 1, r 9.5 to 17.5
+    const onSouthGlassFloor = (state.deckFloor === 1 && dz > 5.0 && Math.abs(dx) < 7.8 && r >= 9.5 && r <= 17.5);
     const glassFloorEl = document.getElementById('glass-floor-indicator');
-    if (glassFloorEl) {
-      if (onSouthGlassFloor) {
-        glassFloorEl.classList.remove('hidden');
-      } else {
-        glassFloorEl.classList.add('hidden');
-      }
-    }
+    if (glassFloorEl) glassFloorEl.classList.toggle('hidden', !onSouthGlassFloor);
 
-    // Elevator Doors on any deck floor (tightened trigger radius to 2.2m directly at door)
-    const dElevDeck = Math.hypot(player.pos.x - elevPos.x, player.pos.z - elevPos.z);
-    if (dElevDeck < 2.2) {
-      activeDeckAction = 'board_down';
-      if (promptEl && actionText && actionKey) {
-        actionKey.innerText = '[E]';
-        actionText.innerText = 'RIDE GLASS ELEVATOR DOWN TO GROUND PLAZA';
-        promptEl.classList.remove('hidden');
-      }
+    if (dElev < elevCallR && [342, 348, 354].some(y => Math.abs(feet - y) < 0.2)) {
+      activeDeckAction = 'elevator';
+      setDeckPrompt('[E]', 'GLASS ELEVATOR • CHOOSE A FLOOR');
       return;
     }
+    closeElevatorPanel();
 
-    // Check Tourist Telescopes on Floor 2
     if (state.deckFloor === 2 && city.cnElevator.viewfinders && !state.telescopeActive) {
       for (let i = 0; i < city.cnElevator.viewfinders.length; i++) {
         const vf = city.cnElevator.viewfinders[i];
         const dVf = Math.hypot(player.pos.x - vf.worldX, player.pos.z - vf.worldZ);
         if (dVf < 2.5) {
           activeDeckAction = { type: 'telescope', vf };
-          if (promptEl && actionText && actionKey) {
-            actionKey.innerText = '[E] / [V]';
-            actionText.innerText = `PEER THROUGH TELESCOPE: ${vf.name}`;
-            promptEl.classList.remove('hidden');
-          }
+          setDeckPrompt('[E] / [V]', `PEER THROUGH TELESCOPE: ${vf.name}`);
           return;
         }
       }
     }
 
-    // Check Sky Showdown Terminal on Floor 2
     if (state.deckFloor === 2 && !state.skyShowdownActive && city.cnElevator.terminal) {
       const term = city.cnElevator.terminal;
       const dTerm = Math.hypot(player.pos.x - term.x, player.pos.z - term.z);
       if (dTerm < 2.6) {
         activeDeckAction = 'start_showdown';
-        if (promptEl && actionText && actionKey) {
-          actionKey.innerText = '[G]';
-          actionText.innerText = 'START SKY SHOWDOWN MINI-GAME';
-          promptEl.classList.remove('hidden');
-        }
+        setDeckPrompt('[G]', 'START SKY SHOWDOWN MINI-GAME');
         return;
       }
     }
@@ -9964,16 +10481,9 @@ function updateObservationDeck(dt) {
 
 function handleDeckAction() {
   if (!activeDeckAction) return false;
-  if (activeDeckAction === 'board_up') {
-    startElevatorRide(342.0);
-    return true;
-  }
-  if (activeDeckAction === 'board_down') {
-    startElevatorRide(2.0);
-    return true;
-  }
-  if (activeDeckAction === 'board_restaurant') {
-    startElevatorRide(354.0);
+  if (activeDeckAction === 'elevator') {
+    if (elevatorPanel.open) closeElevatorPanel();
+    else openElevatorPanel();
     return true;
   }
   if (activeDeckAction.type === 'telescope') {
