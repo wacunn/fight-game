@@ -2838,7 +2838,9 @@ function updateElevator(dt) {
 }
 
 function getDeckFloorY(x, z, currentY) {
+  if (city && city.floorAt) return city.floorAt(x, z, currentY);
   if (!city || !city.landmarks || !city.landmarks.cnTower) return 342.0;
+  const feetY = (currentY > 300 && (currentY - 340) % 6 > 1.0) ? (currentY - 1.7) : currentY;
   const cx = city.landmarks.cnTower[0];
   const cz = city.landmarks.cnTower[1];
   const dx = x - cx;
@@ -2848,36 +2850,34 @@ function getDeckFloorY(x, z, currentY) {
   if (angle < 0) angle += Math.PI * 2;
 
   // 1. Check Lower Twin Grand Staircases (Level 1: 342m <-> Level 2: 348m)
-  // North Curved Staircase: a in [1.20, 1.80], r in [9.2, 13.0]
-  if (r >= 9.2 && r <= 13.0 && angle >= 1.20 && angle <= 1.80) {
-    const t = Math.max(0, Math.min(1, (angle - 1.25) / (1.75 - 1.25)));
-    return 342.0 + t * 6.0;
-  }
-  // South Curved Staircase: a in [3.80, 4.40], r in [9.2, 13.0]
-  if (r >= 9.2 && r <= 13.0 && angle >= 3.80 && angle <= 4.40) {
-    const t = Math.max(0, Math.min(1, (angle - 3.85) / (4.35 - 3.85)));
-    return 342.0 + t * 6.0;
+  if (r >= 9.0 && r <= 12.0) {
+    if (angle >= 1.25 && angle <= 1.75) {
+      const stairY = 342.0 + ((angle - 1.25) / 0.5) * 6.0;
+      if (Math.abs(feetY - stairY) <= 2.2) return stairY;
+    }
+    if (angle >= 3.85 && angle <= 4.35) {
+      const stairY = 342.0 + ((angle - 3.85) / 0.5) * 6.0;
+      if (Math.abs(feetY - stairY) <= 2.2) return stairY;
+    }
+
+    // 2. Check Upper Twin Grand Staircases (Level 2: 348m <-> Level 3: 354m)
+    if (angle >= 0.45 && angle <= 0.95) {
+      const stairY = 348.0 + ((angle - 0.45) / 0.5) * 6.0;
+      if (Math.abs(feetY - stairY) <= 2.2) return stairY;
+    }
+    if (angle >= 2.45 && angle <= 2.95) {
+      const stairY = 348.0 + ((angle - 2.45) / 0.5) * 6.0;
+      if (Math.abs(feetY - stairY) <= 2.2) return stairY;
+    }
   }
 
-  // 2. Check Upper Twin Grand Staircases (Level 2: 348m <-> Level 3: 354m)
-  // ENE Curved Staircase: a in [0.40, 1.00], r in [8.8, 12.2]
-  if (r >= 8.8 && r <= 12.2 && angle >= 0.40 && angle <= 1.00) {
-    const t = Math.max(0, Math.min(1, (angle - 0.45) / (0.95 - 0.45)));
-    return 348.0 + t * 6.0;
-  }
-  // WSW Curved Staircase: a in [2.40, 3.00], r in [8.8, 12.2]
-  if (r >= 8.8 && r <= 12.2 && angle >= 2.40 && angle <= 3.00) {
-    const t = Math.max(0, Math.min(1, (angle - 2.45) / (2.95 - 2.45)));
-    return 348.0 + t * 6.0;
-  }
-
-  // 3. Level 3 (360 Restaurant): If currently at Level 3 elevation (currentY > 351.0)
-  if (currentY > 351.0) {
+  // 3. Level 3 (360 Restaurant): If currently at Level 3 elevation (feetY > 351.0)
+  if (feetY > 351.0) {
     return 354.0;
   }
 
-  // 4. Level 2 (Main Lookout Deck): If currently at Level 2 elevation (currentY > 345.5)
-  if (currentY > 345.5) {
+  // 4. Level 2 (Main Lookout Deck): If currently at Level 2 elevation (feetY > 345.0)
+  if (feetY > 345.0) {
     return 348.0;
   }
 
@@ -2944,35 +2944,16 @@ function updateObservationDeck(dt) {
       }
     }
 
-    // Elevator Doors on any deck floor
+    // Elevator Doors on any deck floor (tightened trigger radius to 2.2m directly at door)
     const dElevDeck = Math.hypot(player.pos.x - elevPos.x, player.pos.z - elevPos.z);
-    if (dElevDeck < 3.2) {
-      if (state.deckFloor === 1) {
-        activeDeckAction = 'board_restaurant';
-        if (promptEl && actionText && actionKey) {
-          actionKey.innerText = '[E]';
-          actionText.innerText = 'RIDE ELEVATOR TO 360 ROTATING RESTAURANT (354m)';
-          promptEl.classList.remove('hidden');
-        }
-        return;
-      } else if (state.deckFloor === 3) {
-        activeDeckAction = 'board_down';
-        if (promptEl && actionText && actionKey) {
-          actionKey.innerText = '[E]';
-          actionText.innerText = 'RIDE GLASS ELEVATOR DOWN TO GROUND PLAZA';
-          promptEl.classList.remove('hidden');
-        }
-        return;
-      } else {
-        // Floor 2
-        activeDeckAction = 'board_down';
-        if (promptEl && actionText && actionKey) {
-          actionKey.innerText = '[E]';
-          actionText.innerText = 'RIDE GLASS ELEVATOR DOWN TO GROUND PLAZA';
-          promptEl.classList.remove('hidden');
-        }
-        return;
+    if (dElevDeck < 2.2) {
+      activeDeckAction = 'board_down';
+      if (promptEl && actionText && actionKey) {
+        actionKey.innerText = '[E]';
+        actionText.innerText = 'RIDE GLASS ELEVATOR DOWN TO GROUND PLAZA';
+        promptEl.classList.remove('hidden');
       }
+      return;
     }
 
     // Check Tourist Telescopes on Floor 2
@@ -3144,24 +3125,61 @@ function updateTelescope(dt) {
 }
 
 function updateRotatingRestaurant(dt) {
-  if (!city || !city.cnElevator || !city.cnElevator.rotatingRestaurantRing) return;
+  if (!city || !city.cnElevator || !city.cnElevator.rotatingRestaurantRing || !city.landmarks || !city.landmarks.cnTower) return;
   const rotSpeed = 0.035; // gentle, elegant restaurant rotation (~1.5 deg/sec)
-  city.cnElevator.rotatingRestaurantRing.rotation.y += rotSpeed * dt;
+  const dRot = rotSpeed * dt;
+  city.cnElevator.rotatingRestaurantRing.rotation.y += dRot;
 
-  // If player is on Level 3 (354m) on the revolving outer dining ring, carry them along!
-  if (player.pos.y > 351.0 && !state.inElevator) {
-    const cx = city.landmarks.cnTower[0];
-    const cz = city.landmarks.cnTower[1];
-    const dx = player.pos.x - cx;
-    const dz = player.pos.z - cz;
+  const cx = city.landmarks.cnTower[0];
+  const cz = city.landmarks.cnTower[1];
+  const cosA = Math.cos(dRot);
+  const sinA = Math.sin(dRot);
+
+  // Helper to rotate a position on the revolving outer dining ring (r in [11.0, 23.2])
+  function rotateOnPlatform(pos) {
+    const dx = pos.x - cx;
+    const dz = pos.z - cz;
     const r = Math.hypot(dx, dz);
     if (r >= 11.0 && r <= 23.2) {
-      const dRot = rotSpeed * dt;
-      const cosA = Math.cos(dRot);
-      const sinA = Math.sin(dRot);
-      player.pos.x = cx + (dx * cosA - dz * sinA);
-      player.pos.z = cz + (dx * sinA + dz * cosA);
+      pos.x = cx + (dx * cosA + dz * sinA);
+      pos.z = cz + (-dx * sinA + dz * cosA);
+      return true;
+    }
+    return false;
+  }
+
+  // 1. If player is on Level 3 (354m) on the revolving outer dining ring, carry them along!
+  if (player.pos.y > 351.0 && !state.inElevator) {
+    if (rotateOnPlatform(player.pos)) {
       player.yaw += dRot;
+    }
+  }
+
+  // 2. Rotate enemies and bosses standing on the revolving outer ring
+  if (Array.isArray(enemies)) {
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i];
+      if (!e || e.isDead || !e.rig || !e.rig.root) continue;
+      const ePos = e.rig.root.position;
+      if (ePos.y > 351.0) {
+        if (rotateOnPlatform(ePos)) {
+          if (e.rig.root.rotation) e.rig.root.rotation.y += dRot;
+        }
+      }
+    }
+  }
+
+  // 3. Rotate loot pickups on the revolving outer ring
+  if (Array.isArray(pickups)) {
+    for (let i = 0; i < pickups.length; i++) {
+      const p = pickups[i];
+      if (!p || !p.mesh) continue;
+      const pPos = p.mesh.position;
+      if (pPos.y > 351.0) {
+        if (rotateOnPlatform(pPos)) {
+          p.mesh.rotation.y += dRot;
+        }
+      }
     }
   }
 }
@@ -4718,7 +4736,9 @@ function updatePlayer(dt) {
 
   // Vertical position clamping for Ground or Observation Deck (2 floors + stairs)
   let floorY = 0;
-  if (player.pos.y > 50) {
+  if (city && city.floorAt) {
+    floorY = city.floorAt(player.pos.x, player.pos.z, player.pos.y);
+  } else if (player.pos.y > 50) {
     floorY = getDeckFloorY(player.pos.x, player.pos.z, player.pos.y);
   }
   const minPlayerY = floorY + 1.7;
@@ -4804,7 +4824,7 @@ function canMoveTo(x, z) {
   }
 
   if (city) {
-    if (!city.canMoveTo(x, z, 0.6)) return false;
+    if (!city.canMoveTo(x, z, 0.6, pY)) return false;
   } else {
     if (Math.abs(x) > 38 || Math.abs(z) > 38) return false;
 
