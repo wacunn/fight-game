@@ -1115,6 +1115,29 @@ kbd {
   color: #ef4444;
 }
 
+.minimap-legend-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 3px 6px;
+  background: rgba(10, 14, 20, 0.85);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.legend-chip {
+  font-family: 'Chakra Petch', monospace;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.legend-chip.chip-civ { color: #34d399; }
+.legend-chip.chip-bot { color: #f87171; }
+.legend-chip.chip-snatcher { color: #d946ef; }
+
 /* Peace Sanctuary Notification Banner */
 #peace-zone-banner {
   position: absolute;

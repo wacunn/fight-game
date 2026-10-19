@@ -99,15 +99,23 @@
       brick:    { base: '#6e3a2c', frame: '#8a5a48', glass: ['#2a2420', '#120e0c'], lit: ['#ffc77a', '#ffd9a3', '#ffb35c'], litP: 0.36, full: false, wallRough: 240, metal: 0.0 },
       dark:     { base: '#12151b', frame: '#262c36', glass: ['#1c2836', '#0a0e14'], lit: ['#a6dcff', '#ffffff', '#ffd59a'], litP: 0.22, full: true,  wallRough: 110, metal: 0.5 },
       stone:    { base: '#8d8370', frame: '#a99d86', glass: ['#2b261f', '#14110d'], lit: ['#ffd38a', '#ffe6bb'], litP: 0.5,  full: false, wallRough: 235, metal: 0.0 },
-      concrete: { base: '#606264', frame: '#75777a', glass: ['#2a2e33', '#15181b'], lit: ['#eaf2ff', '#fff1d6'], litP: 0.18, full: false, wallRough: 230, metal: 0.0 }
+      concrete: { base: '#606264', frame: '#75777a', glass: ['#2a2e33', '#15181b'], lit: ['#eaf2ff', '#fff1d6'], litP: 0.18, full: false, wallRough: 230, metal: 0.0 },
+      // King West converted warehouses: red brick, big multi-pane windows under segmental brick arches
+      warehouse: { base: '#7b3626', frame: '#3a3633', glass: ['#262a2e', '#101214'], lit: ['#ffc77a', '#ffd9a3', '#fff0cf'], litP: 0.42, full: false, wallRough: 240, metal: 0.0,
+                   masonry: true, win: { ox: 8, oy: 15, w: CELL - 16, h: CELL - 23 }, arch: true, panes: [3, 2] },
+      // Old Town (St. Lawrence / Front St E) Victorian commercial: warm brick, tall narrow windows, cream stone lintels
+      victorian: { base: '#9a5a3c', frame: '#d9ccb0', glass: ['#2a2420', '#120e0c'], lit: ['#ffc77a', '#ffd9a3', '#ffb35c'], litP: 0.38, full: false, wallRough: 240, metal: 0.0,
+                   masonry: true, win: { ox: Math.round(CELL * 0.29), oy: 13, w: Math.round(CELL * 0.42), h: CELL - 21 }, lintel: true, panes: [1, 2] },
+      // South Core / CityPlace / waterfront condos: blue-green window wall with white balcony slabs
+      condo: { base: '#2f5664', frame: '#c9d2d8', glass: ['#4c7c8c', '#24414c'], lit: ['#cfe6ff', '#ffe9c2', '#ffd9b0'], litP: 0.42, full: true, wallRough: 110, metal: 0.35, balcony: true }
     }[style];
 
     ctx.fillStyle = S.base; ctx.fillRect(0, 0, SZ, SZ);
     rctx.fillStyle = `rgb(${S.wallRough},${S.wallRough},${S.wallRough})`; rctx.fillRect(0, 0, SZ, SZ);
 
     // Wall material grain: brick courses / stone blocks / concrete stains
-    if (style === 'brick' || style === 'stone') {
-      const bh = style === 'brick' ? 5 : 10, bw = style === 'brick' ? 12 : 26;
+    if (style === 'brick' || style === 'stone' || S.masonry) {
+      const bh = style === 'stone' ? 10 : 5, bw = style === 'stone' ? 26 : 12;
       for (let y = 0; y < SZ; y += bh) {
         for (let x = ((y / bh) % 2) ? 0 : bw / 2; x < SZ; x += bw) {
           ctx.fillStyle = `rgba(${hash(seed + x * 3 + y) > 0.5 ? '255,230,210' : '0,0,0'},${0.03 + hash(seed + x * 7 + y * 3) * 0.1})`;
@@ -126,15 +134,17 @@
     for (let fy = 0; fy < 8; fy++) {
       // Floor slab with a highlight on top and a shadow underneath (fake depth)
       const sy = fy * CELL;
-      ctx.fillStyle = S.frame; ctx.fillRect(0, sy, SZ, 7);
-      ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(0, sy, SZ, 1);
-      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, sy + 7, SZ, 2);
+      if (!S.masonry) { // brick walls don't show their floor slabs
+        ctx.fillStyle = S.frame; ctx.fillRect(0, sy, SZ, 7);
+        ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(0, sy, SZ, 1);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, sy + 7, SZ, 2);
+      }
 
       for (let fx = 0; fx < 8; fx++) {
-        const x = fx * CELL + (S.full ? 3 : 11);
-        const y = sy + (S.full ? 10 : 16);
-        const w = S.full ? CELL - 6 : CELL - 22;
-        const h = S.full ? CELL - 13 : CELL - 26;
+        const x = fx * CELL + (S.win ? S.win.ox : (S.full ? 3 : 11));
+        const y = sy + (S.win ? S.win.oy : (S.full ? 10 : 16));
+        const w = S.win ? S.win.w : (S.full ? CELL - 6 : CELL - 22);
+        const h = S.win ? S.win.h : (S.full ? CELL - 13 : CELL - 26);
         const rnd = hash(seed * 13.7 + fy * 7.1 + fx * 3.3);
 
         // window reveal: shadowed inset on top/left, lit sill below
@@ -183,11 +193,43 @@
           }
           rctx.fillStyle = 'rgb(20,20,20)'; rctx.fillRect(x, y, w, h);
         }
-        // mullions
-        ctx.fillStyle = S.frame;
-        ctx.fillRect(x + w / 2 - 1, y, 2, h);
-        ectx.fillStyle = '#000'; ectx.fillRect(x + w / 2 - 1, y, 2, h);
-        if (S.full) { ctx.fillRect(fx * CELL, sy, 3, CELL); }
+        if (S.panes) {
+          // multi-pane sash: muntin grid
+          const [pc, pr] = S.panes;
+          ctx.fillStyle = S.lintel ? '#e9e1cf' : S.frame; ectx.fillStyle = '#000';
+          for (let i = 1; i < pc; i++) { const mx = x + (w * i) / pc - 1; ctx.fillRect(mx, y, 2, h); ectx.fillRect(mx, y, 2, h); }
+          for (let i = 1; i < pr; i++) { const my = y + (h * i) / pr - 1; ctx.fillRect(x, my, w, 2); ectx.fillRect(x, my, w, 2); }
+        } else {
+          // mullions
+          ctx.fillStyle = S.frame;
+          ctx.fillRect(x + w / 2 - 1, y, 2, h);
+          ectx.fillStyle = '#000'; ectx.fillRect(x + w / 2 - 1, y, 2, h);
+          if (S.full) { ctx.fillRect(fx * CELL, sy, 3, CELL); }
+        }
+        if (S.arch) {
+          // segmental soldier-course arch and a stone sill
+          ctx.strokeStyle = '#5a271b'; ctx.lineWidth = 5;
+          ctx.beginPath(); ctx.ellipse(x + w / 2, y + 1, w / 2 + 2, 7, 0, Math.PI, 0); ctx.stroke();
+          ctx.fillStyle = '#b9ad98'; ctx.fillRect(x - 2, y + h + 2, w + 4, 3);
+        }
+        if (S.lintel) {
+          // cream stone lintel with keystone, and sill
+          ctx.fillStyle = S.frame; ctx.fillRect(x - 3, y - 7, w + 6, 5); ctx.fillRect(x + w / 2 - 2, y - 9, 4, 7);
+          ctx.fillRect(x - 3, y + h + 2, w + 6, 3);
+        }
+      }
+    }
+
+    if (S.balcony) {
+      // white balcony slab at every floor, with a pale glass railing above it
+      for (let fy = 0; fy < 8; fy++) {
+        const by = fy * CELL + CELL - 9;
+        ctx.fillStyle = 'rgba(205,228,238,0.22)'; ctx.fillRect(0, by - 13, SZ, 13);
+        ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(0, by - 13, SZ, 1);
+        ctx.fillStyle = '#e4e8eb'; ctx.fillRect(0, by, SZ, 6);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, by + 6, SZ, 2);
+        ectx.fillStyle = '#000'; ectx.fillRect(0, by, SZ, 8);
+        rctx.fillStyle = 'rgb(200,200,200)'; rctx.fillRect(0, by, SZ, 8);
       }
     }
 
@@ -313,23 +355,164 @@
   }
 
   function makeGroundTexture(kind) {
+    if (kind === 'sidewalk') {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 512;
+      const ctx = c.getContext('2d');
+      // Street sidewalk: four 2m x 2m distinct concrete slabs (total 4m x 4m)
+      const slabTones = ['#757982', '#6d717a', '#666a74', '#71757e'];
+      const offsets = [
+        [0, 0, 256, 256],
+        [256, 0, 256, 256],
+        [0, 256, 256, 256],
+        [256, 256, 256, 256]
+      ];
+      offsets.forEach(([sx, sy, sw, sh], idx) => {
+        ctx.fillStyle = slabTones[idx];
+        ctx.fillRect(sx, sy, sw, sh);
+
+        // Fine concrete aggregate speckling
+        for (let i = 0; i < 450; i++) {
+          ctx.fillStyle = hash(idx * 73 + i * 2.1) > 0.5 ? `rgba(255,255,255,${0.06 + hash(i)*0.08})` : `rgba(0,0,0,${0.05 + hash(i)*0.08})`;
+          ctx.fillRect(sx + hash(i * 3.7) * (sw - 4), sy + hash(i * 5.9) * (sh - 4), 2, 2);
+        }
+
+        // Slab bevel highlights on top and left edge (gives clear 3D slab relief)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.fillRect(sx + 3, sy + 3, sw - 6, 4);
+        ctx.fillRect(sx + 3, sy + 3, 4, sh - 6);
+
+        // Slab bevel shadow on bottom and right edge
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.fillRect(sx + 3, sy + sh - 6, sw - 6, 4);
+        ctx.fillRect(sx + sw - 6, sy + 3, 4, sh - 6);
+      });
+
+      // Deep, crisp dark expansion joints between slabs
+      ctx.fillStyle = '#14161a';
+      ctx.fillRect(253, 0, 6, 512);
+      ctx.fillRect(0, 253, 512, 6);
+      ctx.fillRect(0, 0, 3, 512);
+      ctx.fillRect(509, 0, 3, 512);
+      ctx.fillRect(0, 0, 512, 3);
+      ctx.fillRect(0, 509, 512, 3);
+
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = 8;
+      return t;
+    }
+
+    if (kind === 'gravel') {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 512;
+      const ctx = c.getContext('2d');
+      // Heavy crushed granite/basalt railway ballast bed
+      ctx.fillStyle = '#151310';
+      ctx.fillRect(0, 0, 512, 512);
+
+      // Multi-layer angular ballast stones with strong light-and-shadow facets
+      for (let i = 0; i < 2800; i++) {
+        const x = hash(i * 4.31) * 512, y = hash(i * 7.19) * 512;
+        const s = 4 + hash(i * 1.7) * 8;
+        const tone = 30 + Math.floor(hash(i * 3.3) * 60);
+        // Shadow behind stone
+        ctx.fillStyle = 'rgba(4, 3, 2, 0.75)';
+        ctx.fillRect(x + 1, y + 2, s, s);
+        // Stone body
+        ctx.fillStyle = `rgb(${tone + 8}, ${tone}, ${tone - 6})`;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + s, y + hash(i) * 2);
+        ctx.lineTo(x + s * 0.8, y + s);
+        ctx.lineTo(x + hash(i * 2) * 2, y + s * 0.9);
+        ctx.closePath();
+        ctx.fill();
+        // Bright specular facet catching moonlight
+        ctx.fillStyle = `rgba(200, 215, 235, ${0.18 + hash(i) * 0.28})`;
+        ctx.fillRect(x, y, s * 0.5, 1.5);
+      }
+
+      // Centerline grease/oil dripping patina along track line
+      const g = ctx.createLinearGradient(0, 0, 512, 0);
+      g.addColorStop(0.0, 'rgba(0,0,0,0)');
+      g.addColorStop(0.3, 'rgba(10,8,6,0.5)');
+      g.addColorStop(0.5, 'rgba(4,3,2,0.9)');
+      g.addColorStop(0.7, 'rgba(10,8,6,0.5)');
+      g.addColorStop(1.0, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 512, 512);
+
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = 8;
+      return t;
+    }
+
+    if (kind === 'concrete_wall') {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 512;
+      const ctx = c.getContext('2d');
+      // Board-formed concrete retaining wall
+      ctx.fillStyle = '#484c54';
+      ctx.fillRect(0, 0, 512, 512);
+
+      // Horizontal formwork planks every 40px
+      for (let y = 0; y < 512; y += 40) {
+        const pv = Math.floor(hash(y * 1.7) * 20) - 10;
+        ctx.fillStyle = `rgb(${72 + pv}, ${76 + pv}, ${84 + pv})`;
+        ctx.fillRect(0, y, 512, 40);
+        ctx.fillStyle = '#1e2026';
+        ctx.fillRect(0, y, 512, 2.5);
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        ctx.fillRect(0, y + 2.5, 512, 1.5);
+
+        // Form-tie circular indents
+        for (let x = 32; x < 512; x += 96) {
+          ctx.fillStyle = '#1a1c22';
+          ctx.beginPath();
+          ctx.arc(x + (y % 80 ? 48 : 0), y + 20, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Vertical control expansion joints every 128px
+      for (let x = 0; x <= 512; x += 128) {
+        ctx.fillStyle = '#14161a';
+        ctx.fillRect(x - 2, 0, 4, 512);
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.fillRect(x + 2, 0, 1.5, 512);
+      }
+
+      // Drainage streaks running down
+      for (let i = 0; i < 40; i++) {
+        const sx = hash(i * 5.3) * 512;
+        const sw = 3 + hash(i * 2.1) * 8;
+        const g = ctx.createLinearGradient(0, 0, 0, 512);
+        g.addColorStop(0.0, 'rgba(15, 18, 22, 0.7)');
+        g.addColorStop(0.3 + hash(i) * 0.4, 'rgba(25, 28, 35, 0.3)');
+        g.addColorStop(1.0, 'rgba(10, 12, 15, 0.85)');
+        ctx.fillStyle = g;
+        ctx.fillRect(sx, 0, sw, 512);
+      }
+
+      // Top lip contact shadow
+      const topG = ctx.createLinearGradient(0, 0, 0, 40);
+      topG.addColorStop(0.0, 'rgba(0,0,0,0.85)');
+      topG.addColorStop(1.0, 'rgba(0,0,0,0)');
+      ctx.fillStyle = topG;
+      ctx.fillRect(0, 0, 512, 40);
+
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = 8;
+      return t;
+    }
+
     const c = document.createElement('canvas');
     c.width = 128; c.height = 128;
     const ctx = c.getContext('2d');
-    if (kind === 'sidewalk') {
-      ctx.fillStyle = '#4a4c50';
-      ctx.fillRect(0, 0, 128, 128);
-      ctx.strokeStyle = '#3a3c40';
-      ctx.lineWidth = 2;
-      for (let i = 0; i <= 128; i += 32) {
-        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 128); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(128, i); ctx.stroke();
-      }
-      for (let i = 0; i < 300; i++) {
-        ctx.fillStyle = `rgba(255,255,255,${hash(i) * 0.05})`;
-        ctx.fillRect(hash(i * 3) * 128, hash(i * 7) * 128, 2, 2);
-      }
-    } else if (kind === 'asphalt') {
+    if (kind === 'asphalt') {
       ctx.fillStyle = '#1e2024';
       ctx.fillRect(0, 0, 128, 128);
       for (let i = 0; i < 900; i++) {
@@ -337,26 +520,16 @@
         ctx.fillStyle = `rgb(${v},${v},${v + 3})`;
         ctx.fillRect(hash(i * 3.1) * 128, hash(i * 5.3) * 128, 2, 2);
       }
-      // patched repairs
       for (let i = 0; i < 4; i++) {
         ctx.fillStyle = `rgba(${hash(i) > 0.5 ? '10,10,12' : '60,60,64'},0.35)`;
         ctx.fillRect(hash(i * 8.1) * 100, hash(i * 2.9) * 100, 14 + hash(i * 4.4) * 30, 10 + hash(i * 6.6) * 24);
       }
-      // hairline cracks
       ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1;
       for (let i = 0; i < 7; i++) {
         let x = hash(i * 11.3) * 128, y = hash(i * 7.7) * 128;
         ctx.beginPath(); ctx.moveTo(x, y);
         for (let k = 0; k < 6; k++) { x += (hash(i * 31 + k) - 0.5) * 18; y += (hash(i * 17 + k) - 0.5) * 18; ctx.lineTo(x, y); }
         ctx.stroke();
-      }
-    } else if (kind === 'gravel') {
-      ctx.fillStyle = '#3b342c';
-      ctx.fillRect(0, 0, 128, 128);
-      for (let i = 0; i < 1200; i++) {
-        const v = 40 + Math.floor(hash(i * 2.3) * 50);
-        ctx.fillStyle = `rgb(${v},${v - 6},${v - 12})`;
-        ctx.fillRect(hash(i * 4.1) * 128, hash(i * 6.7) * 128, 2, 2);
       }
     }
     const t = new THREE.CanvasTexture(c);
@@ -418,7 +591,7 @@
     if (!MAP) throw new Error('TORONTO_MAP data missing (toronto_map.js not loaded)');
 
     const [[minX, minZ], [maxX, maxZ]] = MAP.bounds;
-    const PLAY = { minX: Math.min(minX, -960), maxX: Math.max(maxX, 1020), minZ: Math.min(minZ, -760), maxZ: Math.max(maxZ, 600) };
+    const PLAY = { minX: Math.min(minX, -1120), maxX: Math.max(maxX, 1020), minZ: Math.min(minZ, -760), maxZ: Math.max(maxZ, 600) };
     const LM = Object.assign({}, MAP.landmarks);
 
     // ---------- CN Tower vertical walkables ----------
@@ -464,6 +637,74 @@
       return true;
     }
 
+    // ---------- Real-world Active USRC Mainline Railway Corridor Spline ----------
+    // Follows the active Union Station Rail Corridor trench between Front St and Bremner
+    // (Strictly avoids Roundhouse museum park which sits south at z > 160)
+    const USRC_SPLINE = [
+      [-900, 225.0],
+      [-820, 206.0],
+      [-680, 192.0],
+      [-580, 168.0],
+      [-480, 142.0],
+      [-380, 118.0],
+      [-280,  92.0],
+      [-180,  72.0],
+      [ -80,  48.0],
+      [  20,  18.0],
+      [ 120, -22.0],
+      [ 220, -56.0],
+      [ 320, -88.0],
+      [ 420,-118.0],
+      [ 520,-142.0],
+      [ 620,-162.0],
+      [ 720,-182.0],
+      [ 850,-210.0]
+    ];
+
+    function getUsrcZ(x) {
+      if (x <= USRC_SPLINE[0][0]) return USRC_SPLINE[0][1];
+      if (x >= USRC_SPLINE[USRC_SPLINE.length - 1][0]) return USRC_SPLINE[USRC_SPLINE.length - 1][1];
+      for (let i = 0; i < USRC_SPLINE.length - 1; i++) {
+        const x0 = USRC_SPLINE[i][0], z0 = USRC_SPLINE[i][1];
+        const x1 = USRC_SPLINE[i + 1][0], z1 = USRC_SPLINE[i + 1][1];
+        if (x >= x0 && x <= x1) {
+          let t = (x - x0) / (x1 - x0);
+          t = t * t * (3 - 2 * t);
+          return z0 + t * (z1 - z0);
+        }
+      }
+      return 0.0;
+    }
+
+    const TRENCH_HALF_W = 14.0; // 28 m wide mainline rail corridor
+    const TRENCH_Y = -4.6;      // Sunken cut depth (rail level)
+
+    // Overpass Bridges spanning across the Railway Trench (aligned to real Toronto north-south streets)
+    const OVERPASS_BRIDGES = [
+      { name: 'Spadina Avenue Overpass', x: -829, w: 24.0 },
+      { name: 'Blue Jays Way Bridge', x: -599, w: 18.0 },
+      { name: 'Peter St / SkyWalk Pedestrian Bridge', x: -381, w: 8.5, isPed: true },
+      { name: 'John Street Pedestrian Bridge', x: -195, w: 8.5, isPed: true },
+      { name: 'Lower Simcoe Street Bridge', x: -80, w: 20.0 },
+      { name: 'York Street Bridge', x: 110, w: 22.0 },
+      { name: 'Bay Street Bridge', x: 395, w: 22.0 },
+      { name: 'Yonge Street Bridge', x: 595, w: 22.0 },
+      { name: 'Jarvis Street Overpass', x: 750, w: 18.0 }
+    ];
+
+    function isInsideTrench(x, z) {
+      if (x < -900 || x > 860) return false;
+      const cz = getUsrcZ(x);
+      return Math.abs(z - cz) < TRENCH_HALF_W;
+    }
+
+    function isOnBridge(x, z) {
+      if (x < -900 || x > 860) return false;
+      const cz = getUsrcZ(x);
+      if (Math.abs(z - cz) > TRENCH_HALF_W + 3.5) return false;
+      return OVERPASS_BRIDGES.some(b => Math.abs(x - b.x) <= (b.w / 2 + 0.3));
+    }
+
     function floorAt(x, z, y) {
       if (y !== undefined && y > 50) {
         const feetY = (y > 300 && (y - 340) % 6 > 1.0 && y % 1 > 0.4) ? (y - 1.7) : y;
@@ -506,6 +747,13 @@
         if (Math.abs(feetY - 348.0) < 3.2 || (feetY >= 345.0 && feetY < 351.0)) return 348.0;
         return 342.0;
       }
+
+      // Ground Level & Sunken Rail Trench:
+      // Inside the trench between retaining walls, the floor drops 4.6m down to TRENCH_Y,
+      // EXCEPT when standing on an overpass bridge where the floor is at street level (0.0m).
+      if (isInsideTrench(x, z) && !isOnBridge(x, z)) {
+        return TRENCH_Y;
+      }
       return 0.0;
     }
 
@@ -545,6 +793,15 @@
         return d >= DECK_IN + r && d <= DECK_OUT - r;
       }
       if (x < PLAY.minX || x > PLAY.maxX || z < PLAY.minZ || z > PLAY.maxZ) return false;
+
+      // Entities walking at street level cannot step onto thin air over the railway trench cut!
+      // They must use the overpass bridges. (If explicitly falling/jumping into trench, y drops <= -2).
+      const entityY = (y !== undefined) ? y : 0.0;
+      if (entityY > -2.0) {
+        if (isInsideTrench(x, z) && !isOnBridge(x, z)) {
+          return false;
+        }
+      }
       const seen = new Set();
       for (let cx = Math.floor((x - r) / CELL); cx <= Math.floor((x + r) / CELL); cx++) {
         for (let cz = Math.floor((z - r) / CELL); cz <= Math.floor((z + r) / CELL); cz++) {
@@ -629,18 +886,202 @@
     scene.add(moon);
     scene.add(moon.target);
 
-    // ---------- Ground: sidewalks / plazas ----------
+    // ---------- Ground: sidewalks / plazas with Sunken Railway Trench Cut ----------
     const sideTex = makeGroundTexture('sidewalk');
-    const W = (maxX - minX) + 1600, D = (maxZ - minZ) + 1600;
-    sideTex.repeat.set(W / 4, D / 4);
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(W, D),
-      new THREE.MeshLambertMaterial({ map: sideTex })
-    );
-    ground.receiveShadow = true;
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.set((minX + maxX) / 2, 0, (minZ + maxZ) / 2);
-    scene.add(ground);
+    const gravelTex = makeGroundTexture('gravel');
+
+    const groundGB = new GeoBuilder();
+    const trenchGB = new GeoBuilder();
+    const trenchWallsGB = new GeoBuilder();
+
+    const X_MIN_EXT = minX - 800;
+    const X_MAX_EXT = maxX + 800;
+    const Z_MIN_EXT = minZ - 800;
+    const Z_MAX_EXT = maxZ + 800;
+
+    const SLICE_DX = 25.0;
+    const xSteps = Math.ceil((X_MAX_EXT - X_MIN_EXT) / SLICE_DX);
+
+    for (let si = 0; si < xSteps; si++) {
+      const x0 = X_MIN_EXT + si * SLICE_DX;
+      const x1 = Math.min(X_MAX_EXT, x0 + SLICE_DX);
+      const inTrench0 = (x0 >= -900 && x0 <= 860);
+      const inTrench1 = (x1 >= -900 && x1 <= 860);
+
+      if (inTrench0 || inTrench1) {
+        const cz0 = getUsrcZ(x0), cz1 = getUsrcZ(x1);
+        const zn0 = cz0 - TRENCH_HALF_W, zn1 = cz1 - TRENCH_HALF_W;
+        const zs0 = cz0 + TRENCH_HALF_W, zs1 = cz1 + TRENCH_HALF_W;
+
+        // 1. North Ground at street level (y = 0)
+        let q = [
+          groundGB.vert(x0, 0, Z_MIN_EXT, 0, 1, 0, x0 / 4, Z_MIN_EXT / 4),
+          groundGB.vert(x1, 0, Z_MIN_EXT, 0, 1, 0, x1 / 4, Z_MIN_EXT / 4),
+          groundGB.vert(x1, 0, zn1, 0, 1, 0, x1 / 4, zn1 / 4),
+          groundGB.vert(x0, 0, zn0, 0, 1, 0, x0 / 4, zn0 / 4)
+        ];
+        groundGB.quad(q[0], q[1], q[2], q[3]);
+
+        // 2. South Ground at street level (y = 0)
+        q = [
+          groundGB.vert(x0, 0, zs0, 0, 1, 0, x0 / 4, zs0 / 4),
+          groundGB.vert(x1, 0, zs1, 0, 1, 0, x1 / 4, zs1 / 4),
+          groundGB.vert(x1, 0, Z_MAX_EXT, 0, 1, 0, x1 / 4, Z_MAX_EXT / 4),
+          groundGB.vert(x0, 0, Z_MAX_EXT, 0, 1, 0, x0 / 4, Z_MAX_EXT / 4)
+        ];
+        groundGB.quad(q[0], q[1], q[2], q[3]);
+
+        // 3. North Retaining Wall (from y = 0 down to y = TRENCH_Y)
+        q = [
+          trenchWallsGB.vert(x0, 0, zn0, 0, 0, 1, x0 / 4, 0),
+          trenchWallsGB.vert(x1, 0, zn1, 0, 0, 1, x1 / 4, 0),
+          trenchWallsGB.vert(x1, TRENCH_Y, zn1, 0, 0, 1, x1 / 4, 1),
+          trenchWallsGB.vert(x0, TRENCH_Y, zn0, 0, 0, 1, x0 / 4, 1)
+        ];
+        trenchWallsGB.quad(q[0], q[1], q[2], q[3]);
+
+        // 4. South Retaining Wall (from y = TRENCH_Y up to y = 0)
+        q = [
+          trenchWallsGB.vert(x0, TRENCH_Y, zs0, 0, 0, -1, x0 / 4, 1),
+          trenchWallsGB.vert(x1, TRENCH_Y, zs1, 0, 0, -1, x1 / 4, 1),
+          trenchWallsGB.vert(x1, 0, zs1, 0, 0, -1, x1 / 4, 0),
+          trenchWallsGB.vert(x0, 0, zs0, 0, 0, -1, x0 / 4, 0)
+        ];
+        trenchWallsGB.quad(q[0], q[1], q[2], q[3]);
+
+        // 5. Sunken Trench Ballast Bed at y = TRENCH_Y
+        q = [
+          trenchGB.vert(x0, TRENCH_Y, zn0, 0, 1, 0, x0 / 4, zn0 / 4),
+          trenchGB.vert(x1, TRENCH_Y, zn1, 0, 1, 0, x1 / 4, zn1 / 4),
+          trenchGB.vert(x1, TRENCH_Y, zs1, 0, 1, 0, x1 / 4, zs1 / 4),
+          trenchGB.vert(x0, TRENCH_Y, zs0, 0, 1, 0, x0 / 4, zs0 / 4)
+        ];
+        trenchGB.quad(q[0], q[1], q[2], q[3]);
+      } else {
+        // Outside the rail corridor cut: flat ground across full Z
+        const q = [
+          groundGB.vert(x0, 0, Z_MIN_EXT, 0, 1, 0, x0 / 4, Z_MIN_EXT / 4),
+          groundGB.vert(x1, 0, Z_MIN_EXT, 0, 1, 0, x1 / 4, Z_MIN_EXT / 4),
+          groundGB.vert(x1, 0, Z_MAX_EXT, 0, 1, 0, x1 / 4, Z_MAX_EXT / 4),
+          groundGB.vert(x0, 0, Z_MAX_EXT, 0, 1, 0, x0 / 4, Z_MAX_EXT / 4)
+        ];
+        groundGB.quad(q[0], q[1], q[2], q[3]);
+      }
+    }
+
+    const groundMesh = new THREE.Mesh(groundGB.build(), new THREE.MeshLambertMaterial({ map: sideTex }));
+    groundMesh.receiveShadow = true;
+    scene.add(groundMesh);
+
+    const trenchMesh = new THREE.Mesh(trenchGB.build(), new THREE.MeshLambertMaterial({ map: gravelTex }));
+    trenchMesh.receiveShadow = true;
+    scene.add(trenchMesh);
+
+    const wallTex = makeGroundTexture('concrete_wall');
+    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.85, envMapIntensity: 0.3 });
+    const wallsMesh = new THREE.Mesh(trenchWallsGB.build(), wallMat);
+    wallsMesh.receiveShadow = true;
+    scene.add(wallsMesh);
+
+    // ---------- High-Visibility Concrete Lip Coping & Black Steel Security Fencing ----------
+    const lipCurbMat = new THREE.MeshStandardMaterial({ color: 0x8c94a0, roughness: 0.75, envMapIntensity: 0.3 });
+    const fenceMat = new THREE.MeshStandardMaterial({ color: 0x181c24, roughness: 0.35, metalness: 0.85 });
+    const fenceGB = new GeoBuilder();
+    const copingGB = new GeoBuilder();
+
+    for (let si = 0; si < xSteps; si++) {
+      const x0 = X_MIN_EXT + si * SLICE_DX;
+      const x1 = Math.min(X_MAX_EXT, x0 + SLICE_DX);
+      if (x0 < -900 || x0 > 860) continue;
+
+      const subSteps = Math.ceil((x1 - x0) / 2.5);
+      const dxSub = (x1 - x0) / subSteps;
+
+      for (let sb = 0; sb < subSteps; sb++) {
+        const sx0 = x0 + sb * dxSub;
+        const sx1 = sx0 + dxSub;
+        const smid = (sx0 + sx1) / 2;
+
+        const cz0 = getUsrcZ(sx0), cz1 = getUsrcZ(sx1);
+        const zn0 = cz0 - TRENCH_HALF_W, zn1 = cz1 - TRENCH_HALF_W;
+        const zs0 = cz0 + TRENCH_HALF_W, zs1 = cz1 + TRENCH_HALF_W;
+
+        // NORTH LIP (zn)
+        if (!isOnBridge(smid, (zn0 + zn1) / 2)) {
+          // Raised Concrete Coping Curb (y = 0.0 to 0.35m, width 0.6m)
+          const qnCurb = [
+            copingGB.vert(sx0, 0.35, zn0, 0, 1, 0, sx0 / 2, zn0 / 2),
+            copingGB.vert(sx1, 0.35, zn1, 0, 1, 0, sx1 / 2, zn1 / 2),
+            copingGB.vert(sx1, 0.35, zn1 - 0.6, 0, 1, 0, sx1 / 2, (zn1 - 0.6) / 2),
+            copingGB.vert(sx0, 0.35, zn0 - 0.6, 0, 1, 0, sx0 / 2, (zn0 - 0.6) / 2)
+          ];
+          copingGB.quad(qnCurb[0], qnCurb[1], qnCurb[2], qnCurb[3]);
+          const qnFace = [
+            copingGB.vert(sx0, 0.0, zn0 - 0.6, 0, 0, -1, sx0 / 2, 0),
+            copingGB.vert(sx1, 0.0, zn1 - 0.6, 0, 0, -1, sx1 / 2, 0),
+            copingGB.vert(sx1, 0.35, zn1 - 0.6, 0, 0, -1, sx1 / 2, 1),
+            copingGB.vert(sx0, 0.35, zn0 - 0.6, 0, 0, -1, sx0 / 2, 1)
+          ];
+          copingGB.quad(qnFace[0], qnFace[1], qnFace[2], qnFace[3]);
+
+          // Black Steel Security Fence on top of curb (y = 0.35 to 1.55m)
+          ribbon(fenceGB, [[sx0, zn0 - 0.1], [sx1, zn1 - 0.1]], 0.08, 1.52, 2);
+          ribbon(fenceGB, [[sx0, zn0 - 0.1], [sx1, zn1 - 0.1]], 0.08, 0.45, 2);
+          for (let pz = 0; pz <= dxSub; pz += 0.4) {
+            const px = sx0 + pz;
+            const pcz = getUsrcZ(px) - TRENCH_HALF_W - 0.1;
+            const v0 = fenceGB.vert(px - 0.02, 0.35, pcz, 0, 0, 1, 0, 0);
+            const v1 = fenceGB.vert(px + 0.02, 0.35, pcz, 0, 0, 1, 1, 0);
+            const v2 = fenceGB.vert(px + 0.02, 1.55, pcz, 0, 0, 1, 1, 1);
+            const v3 = fenceGB.vert(px - 0.02, 1.55, pcz, 0, 0, 1, 0, 1);
+            fenceGB.quad(v0, v1, v2, v3);
+          }
+        }
+
+        // SOUTH LIP (zs)
+        if (!isOnBridge(smid, (zs0 + zs1) / 2)) {
+          // Raised Concrete Coping Curb (y = 0.0 to 0.35m, width 0.6m)
+          const qsCurb = [
+            copingGB.vert(sx0, 0.35, zs0 + 0.6, 0, 1, 0, sx0 / 2, (zs0 + 0.6) / 2),
+            copingGB.vert(sx1, 0.35, zs1 + 0.6, 0, 1, 0, sx1 / 2, (zs1 + 0.6) / 2),
+            copingGB.vert(sx1, 0.35, zs1, 0, 1, 0, sx1 / 2, zs1 / 2),
+            copingGB.vert(sx0, 0.35, zs0, 0, 1, 0, sx0 / 2, zs0 / 2)
+          ];
+          copingGB.quad(qsCurb[0], qsCurb[1], qsCurb[2], qsCurb[3]);
+          const qsFace = [
+            copingGB.vert(sx0, 0.0, zs0 + 0.6, 0, 0, 1, sx0 / 2, 0),
+            copingGB.vert(sx1, 0.0, zs1 + 0.6, 0, 0, 1, sx1 / 2, 0),
+            copingGB.vert(sx1, 0.35, zs1 + 0.6, 0, 0, 1, sx1 / 2, 1),
+            copingGB.vert(sx0, 0.35, zs0 + 0.6, 0, 0, 1, sx0 / 2, 1)
+          ];
+          copingGB.quad(qsFace[0], qsFace[1], qsFace[2], qsFace[3]);
+
+          // Black Steel Security Fence on top of curb
+          ribbon(fenceGB, [[sx0, zs0 + 0.1], [sx1, zs1 + 0.1]], 0.08, 1.52, 2);
+          ribbon(fenceGB, [[sx0, zs0 + 0.1], [sx1, zs1 + 0.1]], 0.08, 0.45, 2);
+          for (let pz = 0; pz <= dxSub; pz += 0.4) {
+            const px = sx0 + pz;
+            const pcz = getUsrcZ(px) + TRENCH_HALF_W + 0.1;
+            const v0 = fenceGB.vert(px - 0.02, 0.35, pcz, 0, 0, -1, 0, 0);
+            const v1 = fenceGB.vert(px + 0.02, 0.35, pcz, 0, 0, -1, 1, 0);
+            const v2 = fenceGB.vert(px + 0.02, 1.55, pcz, 0, 0, -1, 1, 1);
+            const v3 = fenceGB.vert(px - 0.02, 1.55, pcz, 0, 0, -1, 0, 1);
+            fenceGB.quad(v0, v1, v2, v3);
+          }
+        }
+      }
+    }
+
+    if (copingGB.pos.length) {
+      const copingMesh = new THREE.Mesh(copingGB.build(), lipCurbMat);
+      copingMesh.receiveShadow = true;
+      scene.add(copingMesh);
+    }
+    if (fenceGB.pos.length) {
+      const fenceMesh = new THREE.Mesh(fenceGB.build(), fenceMat);
+      fenceMesh.castShadow = true;
+      scene.add(fenceMesh);
+    }
 
     // Lake Ontario beyond the southern edge of the data
     const lake = new THREE.Mesh(
@@ -769,9 +1210,27 @@
         return;
       }
       const y = MAJOR[r.t] ? 0.05 : (r.t === 'service' ? 0.03 : 0.04);
-      ribbon(roadGB, pts, r.w, y, 8);
-      groundRoads.push({ pts, w: r.w, t: r.t, y, id: ri });
-      for (let i = 0; i < pts.length - 1; i++) addRoadSeg(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], r.w / 2, ri);
+
+      // Clip ground roads so they do NOT draw flat asphalt sheets across the open railway trench
+      const cleanRoadPts = [];
+      let curRoadSeg = [];
+      for (let i = 0; i < pts.length; i++) {
+        const [px, pz] = pts[i];
+        const inside = isInsideTrench(px, pz) && !isOnBridge(px, pz);
+        if (!inside) {
+          curRoadSeg.push(pts[i]);
+        } else {
+          if (curRoadSeg.length >= 2) cleanRoadPts.push(curRoadSeg);
+          curRoadSeg = [];
+        }
+      }
+      if (curRoadSeg.length >= 2) cleanRoadPts.push(curRoadSeg);
+
+      cleanRoadPts.forEach(seg => {
+        ribbon(roadGB, seg, r.w, y, 8);
+        groundRoads.push({ pts: seg, w: r.w, t: r.t, y, id: ri });
+        for (let i = 0; i < seg.length - 1; i++) addRoadSeg(seg[i][0], seg[i][1], seg[i + 1][0], seg[i + 1][1], r.w / 2, ri);
+      });
 
       if (MAJOR[r.t]) {
         // double yellow centre line (two thin lines, like real Toronto arterials)
@@ -898,15 +1357,23 @@
       scene.add(pillars);
     }
 
-    // ---------- Rail corridor ----------
-    const gravelTex = makeGroundTexture('gravel');
+    // ---------- Sunken Rail Corridor Tracks & Road Overpass Bridges ----------
     const railBedGB = new GeoBuilder();
     const railGB = new GeoBuilder();
+    const tiesGB = new GeoBuilder();
+    const catenaryGB = new GeoBuilder();
+
+    // 1. Render OSM tracks at appropriate elevations:
+    // Museum tracks in Roundhouse Park stay at ground level (y = 0.035);
     MAP.rails.forEach(r => {
       const pts = toPairs(r.p);
       if (pts.length < 2) return;
+      const isMuseumPark = pts.some(p => p[0] > -310 && p[0] < -90 && p[1] > 160);
+      if (!isMuseumPark) return; // Mainline corridor is built with continuous 4-track system below
+
       ribbon(railBedGB, pts, 3.6, 0.035, 4);
-      // two steel rails
+
+      // Two steel rails
       const left = [], right = [];
       for (let i = 0; i < pts.length; i++) {
         const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
@@ -919,13 +1386,342 @@
       ribbon(railGB, left, 0.12, 0.13, 4);
       ribbon(railGB, right, 0.12, 0.13, 4);
     });
+
+    // 2. High-Density 4-Track Mainline System along the active USRC Sunken Corridor
+    const TRACK_OFFSETS = [-7.5, -2.5, 2.5, 7.5]; // 4 distinct parallel tracks across the 28m cut
+    TRACK_OFFSETS.forEach(trackOff => {
+      const mainPts = [];
+      for (let x = -860; x <= 860; x += 3.0) {
+        const cz = getUsrcZ(x);
+        const nextZ = getUsrcZ(x + 1.0);
+        const dx = 1.0, dz = nextZ - cz;
+        const len = Math.hypot(dx, dz) || 1;
+        const nx = -dz / len, nz = dx / len;
+        mainPts.push([x + nx * trackOff, cz + nz * trackOff]);
+      }
+      // Raised ballast shoulder under this track
+      ribbon(railBedGB, mainPts, 2.8, TRENCH_Y + 0.08, 4);
+
+      const left = [], right = [];
+      for (let i = 0; i < mainPts.length; i++) {
+        const a = mainPts[Math.max(0, i - 1)], b = mainPts[Math.min(mainPts.length - 1, i + 1)];
+        const dx = b[0] - a[0], dz = b[1] - a[1];
+        const len = Math.hypot(dx, dz) || 1;
+        const nx = -dz / len * 0.75, nz = dx / len * 0.75;
+        left.push([mainPts[i][0] + nx, mainPts[i][1] + nz]);
+        right.push([mainPts[i][0] - nx, mainPts[i][1] - nz]);
+
+        // Heavy dark creosote wooden cross-ties every 1.2m
+        const tnx = -dz / len * 1.3, tnz = dx / len * 1.3;
+        const p0 = [mainPts[i][0] + tnx, mainPts[i][1] + tnz];
+        const p1 = [mainPts[i][0] - tnx, mainPts[i][1] - tnz];
+        ribbon(tiesGB, [p0, p1], 0.32, TRENCH_Y + 0.14, 1);
+      }
+      // Twin gleaming steel rails with 3D profile
+      ribbon(railGB, left, 0.16, TRENCH_Y + 0.22, 4);
+      ribbon(railGB, right, 0.16, TRENCH_Y + 0.22, 4);
+    });
+
+    // Crossover tracks connecting Track 2 and Track 3 at x = -150 and x = 200
+    [-150, 200].forEach(cx => {
+      const cz = getUsrcZ(cx);
+      const crossPts = [
+        [cx - 25, cz - 2.5],
+        [cx + 25, cz + 2.5]
+      ];
+      ribbon(railBedGB, crossPts, 2.6, TRENCH_Y + 0.08, 4);
+      const cLeft = [], cRight = [];
+      const dx = 50, dz = 5;
+      const len = Math.hypot(dx, dz);
+      const nx = -dz / len * 0.75, nz = dx / len * 0.75;
+      cLeft.push([crossPts[0][0] + nx, crossPts[0][1] + nz], [crossPts[1][0] + nx, crossPts[1][1] + nz]);
+      cRight.push([crossPts[0][0] - nx, crossPts[0][1] - nz], [crossPts[1][0] - nx, crossPts[1][1] - nz]);
+      ribbon(railGB, cLeft, 0.16, TRENCH_Y + 0.22, 4);
+      ribbon(railGB, cRight, 0.16, TRENCH_Y + 0.22, 4);
+      for (let s = 0; s <= 50; s += 1.2) {
+        const f = s / 50;
+        const px = crossPts[0][0] + dx * f, pz = crossPts[0][1] + dz * f;
+        const tnx = -dz / len * 1.3, tnz = dx / len * 1.3;
+        ribbon(tiesGB, [[px + tnx, pz + tnz], [px - tnx, pz - tnz]], 0.32, TRENCH_Y + 0.14, 1);
+      }
+    });
+
     if (railBedGB.pos.length) {
       scene.add(new THREE.Mesh(railBedGB.build(), new THREE.MeshLambertMaterial({ map: gravelTex })));
-      scene.add(new THREE.Mesh(railGB.build(), new THREE.MeshPhongMaterial({ color: 0x8a8f99, shininess: 90, specular: 0x999999 })));
+      scene.add(new THREE.Mesh(railGB.build(), new THREE.MeshStandardMaterial({ color: 0xc4cbd4, metalness: 0.95, roughness: 0.2, envMapIntensity: 0.8 })));
+      if (tiesGB.pos.length) {
+        scene.add(new THREE.Mesh(tiesGB.build(), new THREE.MeshLambertMaterial({ color: 0x241b14 })));
+      }
+    }
+
+    // Overhead High-Voltage Catenary Gantries Spanning the Trench Every 45m
+    const steelMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5, metalness: 0.8 });
+    for (let gx = -680; gx <= 820; gx += 45) {
+      if (OVERPASS_BRIDGES.some(b => Math.abs(gx - b.x) < 14)) continue;
+      const gcz = getUsrcZ(gx);
+      const gzn = gcz - TRENCH_HALF_W;
+      const gzs = gcz + TRENCH_HALF_W;
+      const spanLen = TRENCH_HALF_W * 2;
+
+      const towerH = 2.4 - TRENCH_Y;
+      const towerGeo = new THREE.BoxGeometry(0.5, towerH, 0.5);
+
+      const nTower = new THREE.Mesh(towerGeo, steelMat);
+      nTower.position.set(gx, TRENCH_Y + towerH / 2, gzn + 0.4);
+      scene.add(nTower);
+
+      const sTower = new THREE.Mesh(towerGeo, steelMat);
+      sTower.position.set(gx, TRENCH_Y + towerH / 2, gzs - 0.4);
+      scene.add(sTower);
+
+      const truss = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.65, spanLen), steelMat);
+      truss.position.set(gx, 2.4, gcz);
+      scene.add(truss);
+
+      TRACK_OFFSETS.forEach((off, idx) => {
+        const tz = gcz + off;
+        const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 3.8, 6), steelMat);
+        drop.position.set(gx, 0.5, tz);
+        scene.add(drop);
+
+        const sigBox = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.65, 0.25), new THREE.MeshBasicMaterial({ color: 0x0f172a }));
+        sigBox.position.set(gx, 1.7, tz);
+        scene.add(sigBox);
+
+        const sigColor = (idx === 1 && (Math.abs(gx) % 90 < 45)) ? 0xef4444 : 0x22c55e;
+        const sigLight = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color: sigColor }));
+        sigLight.position.set(gx + (gx > 0 ? -0.15 : 0.15), 1.7, tz);
+        scene.add(sigLight);
+      });
+    }
+
+    TRACK_OFFSETS.forEach(trackOff => {
+      const wirePts = [];
+      for (let x = -680; x <= 820; x += 15) {
+        const cz = getUsrcZ(x);
+        wirePts.push([x, cz + trackOff]);
+      }
+      ribbon(catenaryGB, wirePts, 0.06, -1.1, 4);
+      ribbon(catenaryGB, wirePts, 0.04, -1.6, 4);
+    });
+
+    if (catenaryGB.pos.length) {
+      scene.add(new THREE.Mesh(catenaryGB.build(), new THREE.MeshBasicMaterial({ color: 0x94a3b8 })));
+    }
+
+    // ---------- Maintenance Access Stairs & Ramps Down to Track Level ----------
+    const stairYellow = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.4 });
+    const stairSteel = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6, metalness: 0.8 });
+    const concreteRampMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.85 });
+
+    function buildMaintenanceStairs(anchorX, anchorZ, isNorthWall) {
+      const stairGroup = new THREE.Group();
+      const wallSign = isNorthWall ? 1 : -1;
+      const totalH = 4.6;
+      const numSteps = 24;
+      const stepRise = totalH / numSteps;
+      const stepRun = 0.42;
+
+      // Top concrete access portal / landing platform at street level (y = 0.0)
+      const topPlatform = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.35, 2.2), new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 }));
+      topPlatform.position.set(0, 0.0, 0);
+      stairGroup.add(topPlatform);
+
+      // Warning sign on access gate
+      const gateSign = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 0.06), new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3 }));
+      gateSign.position.set(0, 0.8, -wallSign * 1.0);
+      stairGroup.add(gateSign);
+
+      for (let i = 0; i < numSteps; i++) {
+        const stepY = -i * stepRise;
+        const stepX = (i + 1) * stepRun;
+        const stepZ = -wallSign * 0.9;
+        const step = new THREE.Mesh(new THREE.BoxGeometry(stepRun * 1.05, 0.06, 1.4), stairSteel);
+        step.position.set(stepX, stepY, stepZ);
+        stairGroup.add(step);
+
+        if (i % 4 === 0) {
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.0, 6), stairYellow);
+          post.position.set(stepX, stepY + 0.5, stepZ - wallSign * 0.65);
+          stairGroup.add(post);
+        }
+      }
+
+      const railLen = numSteps * stepRun * 1.05;
+      const hRail = new THREE.Mesh(new THREE.BoxGeometry(railLen, 0.08, 0.08), stairYellow);
+      hRail.rotation.z = Math.atan2(-totalH, numSteps * stepRun);
+      hRail.position.set(railLen / 2, -totalH / 2 + 0.95, -wallSign * 1.55);
+      stairGroup.add(hRail);
+
+      const botPlatform = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.15, 2.4), new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 }));
+      botPlatform.position.set(numSteps * stepRun + 1.6, TRENCH_Y + 0.08, -wallSign * 1.2);
+      stairGroup.add(botPlatform);
+
+      stairGroup.position.set(anchorX, 0, anchorZ);
+      scene.add(stairGroup);
+    }
+
+    // 1. John Street Bridge South Stairs (leads down to tracks)
+    const johnZ = getUsrcZ(-188) + TRENCH_HALF_W;
+    buildMaintenanceStairs(-188, johnZ, false);
+
+    // 2. Lower Simcoe Bridge North Stairs (leads down to tracks)
+    const simcoeZ = getUsrcZ(-72) - TRENCH_HALF_W;
+    buildMaintenanceStairs(-72, simcoeZ, true);
+
+    // 3. SkyWalk Service Vehicle Ramp at x = -325 (South Wall)
+    {
+      const rampZ = getUsrcZ(-325) + TRENCH_HALF_W;
+      const rampLen = 34.0;
+      const rampW = 3.6;
+      const rampMesh = new THREE.Mesh(new THREE.BoxGeometry(rampLen, 0.35, rampW), concreteRampMat);
+      rampMesh.rotation.z = Math.atan2(4.6, rampLen);
+      rampMesh.position.set(-325 + rampLen / 2, -2.3, rampZ + rampW / 2);
+      scene.add(rampMesh);
+
+      const hazardBar = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.9, rampW + 0.4), stairYellow);
+      hazardBar.position.set(-325, 0.45, rampZ + rampW / 2);
+      scene.add(hazardBar);
+    }
+
+    // 3. Overpass Bridges spanning across the Railway Trench
+    const steelBeamMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.45, metalness: 0.8 });
+    const pierMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 });
+    const pedRedMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.35, metalness: 0.6 });
+    const bridgeAsphaltMat = new THREE.MeshStandardMaterial({ color: 0x1f242d, roughness: 0.88 });
+    const bridgeSidewalkMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.8 });
+    const bridgeYellowMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+    const bridgeTimberMat = new THREE.MeshStandardMaterial({ color: 0x3e3228, roughness: 0.85 });
+
+    OVERPASS_BRIDGES.forEach(b => {
+      const bz = getUsrcZ(b.x);
+      const spanZ = (TRENCH_HALF_W + 3.5) * 2;
+      const zNorth = bz - TRENCH_HALF_W - 3.5;
+      const zSouth = bz + TRENCH_HALF_W + 3.5;
+
+      // Solid, visible bridge road deck / pedestrian deck at street level (y = 0.05)
+      const deckMat = b.isPed ? bridgeTimberMat : bridgeAsphaltMat;
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(b.w, 0.45, spanZ), deckMat);
+      deck.position.set(b.x, 0.05, bz);
+      deck.receiveShadow = true;
+      scene.add(deck);
+
+      if (!b.isPed) {
+        // Raised pedestrian sidewalks on left and right sides of the bridge
+        [-1, 1].forEach(side => {
+          const swX = b.x + side * (b.w / 2 - 1.1);
+          const sw = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.55, spanZ), bridgeSidewalkMat);
+          sw.position.set(swX, 0.12, bz);
+          sw.receiveShadow = true;
+          scene.add(sw);
+        });
+
+        // Double yellow center stripe across the bridge
+        const yellowLine = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, spanZ), bridgeYellowMat);
+        yellowLine.position.set(b.x, 0.28, bz);
+        scene.add(yellowLine);
+      } else {
+        // Timber walkway surface for pedestrian bridges
+        const walk = new THREE.Mesh(new THREE.BoxGeometry(b.w - 0.6, 0.05, spanZ), new THREE.MeshStandardMaterial({ color: 0x78716c, roughness: 0.7 }));
+        walk.position.set(b.x, 0.28, bz);
+        walk.receiveShadow = true;
+        scene.add(walk);
+      }
+
+      // Heavy underside structural steel box girders supporting the bridge span
+      [-1, 1].forEach(side => {
+        const bx = b.x + side * (b.w / 2 - 0.25);
+        const girder = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.55, spanZ), steelBeamMat);
+        girder.position.set(bx, -0.32, bz);
+        scene.add(girder);
+
+        // Concrete bridge parapet & crash barrier at street level
+        const parapet = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.85, spanZ), pierMat);
+        parapet.position.set(bx, 0.52, bz);
+        parapet.receiveShadow = true;
+        scene.add(parapet);
+
+        // Tubular safety handrail on top of parapet
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, spanZ), steelBeamMat);
+        rail.position.set(bx, 1.0, bz);
+        scene.add(rail);
+
+        // Solid collision barrier strictly along the outer bridge edges (leaves center roadway/walkway 100% open)
+        addSolid({
+          type: 'poly',
+          pts: [
+            [bx - 0.3, zNorth], [bx + 0.3, zNorth],
+            [bx + 0.3, zSouth], [bx - 0.3, zSouth]
+          ],
+          h: 1.5,
+          name: b.name + ' Parapet'
+        });
+      });
+
+      // Concrete support piers resting on the trench floor
+      const pierHeight = -TRENCH_Y - 0.6;
+      [-1, 1].forEach(side => {
+        const pier = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.95, pierHeight, 14), pierMat);
+        pier.position.set(b.x + side * (b.w / 4), TRENCH_Y + pierHeight / 2, bz);
+        scene.add(pier);
+        addCircle(b.x + side * (b.w / 4), bz, 1.0);
+      });
+
+      // John Street Pedestrian Bridge: Iconic red steel suspension arch over the tracks
+      if (b.isPed && b.name.indexOf('John Street') >= 0) {
+        const archGeo = new THREE.TorusGeometry(16.5, 0.35, 12, 32, Math.PI);
+        const archMesh = new THREE.Mesh(archGeo, pedRedMat);
+        archMesh.rotation.y = Math.PI / 2;
+        archMesh.position.set(b.x, 0.2, bz);
+        scene.add(archMesh);
+
+        [-10, -5, 0, 5, 10].forEach(az => {
+          const suspH = Math.max(1.0, 16.5 - Math.hypot(0, az));
+          const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, suspH, 6), steelBeamMat);
+          cable.position.set(b.x, suspH / 2, bz + az);
+          scene.add(cable);
+        });
+      }
+    });
+
+    // 4. Parapet safety barriers along the street-side lip of the rail cut (skipping bridge road openings)
+    const lipMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 });
+    for (let x = -880; x <= 840; x += 18) {
+      const isBridge = OVERPASS_BRIDGES.some(b => Math.abs(x - b.x) < (b.w / 2 + 2.5));
+      if (!isBridge) {
+        const cz = getUsrcZ(x);
+        // North lip barrier
+        const barN = new THREE.Mesh(new THREE.BoxGeometry(17.5, 0.9, 0.35), lipMat);
+        barN.position.set(x, 0.45, cz - TRENCH_HALF_W);
+        scene.add(barN);
+        addSolid({
+          type: 'poly',
+          pts: [
+            [x - 9, cz - TRENCH_HALF_W - 0.3], [x + 9, cz - TRENCH_HALF_W - 0.3],
+            [x + 9, cz - TRENCH_HALF_W + 0.3], [x - 9, cz - TRENCH_HALF_W + 0.3]
+          ],
+          h: 1.5,
+          name: 'Rail Trench North Barrier'
+        });
+
+        // South lip barrier
+        const barS = new THREE.Mesh(new THREE.BoxGeometry(17.5, 0.9, 0.35), lipMat);
+        barS.position.set(x, 0.45, cz + TRENCH_HALF_W);
+        scene.add(barS);
+        addSolid({
+          type: 'poly',
+          pts: [
+            [x - 9, cz + TRENCH_HALF_W - 0.3], [x + 9, cz + TRENCH_HALF_W - 0.3],
+            [x + 9, cz + TRENCH_HALF_W + 0.3], [x - 9, cz + TRENCH_HALF_W + 0.3]
+          ],
+          h: 1.5,
+          name: 'Rail Trench South Barrier'
+        });
+      }
     }
 
     // ---------- Buildings ----------
-    const STYLES = ['glass', 'office', 'brick', 'dark', 'stone', 'concrete'];
+    const STYLES = ['glass', 'office', 'brick', 'dark', 'stone', 'concrete', 'warehouse', 'victorian', 'condo'];
     const facadeMats = {};
     const facadeGB = {};
     STYLES.forEach((s, i) => { facadeMats[s] = makeFacade(s, i * 17 + 3); facadeGB[s] = new GeoBuilder(); });
@@ -1051,6 +1847,66 @@
     }
 
     const landmarkFeet = {}; // real OSM footprints of hand-modelled landmarks
+
+    // ---------- Downtown districts ----------
+    // The rail corridor splits downtown: north of it the old city (brick King West warehouses,
+    // stone-and-glass Financial District, 19th-century brick Old Town), south of it the
+    // all-glass Railway Lands / South Core / CityPlace / waterfront condos.
+    const railBins = new Map();
+    (MAP.rails || []).forEach(r => { for (let i = 0; i < r.p.length; i += 2) {
+      const k = Math.round(r.p[i] / 50); const e = railBins.get(k) || [0, 0]; e[0] += r.p[i + 1]; e[1]++; railBins.set(k, e);
+    } });
+    const railKeys = [...railBins.keys()].sort((a, b) => a - b);
+    function railZAt(x) {
+      if (!railKeys.length) return 60;
+      const k = x / 50;
+      if (k <= railKeys[0]) return railBins.get(railKeys[0])[0] / railBins.get(railKeys[0])[1];
+      if (k >= railKeys[railKeys.length - 1]) { const e = railBins.get(railKeys[railKeys.length - 1]); return e[0] / e[1]; }
+      let i = 1; while (railKeys[i] < k) i++;
+      const a = railKeys[i - 1], b = railKeys[i], ea = railBins.get(a), eb = railBins.get(b);
+      const t = (k - a) / (b - a);
+      return (ea[0] / ea[1]) * (1 - t) + (eb[0] / eb[1]) * t;
+    }
+    const streetX = n => { const xs = MAP.roads.filter(r => r.n === n).flatMap(r => r.p.filter((_, i) => i % 2 === 0)); return xs.length ? xs.reduce((a, v) => a + v, 0) / xs.length : null; };
+    const X_UNIVERSITY = streetX('Simcoe Street') !== null ? streetX('Simcoe Street') + 20 : -260;  // King West ends around Simcoe/University
+    const X_YONGE = streetX('Yonge Street') !== null ? streetX('Yonge Street') : 520;              // Old Town starts east of Yonge
+    function districtOf(x, z) {
+      if (z > railZAt(x) + 12) return 'south';         // Railway Lands, South Core, CityPlace, Harbourfront
+      if (x < X_UNIVERSITY) return 'kingwest';
+      if (x < X_YONGE) return 'financial';
+      return 'oldtown';
+    }
+    const pick = (arr, r) => arr[Math.floor(r * arr.length) % arr.length];
+    function districtStyle(x, z, h, seed) {
+      const r = hash(seed * 3.3), d = districtOf(x, z);
+      if (d === 'south') {
+        if (h > 160) return r < 0.6 ? 'glass' : 'dark';         // the few office towers
+        if (h > 25) return r < 0.75 ? 'condo' : 'glass';
+        return pick(['concrete', 'glass', 'concrete', 'office'], r);
+      }
+      if (d === 'kingwest') {
+        if (h <= 28) return r < 0.78 ? 'warehouse' : (r < 0.9 ? 'brick' : 'stone');
+        if (h <= 90) return r < 0.6 ? 'condo' : 'concrete';
+        return 'glass';
+      }
+      if (d === 'financial') {
+        if (h > 90) return r < 0.6 ? 'glass' : 'dark';
+        if (h > 40) return pick(['office', 'stone', 'glass', 'dark'], r);
+        return r < 0.6 ? 'stone' : (r < 0.85 ? 'office' : 'brick');  // old banks and exchange buildings
+      }
+      // oldtown: St. Lawrence / Front St E
+      if (h <= 25) return r < 0.7 ? 'victorian' : (r < 0.88 ? 'brick' : 'stone');
+      if (h <= 60) return pick(['warehouse', 'brick', 'office', 'concrete'], r);
+      return 'glass';
+    }
+    // Buildings whose real look is distinctive enough to hard-code
+    const NAMED_LOOK = [
+      [/^(TD (North|South|West) Tower|Toronto Dominion Bank Tower|TD Terrace)$/, 'dark', [0.8, 0.8, 0.82]],   // Mies' black steel
+      [/^Royal Bank Plaza (North|South) Tower$/, 'glass', [2.3, 1.65, 0.55]],                                      // gold glass
+      [/^First Canadian Place$/, 'stone', [1.45, 1.45, 1.4]],                                                      // white cladding
+      [/^Scotia Plaza$/, 'stone', [1.25, 0.72, 0.62]],                                                            // red granite
+      [/^Commerce Court North$|^Bank of Nova Scotia$|^Royal Bank Building$|^Traders Bank$|^Dominion Public/, 'stone', null]
+    ];
     MAP.buildings.forEach((b, bi) => {
       let pts = toPairs(b.p);
       if (pts.length < 3) return;
@@ -1065,8 +1921,13 @@
       if (name === 'CN Tower tickets' || name === 'Skywalk') return;
       // Skip the unnamed OSM CN Tower base plaza polygon & small pod that seal off the CN Tower / Aquarium passage
       if (!name && cx > -365 && cx < -245 && cz > 100 && cz < 190) return;
-      // Skip the unnamed elevated Skywalk polygon east of the Aquarium that blocks Lower Simcoe / Bremner
-      if (!name && cx > -185 && cx < -50 && cz > -15 && cz < 110 && area < 3500) return;
+      // Skip the unnamed elevated Skywalk, air-rights canopies, and pedestrian bridges over the mainline rail cut
+      if (!name && (
+        (cx > -185 && cx < -50 && cz > -15 && cz < 110 && area < 3500) ||
+        (cx > -155 && cx < -120 && cz > 20 && cz < 85) ||
+        (cx > -385 && cx < -350 && cz > 85 && cz < 140) ||
+        (cx > 380 && cx < 500 && cz > -165 && cz < -80 && area < 4000)
+      )) return;
       // Skip the duplicate unnamed podium polygon that Z-fights with Fairmont Royal York Hotel
       if (!name && Math.hypot(cx - LM.royalYork[0], cz - LM.royalYork[1]) < 35) return;
       // Skip the unnamed northern attachment on Scotiabank Arena so the rail corridor gap is clean
@@ -1105,22 +1966,22 @@
       if (isMarket) { h = 12; landmarkFeet.market = pts; }
       h = Math.max(4, Math.min(h, 320));
 
-      let style;
-      if (name.indexOf('Dominion Public') >= 0 || name.indexOf('Hockey Hall') >= 0) style = 'stone';
+      let style, namedTint = null;
+      const look = NAMED_LOOK.find(([re]) => re.test(name));
+      if (look) { style = look[1]; namedTint = look[2]; }
+      else if (name.indexOf('Hockey Hall') >= 0) style = 'stone';
       else if (name.indexOf('Rogers Centre') === 0) style = 'concrete';
-      else if (h > 90) style = hash(bi) > 0.45 ? 'glass' : 'dark';
-      else if (h > 40) style = ['glass', 'office', 'dark'][Math.floor(hash(bi * 3.3) * 3)];
-      else style = ['brick', 'office', 'brick', 'concrete'][Math.floor(hash(bi * 5.1) * 4)];
+      else style = districtStyle(cx, cz, h, bi);
 
       if (name.indexOf('Rogers Centre') === 0) {
         rogersPoly = { pts, cx, cz };
         h = 32; // walls; dome added separately
       }
 
-      if (isGooderham || isMarket) style = 'brick';
+      if (isGooderham || isMarket) style = 'victorian';
       const tb = 0.78 + hash(bi * 2.71) * 0.4;
       addBuilding(pts, h, style, 0, {
-        tint: [tb * (0.95 + hash(bi * 9.1) * 0.1), tb, tb * (0.95 + hash(bi * 4.3) * 0.1)],
+        tint: namedTint || [tb * (0.95 + hash(bi * 9.1) * 0.1), tb, tb * (0.95 + hash(bi * 4.3) * 0.1)],
         uOff: hash(bi * 7.7) * TILE_W,
         shops: !isMarket, roof: !(isGooderham || isMarket)
       });
@@ -1355,6 +2216,189 @@
       console.info('[city] frontage infill lots:', lots);
     }
 
+    // ==========================================================================
+    // THE WELL (Front & Spadina, NW corner) - hand-modelled from public descriptions:
+    // 8 Spadina, a ~174 m office tower of three glass volumes stepping back from Spadina
+    // with expressed bracing and a metal-clad stair on its north side; three glass residential
+    // towers on an opaque podium along Front (tallest to the east); three brick mid-rises along
+    // Wellington; and a ~160 m glass-and-steel lattice canopy (the "spine") running west from
+    // the corner between them. It sits just west of the OSM data, so only its location comes
+    // from the map: the Front St / Spadina Ave intersection.
+    // ==========================================================================
+    const reservedLines = [];   // corridors the distant-skyline filler must keep clear of
+    const genericStores = [];   // {kind, x, z, nx, nz} placed after this block
+    {
+      const front = MAP.roads.filter(r => r.n === 'Front Street West').flatMap(r => toPairs(r.p));
+      const spad = MAP.roads.filter(r => r.n === 'Spadina Avenue').flatMap(r => toPairs(r.p));
+      if (front.length && spad.length) {
+        const O = front.reduce((a, p) => (p[0] < a[0] ? p : a));                 // Front's west end = Spadina
+        const fE = front.reduce((a, p) => (Math.abs(p[0] - (O[0] + 90)) < Math.abs(a[0] - (O[0] + 90)) ? p : a));
+        let wx = O[0] - fE[0], wz = O[1] - fE[1]; const wl = Math.hypot(wx, wz) || 1; wx /= wl; wz /= wl;   // west along Front
+        const nx = -wz, nz = wx;   // north along Spadina: square to Front on Toronto's rotated grid
+        reservedLines.push({ a: O, b: [O[0] + nx * 450, O[1] + nz * 450], hw: 26 });   // keep Spadina itself clear
+        const C = [O[0] + wx * 30 + nx * 12, O[1] + wz * 30 + nz * 12];             // SE corner of the block (Spadina is ~45 m wide)
+        if (typeof window !== 'undefined') window.__well = { C, w: [wx, wz], n: [nx, nz] };
+        const P = (u, v) => [C[0] + wx * u + nx * v, C[1] + wz * u + nz * v];
+        const rect = (u0, v0, u1, v1) => { const r = [P(u0, v0), P(u1, v0), P(u1, v1), P(u0, v1)]; if (polyArea(r) < 0) r.reverse(); return r; };
+        const solid = r => addSolid({ type: 'poly', pts: r, h: 30, name: 'The Well' });
+        solid(rect(0, 0, 190, 150));   // whole block: keeps procedural filler out of the plaza
+
+        // 8 Spadina: three stacked glass volumes, each set further back from Spadina
+        const officeTint = [0.95, 1.0, 1.08];
+        [[0, 0, 62], [7, 62, 118], [14, 118, 174]].forEach(([u0, y0, y1], i) => {
+          addBuilding(rect(u0, 0, 46, 52), y1, 'glass', y0, { tint: officeTint, shops: false, roof: i === 2 });
+        });
+        addBuilding(rect(18, 52, 28, 57), 160, 'office', 0, { tint: [1.35, 1.35, 1.4], shops: false, roof: false }); // metal stair
+        // expressed (decorative) bracing: X-braces on the Spadina face of each volume
+        const braceMat = new THREE.MeshStandardMaterial({ color: 0xc9ced6, metalness: 0.7, roughness: 0.35 });
+        const brace = (u, v0, y0, v1, y1) => {
+          const a = P(u - 0.4, v0), b = P(u - 0.4, v1);
+          const dx = b[0] - a[0], dz = b[1] - a[1], dy = y1 - y0, L = Math.hypot(dx, dy, dz);
+          const m = new THREE.Mesh(new THREE.BoxGeometry(0.7, L, 0.7), braceMat);
+          m.position.set((a[0] + b[0]) / 2, (y0 + y1) / 2, (a[1] + b[1]) / 2);
+          m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx, dy, dz).normalize());
+          scene.add(m);
+        };
+        [[0, 6, 62], [7, 62, 118], [14, 118, 174]].forEach(([u, y0, y1]) => {
+          brace(u, 0.5, y0, 51.5, y1); brace(u, 51.5, y0, 0.5, y1);
+        });
+
+        // Front St: opaque podium, three glass residential towers stepping down to the west
+        addBuilding(rect(52, 0, 186, 40), 22, 'stone', 0, { tint: [1.38, 1.27, 1.1], roof: false });
+        [[58, 88, 150], [100, 130, 126], [144, 174, 74]].forEach(([u0, u1, h]) => {
+          addBuilding(rect(u0, 5, u1, 35), h, 'condo', 22, { tint: [1.05, 1.08, 1.1], shops: false });
+        });
+        // Wellington St: three brick-clad mid-rises
+        [[8, 62, 48], [72, 122, 55], [132, 186, 44]].forEach(([u0, u1, h], i) => {
+          addBuilding(rect(u0, 106, u1, 150), h, 'warehouse', 0, { tint: [1.0 - i * 0.05, 1, 1] });
+        });
+
+        // The canopy: a barrel of diamond-gridded glass on steel, ~3 storeys up
+        const lc = document.createElement('canvas'); lc.width = lc.height = 256;
+        const lx = lc.getContext('2d');
+        lx.fillStyle = 'rgba(180,215,232,0.20)'; lx.fillRect(0, 0, 256, 256);
+        lx.strokeStyle = 'rgba(70,76,84,0.95)'; lx.lineWidth = 5;
+        for (let k = -256; k <= 512; k += 64) {
+          lx.beginPath(); lx.moveTo(k, 0); lx.lineTo(k + 256, 256); lx.stroke();
+          lx.beginPath(); lx.moveTo(k + 256, 0); lx.lineTo(k, 256); lx.stroke();
+        }
+        const ltex = new THREE.CanvasTexture(lc); ltex.wrapS = ltex.wrapT = THREE.RepeatWrapping;
+        const canopyMat = new THREE.MeshStandardMaterial({ map: ltex, transparent: true, side: THREE.DoubleSide, depthWrite: false, roughness: 0.15, metalness: 0.3 });
+        const cgb = new GeoBuilder();
+        const VC = 74, HALF = 12, SEG = 8, Y0 = 10, RISE = 8;
+        for (let s = 0; s < SEG; s++) {
+          const t0 = (s / SEG) * Math.PI, t1 = ((s + 1) / SEG) * Math.PI;
+          const off0 = -HALF * Math.cos(t0), off1 = -HALF * Math.cos(t1);
+          const y0 = Y0 + RISE * Math.sin(t0), y1 = Y0 + RISE * Math.sin(t1);
+          const p00 = P(46, VC + off0), p01 = P(186, VC + off0), p10 = P(46, VC + off1), p11 = P(186, VC + off1);
+          const a = cgb.vert(p00[0], y0, p00[1], 0, 1, 0, 0, s / 2), b = cgb.vert(p01[0], y0, p01[1], 0, 1, 0, 140 / 8, s / 2);
+          const c = cgb.vert(p11[0], y1, p11[1], 0, 1, 0, 140 / 8, (s + 1) / 2), d = cgb.vert(p10[0], y1, p10[1], 0, 1, 0, 0, (s + 1) / 2);
+          cgb.quad(a, b, c, d);
+        }
+        const canopy = new THREE.Mesh(cgb.build(), canopyMat);
+        canopy.renderOrder = 2;
+        scene.add(canopy);
+        // steel edge beams and posts
+        const steel = new THREE.MeshStandardMaterial({ color: 0x5b6168, metalness: 0.75, roughness: 0.4 });
+        [-HALF, HALF].forEach(off => {
+          const a = P(46, VC + off), b = P(186, VC + off);
+          const beam = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 140), steel);
+          beam.position.set((a[0] + b[0]) / 2, Y0, (a[1] + b[1]) / 2); beam.rotation.y = Math.atan2(b[0] - a[0], b[1] - a[1]);
+          scene.add(beam);
+          for (let u = 50; u <= 186; u += 17) {
+            const p = P(u, VC + off);
+            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, Y0, 8), steel);
+            post.position.set(p[0], Y0 / 2, p[1]); scene.add(post);
+          }
+        });
+
+        // Pharmacy in the Front St podium (486 Front St W)
+        const sp = P(70, 0);
+        genericStores.push({ kind: 'pharmacy', x: sp[0], z: sp[1], nx: -nx, nz: -nz, len: 14 });
+      }
+    }
+
+    // ==========================================================================
+    // GENERIC PHARMACIES & COFFEE SHOPS at real pharmacy / coffee-chain locations
+    // (from public directory listings). Signs are generic on purpose.
+    // ==========================================================================
+    {
+      const PLACES = [
+        { kind: 'pharmacy', a: 'King Street West', b: 'Blue Jays Way', quad: [0.4, -1], face: 'a' },   // 388 King St W (King & Peter)
+        { kind: 'pharmacy', a: 'Yonge Street', b: 'King Street East', quad: [1, 1], face: 'a' },       // 69 Yonge St (Yonge & King)
+        { kind: 'coffee', a: 'Front Street West', b: 'Blue Jays Way', quad: [-0.4, -1], face: 'a' },   // 340 Front St W
+        { kind: 'coffee', a: 'Queens Quay West', b: 'York Street', quad: [0.3, 1], face: 'a' },        // 207 Queens Quay W
+        { kind: 'coffee', a: 'Queens Quay West', b: 'Lower Simcoe Street', quad: [-1, 0.8], face: 'a' } // 249 Queens Quay W
+      ];
+      const linesOf = n => MAP.roads.filter(r => r.n === n).map(r => toPairs(r.p));
+      const segNearest = (x, z, a, b) => {
+        const dx = b[0] - a[0], dz = b[1] - a[1], L2 = dx * dx + dz * dz || 1;
+        const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / L2));
+        return { x: a[0] + dx * t, z: a[1] + dz * t, t, d: Math.hypot(a[0] + dx * t - x, a[1] + dz * t - z) };
+      };
+      const footprints = MAP.buildings.map(b => { let p = toPairs(b.p); if (p.length > 1 && polyArea(p) < 0) p = p.reverse(); return p; }).filter(p => p.length >= 3);
+      PLACES.forEach(pl => {
+        const A = linesOf(pl.a), B = linesOf(pl.b);
+        let best = null;
+        A.forEach(la => la.forEach(p => B.forEach(lb => { for (let i = 1; i < lb.length; i++) {
+          const q = segNearest(p[0], p[1], lb[i - 1], lb[i]);
+          if (!best || q.d < best.d) best = { x: (p[0] + q.x) / 2, z: (p[1] + q.z) / 2, d: q.d };
+        } })));
+        if (!best || best.d > 30) return;
+        // direction of the street the shop faces, at the corner
+        let dA = null, dd = Infinity;
+        A.forEach(la => { for (let i = 1; i < la.length; i++) {
+          const q = segNearest(best.x, best.z, la[i - 1], la[i]);
+          if (q.d < dd) { dd = q.d; const L = Math.hypot(la[i][0] - la[i - 1][0], la[i][1] - la[i - 1][1]) || 1; dA = [(la[i][0] - la[i - 1][0]) / L, (la[i][1] - la[i - 1][1]) / L]; }
+        } });
+        const ql = Math.hypot(pl.quad[0], pl.quad[1]);
+        const tx = best.x + pl.quad[0] / ql * 24, tz = best.z + pl.quad[1] / ql * 24;
+        // nearest building wall that faces the intersection
+        let hit = null;
+        footprints.forEach(pts => { for (let i = 0; i < pts.length; i++) {
+          const a = pts[i], b = pts[(i + 1) % pts.length], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+          if (len < 8) continue;
+          const nX = (b[1] - a[1]) / len, nZ = -(b[0] - a[0]) / len;
+          const q = segNearest(tx, tz, a, b);
+          if ((best.x - q.x) * nX + (best.z - q.z) * nZ <= 0) continue;   // must face the street corner
+          if (dA && Math.abs(nX * dA[0] + nZ * dA[1]) > 0.45) continue;      // ...and run along the shop's street
+          if (!hit || q.d < hit.d) {
+            const tt = Math.max(5 / len, Math.min(1 - 5 / len, q.t));
+            hit = { d: q.d, x: a[0] + (b[0] - a[0]) * tt, z: a[1] + (b[1] - a[1]) * tt, nx: nX, nz: nZ, len };
+          }
+        } });
+        if (hit && hit.d < 30) genericStores.push({ kind: pl.kind, x: hit.x, z: hit.z, nx: hit.nx, nz: hit.nz, len: hit.len, where: pl.a + ' & ' + pl.b });
+      });
+
+      const pharmaCross = new THREE.MeshBasicMaterial({ color: 0x2bd46a, toneMapped: false });
+      const windowGlow = new THREE.MeshBasicMaterial({ color: 0xfff4dc, toneMapped: false });
+      genericStores.forEach(st => {
+        const g = new THREE.Group();
+        const w = Math.min(9, st.len - 2);
+        const sign = st.kind === 'pharmacy'
+          ? signMesh(['PHARMACY'], w * 0.8, 0.9, { bg: '#0d4d30', fg: '#ffffff', borderColor: '#0d4d30', size: 84 })
+          : signMesh(['COFFEE'], w * 0.7, 0.9, { bg: '#3b2a20', fg: '#f3e3c3', borderColor: '#3b2a20', size: 84 });
+        sign.position.set(0, 3.95, 0.2); g.add(sign);
+        const glow = new THREE.Mesh(new THREE.PlaneGeometry(w, 2.9), windowGlow);
+        glow.position.set(0, 1.75, 0.12); g.add(glow);
+        const fascia = new THREE.Mesh(new THREE.BoxGeometry(w + 0.6, 1.3, 0.25), new THREE.MeshStandardMaterial({ color: 0x1f2328, roughness: 0.6 }));
+        fascia.position.set(0, 3.95, 0.05); g.add(fascia);
+        if (st.kind === 'pharmacy') {
+          // projecting double-sided lightbox with a generic green cross
+          const blade = new THREE.Group();
+          const bar1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.3), pharmaCross);
+          const bar2 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 0.9), pharmaCross);
+          blade.add(bar1, bar2);
+          blade.position.set(w / 2 + 0.2, 4.8, 0.7);
+          g.add(blade);
+        }
+        g.position.set(st.x + st.nx * 0.08, 0, st.z + st.nz * 0.08);
+        g.rotation.y = Math.atan2(st.nx, st.nz);
+        scene.add(g);
+      });
+      if (typeof window !== 'undefined') window.__genericStores = genericStores.map(s => ({ kind: s.kind, where: s.where || 'The Well', x: Math.round(s.x), z: Math.round(s.z) }));
+    }
+
     // ---------- Distant skyline: procedural blocks beyond the OSM data ----------
     // The real data covers ~1.4 x 0.95 km; without this the city just stops at the fog.
     {
@@ -1372,6 +2416,7 @@
           if (jx > minX - 40 && jx < maxX + 40 && jz > minZ - 40 && jz < maxZ + 40) continue;
           const sx = 22 + hash(jx * 0.7) * 30, sz = 22 + hash(jz * 0.9) * 30;
           if (onRoad(jx, jz, -Math.max(sx, sz) / 2, -1)) continue;
+          if (reservedLines.some(L => { const dx = L.b[0] - L.a[0], dz = L.b[1] - L.a[1], L2 = dx * dx + dz * dz; const t = Math.max(0, Math.min(1, ((jx - L.a[0]) * dx + (jz - L.a[1]) * dz) / L2)); return Math.hypot(L.a[0] + dx * t - jx, L.a[1] + dz * t - jz) < L.hw + Math.max(sx, sz) * 0.71; })) continue;
           if (solids.some(o => o.type === 'poly' && !(jx + sx / 2 + 4 < o.bb[0] || jx - sx / 2 - 4 > o.bb[2] || jz + sz / 2 + 4 < o.bb[1] || jz - sz / 2 - 4 > o.bb[3]))) continue;
           // taller toward the Financial District (north-east of the origin)
           const fidi = Math.exp(-(((jx - 350) ** 2) + ((jz + 600) ** 2)) / (2 * 380 * 380));
@@ -3417,80 +4462,87 @@
       return carGroup;
     }
 
-    // ---------- 3. Green & White Bi-Level GO Transit Train in Corridor ----------
-    let goTrainGroup = null;
-    let goTrainProgress = 0.35;
+    // ---------- 3. Green & White Bi-Level GO Transit Train in Sunken Corridor ----------
+    const goTrainCars = [];
+    let goTrainDist = 550.0;
+    const USRC_SPAN = 1530.0;
+
     {
-      goTrainGroup = new THREE.Group();
       const goGreen = new THREE.MeshStandardMaterial({ color: 0x136f38, roughness: 0.4, metalness: 0.3 });
       const goWhite = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.45, metalness: 0.15 });
       const winMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1, metalness: 0.8 });
       const roofMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.6 });
+      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6, metalness: 0.7 });
 
       function buildBiLevelCoach(carLength, isCabCar = false) {
         const car = new THREE.Group();
-        // Octagonal bi-level double-deck body (W = 3.0m, H = 4.6m)
-        const lowerBody = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.8, carLength), goGreen);
-        lowerBody.position.y = 1.35;
+        // Lower wheels/bogies on the track
+        [-carLength * 0.35, carLength * 0.35].forEach(wz => {
+          const bogie = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.4, 3.2), wheelMat);
+          bogie.position.set(0, 0.25, wz);
+          car.add(bogie);
+        });
+
+        // Octagonal bi-level double-deck body (W = 3.1m, H = 3.9m from track)
+        const lowerBody = new THREE.Mesh(new THREE.BoxGeometry(3.1, 1.4, carLength), goGreen);
+        lowerBody.position.y = 1.15;
         car.add(lowerBody);
 
-        const midWaist = new THREE.Mesh(new THREE.BoxGeometry(3.02, 1.1, carLength), goWhite);
-        midWaist.position.y = 2.8;
+        const midWaist = new THREE.Mesh(new THREE.BoxGeometry(3.12, 0.9, carLength), goWhite);
+        midWaist.position.y = 2.3;
         car.add(midWaist);
 
-        const upperBody = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.2, carLength), goGreen);
-        upperBody.position.y = 3.95;
+        const upperBody = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.0, carLength), goGreen);
+        upperBody.position.y = 3.25;
         car.add(upperBody);
 
-        // Curved roof
-        const roof = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.45, carLength), roofMat);
-        roof.position.y = 4.75;
+        // Curved roof (top reaches y = 3.9m)
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.35, carLength), roofMat);
+        roof.position.y = 3.9;
         car.add(roof);
 
         // Double-decker window bands
         [-1, 1].forEach(side => {
-          const lowWins = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.6, carLength * 0.85), winMat);
-          lowWins.position.set(side * 1.52, 1.7, 0);
+          const lowWins = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.5, carLength * 0.85), winMat);
+          lowWins.position.set(side * 1.57, 1.45, 0);
           car.add(lowWins);
-          const upWins = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.65, carLength * 0.85), winMat);
-          upWins.position.set(side * 1.47, 3.8, 0);
+          const upWins = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, carLength * 0.85), winMat);
+          upWins.position.set(side * 1.52, 3.15, 0);
           car.add(upWins);
         });
 
         if (isCabCar) {
-          const cabNose = new THREE.Mesh(new THREE.BoxGeometry(2.95, 3.2, 2.0), goGreen);
-          cabNose.position.set(0, 2.2, carLength / 2 + 1.0);
+          const cabNose = new THREE.Mesh(new THREE.BoxGeometry(3.05, 2.6, 2.2), goGreen);
+          cabNose.position.set(0, 1.8, carLength / 2 + 1.1);
           car.add(cabNose);
-          const fGlass = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.1, 0.1), winMat);
-          fGlass.position.set(0, 3.3, carLength / 2 + 2.02);
+          const fGlass = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.9, 0.1), winMat);
+          fGlass.position.set(0, 2.7, carLength / 2 + 2.22);
           car.add(fGlass);
           const lightMat = new THREE.MeshBasicMaterial({ color: 0xfffbeb });
           [-0.9, 0.9].forEach(lx => {
-            const ditch = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 12), lightMat);
+            const ditch = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.1, 12), lightMat);
             ditch.rotation.x = Math.PI / 2;
-            ditch.position.set(lx, 1.2, carLength / 2 + 2.03);
+            ditch.position.set(lx, 1.0, carLength / 2 + 2.22);
             car.add(ditch);
           });
-          const topHead = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.1, 12), lightMat);
+          const topHead = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.1, 12), lightMat);
           topHead.rotation.x = Math.PI / 2;
-          topHead.position.set(0, 4.3, carLength / 2 + 1.95);
+          topHead.position.set(0, 3.5, carLength / 2 + 2.15);
           car.add(topHead);
         }
         return car;
       }
 
-      const carLen = 20.0;
+      const carLen = 22.0;
       const cab = buildBiLevelCoach(carLen, true);
-      cab.position.z = 32.0;
-      goTrainGroup.add(cab);
+      scene.add(cab);
+      goTrainCars.push(cab);
 
       for (let ci = 0; ci < 3; ci++) {
         const coach = buildBiLevelCoach(carLen, false);
-        coach.position.z = 10.0 - ci * (carLen + 1.2);
-        goTrainGroup.add(coach);
+        scene.add(coach);
+        goTrainCars.push(coach);
       }
-      goTrainGroup.position.set(-150, 0.1, -22);
-      scene.add(goTrainGroup);
     }
 
     // ---------- 4. Green P Parking Signs (Toronto Parking Authority) ----------
@@ -3714,13 +4766,23 @@
       towerHue.setHSL((t * 0.02) % 1, 0.9, 0.5);
       towerMat.emissive.copy(towerHue);
 
-      // Animate GO Transit Train rolling through Union Station rail corridor
-      if (goTrainGroup) {
-        goTrainProgress = (goTrainProgress + dt * 0.022) % 1.0;
-        const gx = -420 + goTrainProgress * 920;
-        const gz = -14.0 - (gx - 100) * 0.16;
-        goTrainGroup.position.set(gx, 0.1, gz);
-        goTrainGroup.rotation.y = Math.atan2(1.0, -0.16);
+      // Animate Articulated GO Transit Train down in the Sunken Rail Trench on Track 2
+      if (goTrainCars.length) {
+        goTrainDist = (goTrainDist + dt * 26.0) % USRC_SPAN;
+        for (let ci = 0; ci < goTrainCars.length; ci++) {
+          const cd = (goTrainDist - ci * 23.5 + USRC_SPAN) % USRC_SPAN;
+          const cx = -680.0 + cd;
+          const cz = getUsrcZ(cx);
+          const nextZ = getUsrcZ(cx + 2.0);
+          const dx = 2.0, dz = nextZ - cz;
+          const len = Math.hypot(dx, dz) || 1;
+          const nx = -dz / len, nz = dx / len;
+          const trainX = cx + nx * (-2.5);
+          const trainZ = cz + nz * (-2.5);
+          const ang = Math.atan2(dx, dz);
+          goTrainCars[ci].position.set(trainX, TRENCH_Y + 0.22, trainZ);
+          goTrainCars[ci].rotation.y = ang;
+        }
       }
 
       // Animate Peace Zone Sanctuary
@@ -4059,7 +5121,10 @@
         z: peaceCenter[1],
         radius: PEACE_RADIUS
       },
-      isInsidePeaceZone
+      isInsidePeaceZone,
+      isInsideTrench,
+      isOnBridge,
+      getUsrcZ
     };
   }
 

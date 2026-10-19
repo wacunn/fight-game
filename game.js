@@ -1,5 +1,5 @@
 // ============================================================================
-// FIST OF DOOM: BRUTAL BRAWLER - ENHANCED 3D ENGINE
+// FISTS OF DOOM: TORONTO — DEFENDER OF THE 6IX
 // ============================================================================
 
 // --- ENHANCED AUDIO SYNTHESIZER (Industrial Metal Riffs & Visceral FX) ---
@@ -197,6 +197,86 @@ class EnhancedRetroAudio {
     gain.connect(this.ctx.destination);
     osc.start(t);
     osc.stop(t + 0.85);
+  }
+
+  playPenaltySound() {
+    if (!this.ctx || this.isMuted) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(140, t);
+    osc.frequency.setValueAtTime(105, t + 0.12);
+    gain.gain.setValueAtTime(0.75, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.32);
+  }
+
+  playCivilianGasp() {
+    if (!this.ctx || this.isMuted) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(360, t);
+    osc.frequency.exponentialRampToValueAtTime(540, t + 0.08);
+    osc.frequency.exponentialRampToValueAtTime(240, t + 0.24);
+    gain.gain.setValueAtTime(0.55, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.24);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.26);
+  }
+
+  playRobotClank() {
+    if (!this.ctx || this.isMuted) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(1250, t);
+    osc.frequency.exponentialRampToValueAtTime(320, t + 0.18);
+    gain.gain.setValueAtTime(0.65, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.22);
+  }
+
+  playAlienScreech() {
+    if (!this.ctx || this.isMuted) return;
+    const t = this.ctx.currentTime;
+    const carrier = this.ctx.createOscillator();
+    const modulator = this.ctx.createOscillator();
+    const modGain = this.ctx.createGain();
+    const outGain = this.ctx.createGain();
+
+    carrier.type = 'sawtooth';
+    modulator.type = 'sine';
+    carrier.frequency.setValueAtTime(680, t);
+    carrier.frequency.exponentialRampToValueAtTime(240, t + 0.45);
+
+    modulator.frequency.setValueAtTime(45, t);
+    modGain.gain.setValueAtTime(340, t);
+    modGain.gain.exponentialRampToValueAtTime(20, t + 0.45);
+
+    outGain.gain.setValueAtTime(0.75, t);
+    outGain.gain.exponentialRampToValueAtTime(0.01, t + 0.45);
+
+    modulator.connect(modGain);
+    modGain.connect(carrier.frequency);
+    carrier.connect(outGain);
+    outGain.connect(this.ctx.destination);
+
+    modulator.start(t);
+    carrier.start(t);
+    modulator.stop(t + 0.48);
+    carrier.stop(t + 0.48);
   }
 
   playPickup() {
@@ -778,51 +858,63 @@ const DIFFICULTY_CONFIGS = {
   easy: {
     key: 'easy',
     name: 'EASY',
-    sub: 'TOURIST',
+    sub: 'TOURIST (75% CITIZENS)',
     tagClass: 'tag-green',
-    targetEnemies: 14,
-    hpMult: 0.7,
-    speedMult: 0.85,
-    damageMult: 0.65,
-    attackCooldownMult: 1.4,
-    aggroDist: 24,
-    spawnInterval: 5.5,
-    maxAlive: 14
+    targetEnemies: 50,
+    civilianRatio: 0.75,
+    robotRatio: 0.18,
+    snatcherRatio: 0.07,
+    hpMult: 0.85,
+    speedMult: 0.9,
+    damageMult: 0.7,
+    attackCooldownMult: 1.3,
+    aggroDist: 28,
+    spawnInterval: 4.5,
+    maxAlive: 50
   },
   medium: {
     key: 'medium',
     name: 'MEDIUM',
-    sub: 'BRAWLER',
+    sub: 'DEFENDER (50% CITIZENS)',
     tagClass: 'tag-cyan',
-    targetEnemies: 30,
+    targetEnemies: 55,
+    civilianRatio: 0.50,
+    robotRatio: 0.35,
+    snatcherRatio: 0.15,
     hpMult: 1.0,
     speedMult: 1.0,
     damageMult: 1.0,
     attackCooldownMult: 1.0,
     aggroDist: 35,
     spawnInterval: 3.5,
-    maxAlive: 30
+    maxAlive: 55
   },
   hard: {
     key: 'hard',
     name: 'HARD',
-    sub: 'BRUTAL',
+    sub: 'INVASION (25% CITIZENS)',
     tagClass: 'tag-yellow',
-    targetEnemies: 52,
+    targetEnemies: 65,
+    civilianRatio: 0.25,
+    robotRatio: 0.50,
+    snatcherRatio: 0.25,
     hpMult: 1.35,
     speedMult: 1.15,
     damageMult: 1.4,
     attackCooldownMult: 0.8,
     aggroDist: 48,
     spawnInterval: 2.2,
-    maxAlive: 52
+    maxAlive: 65
   },
   impossible: {
     key: 'impossible',
     name: 'IMPOSSIBLE',
-    sub: 'TORONTO MAYHEM',
+    sub: 'OVERRUN (10% CITIZENS)',
     tagClass: 'tag-red',
     targetEnemies: 88,
+    civilianRatio: 0.10,
+    robotRatio: 0.55,
+    snatcherRatio: 0.35,
     hpMult: 1.75,
     speedMult: 1.35,
     damageMult: 1.9,
@@ -1633,98 +1725,296 @@ function createMeteorShockwave(x, z) {
 }
 
 // ============================================================================
-// 3D HUMANOID RIVAL FIGHTERS & BRAWLER AI SYSTEM
+// 3D HUMANOID RIVAL FIGHTERS, CIVILIANS & BODY SNATCHERS
 // ============================================================================
 const enemies = [];
 
-// Four distinct rival human fighters
-const FIGHTER_ARCHETYPES = [
+// 1. INNOCENT TORONTONIAN CIVILIANS (Friendly - Do NOT hit!)
+const CIVILIAN_ARCHETYPES = [
   {
-    name: 'BRUISER TYSON',
-    title: 'HEAVYWEIGHT BRAWLER',
-    hp: 175,
-    speed: 3.1,
-    damage: 22,
-    scale: 1.08,
-    skinColor: 0xba7a48,
-    hairColor: 0x18181b,
-    vestColor: 0x1f2937,
-    pantsColor: 0xb91c1c, // red boxing trunks
-    wrapColor: 0xdc2626,  // red boxing wraps
-    bootColor: 0x111827,
-    hairStyle: 'shaved',
-    bandanaColor: null
-  },
-  {
-    name: 'STRIKER DAMIAN',
-    title: 'STREET FIGHTER',
-    hp: 110,
-    speed: 4.6,
-    damage: 14,
+    name: 'MARK (BAY ST TRADER)',
+    kind: 'civilian',
+    title: 'INNOCENT CITIZEN',
+    hp: 60,
+    speed: 2.6,
+    damage: 0,
     scale: 0.98,
     skinColor: 0xe5ad82,
-    hairColor: 0x451a03,
-    vestColor: 0x334155, // urban vest
-    pantsColor: 0x1e293b,
-    wrapColor: 0x06b6d4,  // cyan taped fists
+    hairColor: 0x27272a,
+    vestColor: 0x3b82f6, // blue collared shirt
+    pantsColor: 0x1e293b, // slacks
+    wrapColor: 0xe5ad82,  // bare hands
     bootColor: 0x0f172a,
-    hairStyle: 'bandana',
-    bandanaColor: 0xef4444 // red headband
+    hairStyle: 'shaved',
+    tagClass: 'civ'
   },
   {
-    name: 'CYBER REX',
-    title: 'ARENA CYBORG',
+    name: 'SARAH (QUEEN WEST ARTIST)',
+    kind: 'civilian',
+    title: 'INNOCENT CITIZEN',
+    hp: 55,
+    speed: 2.8,
+    damage: 0,
+    scale: 0.95,
+    skinColor: 0xd4976a,
+    hairColor: 0x78350f,
+    vestColor: 0x10b981, // emerald cardigan
+    pantsColor: 0x374151,
+    wrapColor: 0xd4976a,  // bare hands
+    bootColor: 0x1f2937,
+    hairStyle: 'topknot',
+    bandanaColor: 0x059669,
+    tagClass: 'civ'
+  },
+  {
+    name: 'DEVON (CITYPLACE JOGGER)',
+    kind: 'civilian',
+    title: 'INNOCENT CITIZEN',
+    hp: 70,
+    speed: 3.2,
+    damage: 0,
+    scale: 1.0,
+    skinColor: 0xba7a48,
+    hairColor: 0x18181b,
+    vestColor: 0xf59e0b, // bright amber runner hoodie
+    pantsColor: 0x18181b,
+    wrapColor: 0xba7a48,  // bare hands
+    bootColor: 0xf8fafc, // white runners
+    hairStyle: 'bandana',
+    bandanaColor: 0x38bdf8,
+    tagClass: 'civ'
+  },
+  {
+    name: 'CHLOE (KENSINGTON LOCAL)',
+    kind: 'civilian',
+    title: 'INNOCENT CITIZEN',
+    hp: 55,
+    speed: 2.7,
+    damage: 0,
+    scale: 0.96,
+    skinColor: 0xf6d8ae,
+    hairColor: 0xb45309,
+    vestColor: 0xec4899, // pink vintage jacket
+    pantsColor: 0x2563eb, // blue jeans
+    wrapColor: 0xf6d8ae,  // bare hands
+    bootColor: 0x312e81,
+    hairStyle: 'shaved',
+    tagClass: 'civ'
+  }
+];
+
+// 2. ROGUE HUMANOID COMBAT ROBOTS (Hostile - Horizontal single-eye visor)
+const ROBOT_ARCHETYPES = [
+  {
+    name: 'UNIT-01 (CYBER REX)',
+    kind: 'robot',
+    title: 'ROGUE COMBAT ANDROID',
     hp: 145,
     speed: 3.6,
     damage: 18,
     scale: 1.04,
-    skinColor: 0x784421,
-    hairColor: 0x000000,
-    vestColor: 0x09090b,
-    pantsColor: 0x27272a,
-    wrapColor: 0xf59e0b,  // gold brass knuckle gloves
-    bootColor: 0x18181b,
+    skinColor: 0x64748b, // metallic chassis skin
+    hairColor: 0x0f172a,
+    vestColor: 0x09090b, // carbon armor
+    pantsColor: 0x1e293b,
+    wrapColor: 0x00f0ff,  // electric blue power fists
+    bootColor: 0x0f172a,
     hairStyle: 'visor',
-    bandanaColor: 0x22c55e // glowing optic green visor
+    visorColor: 0x00f0ff, // horizontal rectangular optic visor
+    antenna: true,
+    tagClass: 'bot'
   },
   {
-    name: 'IRON KAI',
-    title: 'MUAY THAI RIVAL',
-    hp: 125,
-    speed: 4.1,
-    damage: 16,
-    scale: 1.0,
-    skinColor: 0xd4976a,
-    hairColor: 0x171717,
-    vestColor: 0x4c1d95, // purple combat shorts
-    pantsColor: 0x581c87,
-    wrapColor: 0xf8fafc,  // white Muay Thai wraps
-    bootColor: 0x1e1b4b,
-    hairStyle: 'topknot',
-    bandanaColor: 0xa855f7
+    name: 'TITAN-V8 (ENFORCER)',
+    kind: 'robot',
+    title: 'HEAVY ASSAULT UNIT',
+    hp: 180,
+    speed: 3.1,
+    damage: 24,
+    scale: 1.10,
+    skinColor: 0x475569, // dark gunmetal
+    hairColor: 0x18181b,
+    vestColor: 0xd97706, // hazard heavy plate
+    pantsColor: 0x111827,
+    wrapColor: 0xf59e0b,  // heavy industrial clamps
+    bootColor: 0x030712,
+    hairStyle: 'visor',
+    visorColor: 0xff3b30, // crimson optic visor
+    antenna: true,
+    tagClass: 'bot'
+  },
+  {
+    name: 'NEXUS-9 (INFILTRATOR)',
+    kind: 'robot',
+    title: 'SPEED COMBAT ANDROID',
+    hp: 115,
+    speed: 4.4,
+    damage: 15,
+    scale: 0.98,
+    skinColor: 0x94a3b8, // silver alloy
+    hairColor: 0x020617,
+    vestColor: 0x0284c7, // electric blue frame
+    pantsColor: 0x0f172a,
+    wrapColor: 0x38bdf8,
+    bootColor: 0x020617,
+    hairStyle: 'visor',
+    visorColor: 0x22c55e, // green scanner optic visor
+    antenna: true,
+    tagClass: 'bot'
+  },
+  {
+    name: 'VIPER-X (STRIKE ANDROID)',
+    kind: 'robot',
+    title: 'HIGH-VOLTAGE CYBORG',
+    hp: 135,
+    speed: 3.9,
+    damage: 20,
+    scale: 1.02,
+    skinColor: 0x334155, // slate cybernetic
+    hairColor: 0x09090b,
+    vestColor: 0x7c3aed, // purple cyberplating
+    pantsColor: 0x18181b,
+    wrapColor: 0xa855f7,
+    bootColor: 0x0f172a,
+    hairStyle: 'visor',
+    visorColor: 0xfacc15, // amber scanning visor
+    antenna: true,
+    tagClass: 'bot'
   }
 ];
 
-function create3DHumanFighter(x, z, archetypeIndex) {
-  const arch = FIGHTER_ARCHETYPES[archetypeIndex % FIGHTER_ARCHETYPES.length];
+// 3. BODY SNATCHERS (Disguised Alien Parasites - Glowing violet/magenta eyes & neck tendril)
+const SNATCHER_ARCHETYPES = [
+  {
+    name: 'SNATCHER VICTOR',
+    kind: 'snatcher',
+    title: 'DISGUISED ALIEN PARASITE',
+    hp: 160,
+    speed: 4.0,
+    damage: 22,
+    scale: 1.03,
+    skinColor: 0xd4a373, // looks human initially
+    hairColor: 0x1c1917,
+    vestColor: 0x1e293b, // urban jacket
+    pantsColor: 0x334155,
+    wrapColor: 0xa855f7, // purple alien claws
+    bootColor: 0x0f172a,
+    hairStyle: 'shaved',
+    snatcherGlow: 0xd946ef, // bioluminescent violet/magenta eyes!
+    tagClass: 'snatcher'
+  },
+  {
+    name: 'SNATCHER MORGAN',
+    kind: 'snatcher',
+    title: 'DISGUISED ALIEN PARASITE',
+    hp: 140,
+    speed: 4.3,
+    damage: 19,
+    scale: 0.99,
+    skinColor: 0xe0a96d,
+    hairColor: 0x451a03,
+    vestColor: 0x475569,
+    pantsColor: 0x1f2937,
+    wrapColor: 0xc026d3,
+    bootColor: 0x111827,
+    hairStyle: 'bandana',
+    bandanaColor: 0x701a75,
+    snatcherGlow: 0xf43f5e, // pulsing magenta/rose eyes
+    tagClass: 'snatcher'
+  },
+  {
+    name: 'SNATCHER VANCE',
+    kind: 'snatcher',
+    title: 'DISGUISED ALIEN PARASITE',
+    hp: 175,
+    speed: 3.8,
+    damage: 25,
+    scale: 1.06,
+    skinColor: 0x8a5a36,
+    hairColor: 0x09090b,
+    vestColor: 0x0f172a,
+    pantsColor: 0x3b0764,
+    wrapColor: 0xec4899,
+    bootColor: 0x020617,
+    hairStyle: 'topknot',
+    bandanaColor: 0xa855f7,
+    snatcherGlow: 0xa855f7, // glowing alien violet eyes
+    tagClass: 'snatcher'
+  },
+  {
+    name: 'SNATCHER NYX',
+    kind: 'snatcher',
+    title: 'DISGUISED ALIEN PARASITE',
+    hp: 130,
+    speed: 4.5,
+    damage: 18,
+    scale: 0.97,
+    skinColor: 0xf5cac3,
+    hairColor: 0x172554,
+    vestColor: 0x581c87,
+    pantsColor: 0x1e1b4b,
+    wrapColor: 0xe879f9,
+    bootColor: 0x030712,
+    hairStyle: 'shaved',
+    snatcherGlow: 0xd946ef,
+    tagClass: 'snatcher'
+  }
+];
+
+// Alias for legacy references
+const FIGHTER_ARCHETYPES = ROBOT_ARCHETYPES;
+
+function create3DHumanFighter(x, z, kind = 'robot', archetypeIndex = 0) {
+  // Support legacy signature create3DHumanFighter(x, z, archetypeIndex)
+  if (typeof kind === 'number') {
+    archetypeIndex = kind;
+    kind = 'robot';
+  }
+
+  let archList = ROBOT_ARCHETYPES;
+  if (kind === 'civilian') archList = CIVILIAN_ARCHETYPES;
+  else if (kind === 'snatcher') archList = SNATCHER_ARCHETYPES;
+
+  const arch = archList[archetypeIndex % archList.length];
   const root = new THREE.Group();
   root.position.set(x, 0, z);
   root.scale.set(arch.scale, arch.scale, arch.scale);
 
   // Materials
-  const skinMat = new THREE.MeshStandardMaterial({ color: arch.skinColor, roughness: 0.7, metalness: 0.05 });
-  const vestMat = new THREE.MeshStandardMaterial({ color: arch.vestColor, roughness: 0.6, metalness: 0.1 });
+  const isCiv = (kind === 'civilian');
+  const isBot = (kind === 'robot');
+  const isSnatcher = (kind === 'snatcher');
+
+  const skinMat = new THREE.MeshStandardMaterial({
+    color: arch.skinColor,
+    roughness: isBot ? 0.4 : 0.7,
+    metalness: isBot ? 0.5 : 0.05
+  });
+  const vestMat = new THREE.MeshStandardMaterial({ color: arch.vestColor, roughness: 0.6, metalness: isBot ? 0.3 : 0.1 });
   const pantsMat = new THREE.MeshStandardMaterial({ color: arch.pantsColor, roughness: 0.6, metalness: 0.1 });
-  const wrapMat = new THREE.MeshStandardMaterial({ color: arch.wrapColor, roughness: 0.5, metalness: 0.3 });
+  // Civilians have bare natural hands matching their skin tone!
+  const wrapMat = isCiv ? skinMat : new THREE.MeshStandardMaterial({
+    color: arch.wrapColor,
+    roughness: 0.5,
+    metalness: isBot ? 0.4 : 0.2
+  });
   const bootMat = new THREE.MeshStandardMaterial({ color: arch.bootColor, roughness: 0.7, metalness: 0.2 });
   const hairMat = new THREE.MeshStandardMaterial({ color: arch.hairColor, roughness: 0.9, metalness: 0.0 });
   const beltMat = new THREE.MeshStandardMaterial({ color: 0x09090b, roughness: 0.4, metalness: 0.5 });
   const buckleMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.2, metalness: 0.9 });
+
+  // Eyes:
+  // - Civilians: Natural white sclera + dark brown/black pupils (completely non-glowing)
+  // - Robots: Rectangular visor covers the eyes entirely
+  // - Snatchers: Natural white sclera BUT bioluminescent glowing violet/magenta slit pupils!
   const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  const eyePupilMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+  const eyePupilMat = isSnatcher
+    ? new THREE.MeshBasicMaterial({ color: arch.snatcherGlow || 0xd946ef })
+    : new THREE.MeshBasicMaterial({ color: 0x0f172a });
 
   // Store all mesh materials for hit flash & stagger tinting
-  const flashableMaterials = [skinMat, vestMat, pantsMat, wrapMat, bootMat];
+  const flashableMaterials = [skinMat, vestMat, pantsMat, bootMat];
+  if (!isCiv) flashableMaterials.push(wrapMat);
 
   // --- Pelvis & Hips ---
   const pelvisGroup = new THREE.Group();
@@ -1823,7 +2113,7 @@ function create3DHumanFighter(x, z, archetypeIndex) {
   head.castShadow = true;
   headPivot.add(head);
 
-  // Fighter Face Eyes
+  // Eyes
   const eyeLeft = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 0.02), eyeWhiteMat);
   eyeLeft.position.set(-0.07, 0.18, 0.142);
   headPivot.add(eyeLeft);
@@ -1838,15 +2128,69 @@ function create3DHumanFighter(x, z, archetypeIndex) {
   pupilRight.position.set(0.07, 0.18, 0.144);
   headPivot.add(pupilRight);
 
-  // Eyebrows / Fighter Grimace
+  // Eyebrows / Expression
   const brow = new THREE.Mesh(
     new THREE.BoxGeometry(0.24, 0.03, 0.03),
-    new THREE.MeshBasicMaterial({ color: 0x111111 })
+    new THREE.MeshBasicMaterial({ color: isCiv ? 0x27272a : 0x111111 })
   );
   brow.position.set(0, 0.21, 0.144);
   headPivot.add(brow);
 
-  // Hair / Bandana / Visor Styles
+  // --- SPECIAL CHARACTER CLASS MESHES & TELLTALES ---
+  let snatcherParasiteGroup = null;
+
+  if (isBot) {
+    // 🔴 ROBOTS: Glowing single-eye horizontal rectangular visor (user requested)
+    const visorMat = new THREE.MeshBasicMaterial({ color: arch.visorColor || 0x00f0ff });
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.065, 0.05), visorMat);
+    visor.position.set(0, 0.18, 0.146);
+    headPivot.add(visor);
+
+    // Antenna & sensor transceiver node on ear
+    const earNode = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 0.025, 0.08, 6),
+      new THREE.MeshStandardMaterial({ color: 0x09090b, metalness: 0.8, roughness: 0.2 })
+    );
+    earNode.position.set(-0.16, 0.22, 0);
+    earNode.rotation.z = Math.PI / 4;
+    headPivot.add(earNode);
+
+    const earLight = new THREE.Mesh(
+      new THREE.SphereGeometry(0.02, 6, 6),
+      new THREE.MeshBasicMaterial({ color: arch.visorColor || 0x00f0ff })
+    );
+    earLight.position.set(-0.19, 0.25, 0);
+    headPivot.add(earLight);
+  } else if (isSnatcher) {
+    // 🟣 BODY SNATCHERS: Glowing bioluminescent slit pupils + twin alien bio-tendrils curving over shoulders + bio-wrist bands!
+    snatcherParasiteGroup = new THREE.Group();
+    snatcherParasiteGroup.position.set(0, 0.45, 0);
+
+    const tendrilMat = new THREE.MeshStandardMaterial({
+      color: 0xc084fc,
+      roughness: 0.25,
+      metalness: 0.3,
+      emissive: 0x9333ea,
+      emissiveIntensity: 0.8
+    });
+    flashableMaterials.push(tendrilMat);
+
+    // Left and right curving alien spore tendrils emerging from upper back/shoulders
+    [-1, 1].forEach(side => {
+      const sporeSpine = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.045, 0.28, 6), tendrilMat);
+      sporeSpine.position.set(side * 0.16, 0.18, -0.08);
+      sporeSpine.rotation.set(0.3, 0, side * 0.35);
+      snatcherParasiteGroup.add(sporeSpine);
+
+      const sporeTip = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), tendrilMat);
+      sporeTip.position.set(side * 0.22, 0.32, -0.04);
+      snatcherParasiteGroup.add(sporeTip);
+    });
+
+    torsoPivot.add(snatcherParasiteGroup);
+  }
+
+  // Hair / Bandana Styles
   if (arch.hairStyle === 'bandana' && arch.bandanaColor) {
     const bandanaMat = new THREE.MeshStandardMaterial({ color: arch.bandanaColor });
     flashableMaterials.push(bandanaMat);
@@ -1857,11 +2201,6 @@ function create3DHumanFighter(x, z, archetypeIndex) {
     tail.position.set(0, 0.18, -0.16);
     tail.rotation.x = 0.2;
     headPivot.add(tail);
-  } else if (arch.hairStyle === 'visor' && arch.bandanaColor) {
-    const visorMat = new THREE.MeshBasicMaterial({ color: arch.bandanaColor });
-    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.06, 0.05), visorMat);
-    visor.position.set(0, 0.18, 0.146);
-    headPivot.add(visor);
   } else if (arch.hairStyle === 'topknot') {
     const hairTop = new THREE.Mesh(new THREE.BoxGeometry(0.29, 0.1, 0.29), hairMat);
     hairTop.position.set(0, 0.33, 0);
@@ -1876,7 +2215,7 @@ function create3DHumanFighter(x, z, archetypeIndex) {
     headPivot.add(buzz);
   }
 
-  // --- Arms (Left & Right) with Boxing Handwraps / Gloves ---
+  // --- Arms (Left & Right) ---
   // Left Arm
   const leftArmPivot = new THREE.Group();
   leftArmPivot.position.set(-0.35, 0.48, 0);
@@ -1925,6 +2264,17 @@ function create3DHumanFighter(x, z, archetypeIndex) {
   rightFist.castShadow = true;
   rightForearmPivot.add(rightFist);
 
+  // If Body Snatcher, attach glowing purple alien wrist bio-bands so hands have a clear alien tell
+  if (isSnatcher) {
+    const wristAlienMat = new THREE.MeshBasicMaterial({ color: 0xd946ef });
+    [-1, 1].forEach((side) => {
+      const wb = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 8), wristAlienMat);
+      wb.position.set(0, -0.22, 0);
+      if (side === -1) leftForearmPivot.add(wb);
+      else rightForearmPivot.add(wb);
+    });
+  }
+
   // Ground Contact Shadow Disc
   const shadowGeo = new THREE.CircleGeometry(0.48, 16);
   const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.45 });
@@ -1946,52 +2296,96 @@ function create3DHumanFighter(x, z, archetypeIndex) {
   nameplateSprite.position.set(0, 2.2, 0);
   root.add(nameplateSprite);
 
+  let fighterEnemyObj = null;
+
   function updateNameplate(hp, maxHp, isStaggered) {
     npCtx.clearRect(0, 0, 256, 72);
 
-    // Background pill
-    npCtx.fillStyle = 'rgba(10, 14, 20, 0.88)';
+    // Background square/pill container
+    npCtx.fillStyle = 'rgba(8, 12, 18, 0.92)';
     if (npCtx.roundRect) {
       npCtx.beginPath();
-      npCtx.roundRect(4, 4, 248, 64, 8);
+      npCtx.roundRect(6, 6, 244, 60, 10);
       npCtx.fill();
     } else {
-      npCtx.fillRect(4, 4, 248, 64);
+      npCtx.fillRect(6, 6, 244, 60);
     }
-    npCtx.lineWidth = 2;
-    npCtx.strokeStyle = isStaggered ? '#ffea00' : 'rgba(255, 255, 255, 0.25)';
+
+    let borderCol = '#ef4444';
+    let titleText = '🔴 ROBOT';
+    let barColor = '#ef4444';
+
+    if (isStaggered) {
+      borderCol = '#ffea00';
+      titleText = '⚡ DIZZY!';
+      barColor = '#ffea00';
+    } else if (isCiv) {
+      borderCol = '#22c55e';
+      titleText = '🟢 CITIZEN';
+      barColor = '#22c55e';
+    } else if (isSnatcher) {
+      const isUnmasked = fighterEnemyObj && fighterEnemyObj.unmasked;
+      borderCol = isUnmasked ? '#f43f5e' : '#c026d3';
+      titleText = isUnmasked ? '🟣 SNATCHER (UNMASKED)' : '🟣 ALIEN SNATCHER';
+      barColor = '#c026d3';
+    } else {
+      borderCol = '#ef4444';
+      titleText = '🔴 ROBOT';
+      barColor = '#ef4444';
+    }
+
+    npCtx.lineWidth = 4;
+    npCtx.strokeStyle = borderCol;
     npCtx.stroke();
 
-    // Name and Tag
-    npCtx.font = 'bold 17px "Rajdhani", sans-serif';
-    npCtx.fillStyle = isStaggered ? '#ffea00' : '#ffffff';
-    npCtx.fillText(isStaggered ? `⚡ ${arch.name} [STAGGERED!]` : `${arch.name}`, 14, 26);
-
-    npCtx.font = 'bold 12px monospace';
-    npCtx.fillStyle = '#94a3b8';
-    npCtx.fillText(isStaggered ? 'PRESS F / CLICK: GLORY KILL' : `${Math.max(0, Math.round(hp))}/${maxHp} HP`, 14, 44);
+    // Large, bold badge title (clear and uncluttered for kids)
+    npCtx.font = 'bold 22px "Chakra Petch", "Rajdhani", sans-serif';
+    npCtx.fillStyle = borderCol;
+    npCtx.textAlign = 'center';
+    npCtx.fillText(titleText, 128, 32);
+    npCtx.textAlign = 'left';
 
     // Health bar container
-    const barX = 14;
-    const barY = 50;
-    const barW = 228;
-    const barH = 10;
-    npCtx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-    npCtx.fillRect(barX, barY, barW, barH);
+    const barX = 20;
+    const barY = 40;
+    const barW = 216;
+    const barH = 16;
+    npCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    if (npCtx.roundRect) {
+      npCtx.beginPath();
+      npCtx.roundRect(barX, barY, barW, barH, 4);
+      npCtx.fill();
+    } else {
+      npCtx.fillRect(barX, barY, barW, barH);
+    }
 
     // Health bar fill
     const pct = Math.max(0, Math.min(1, hp / maxHp));
-    const barColor = isStaggered ? '#ffea00' : (pct > 0.5 ? '#10b981' : (pct > 0.25 ? '#f59e0b' : '#ef4444'));
-    npCtx.fillStyle = barColor;
-    npCtx.fillRect(barX, barY, barW * pct, barH);
+    if (pct > 0) {
+      npCtx.fillStyle = barColor;
+      if (npCtx.roundRect) {
+        npCtx.beginPath();
+        npCtx.roundRect(barX, barY, barW * pct, barH, 4);
+        npCtx.fill();
+      } else {
+        npCtx.fillRect(barX, barY, barW * pct, barH);
+      }
+    }
 
     nameplateTexture.needsUpdate = true;
   }
   updateNameplate(arch.hp, arch.hp, false);
 
+  function unmaskSnatcher() {
+    if (snatcherParasiteGroup) {
+      snatcherParasiteGroup.scale.set(1.6, 1.6, 1.6);
+    }
+    eyePupilMat.color.setHex(0xff00ea);
+  }
+
   scene.add(root);
 
-  return {
+  const rig = {
     root,
     pelvisGroup,
     leftLegPivot,
@@ -2006,18 +2400,47 @@ function create3DHumanFighter(x, z, archetypeIndex) {
     rightForearmPivot,
     nameplateSprite,
     updateNameplate,
+    unmaskSnatcher,
     materials: flashableMaterials,
     originalColors: flashableMaterials.map(m => m.color.getHex()),
-    arch
+    arch,
+    kind
   };
+
+  return rig;
 }
 
-function spawnEnemy(x, z, archIdx = 0, isGuard = false, guardTitle = null) {
-  const fighterRig = create3DHumanFighter(x, z, archIdx);
+function pickEnemyTypeForCurrentDifficulty() {
+  const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
+  const civRatio = (cfg.civilianRatio !== undefined) ? cfg.civilianRatio : 0.50;
+  const botRatio = (cfg.robotRatio !== undefined) ? cfg.robotRatio : 0.35;
+  const r = Math.random();
+  if (r < civRatio) {
+    const archIdx = Math.floor(Math.random() * CIVILIAN_ARCHETYPES.length);
+    return { kind: 'civilian', archIdx };
+  } else if (r < civRatio + botRatio) {
+    const archIdx = Math.floor(Math.random() * ROBOT_ARCHETYPES.length);
+    return { kind: 'robot', archIdx };
+  } else {
+    const archIdx = Math.floor(Math.random() * SNATCHER_ARCHETYPES.length);
+    return { kind: 'snatcher', archIdx };
+  }
+}
+
+function spawnEnemy(x, z, kind = 'robot', archIdx = 0, isGuard = false, guardTitle = null) {
+  // Support legacy call: spawnEnemy(x, z, archIdx, isGuard, guardTitle)
+  if (typeof kind === 'number') {
+    guardTitle = isGuard;
+    isGuard = archIdx;
+    archIdx = kind;
+    kind = 'robot';
+  }
+
+  const fighterRig = create3DHumanFighter(x, z, kind, archIdx);
   const arch = fighterRig.arch;
   const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
 
-  const maxHp = Math.round(arch.hp * cfg.hpMult * (isGuard ? 1.25 : 1.0));
+  const maxHp = Math.round(arch.hp * (kind === 'civilian' ? 1.0 : cfg.hpMult) * (isGuard ? 1.25 : 1.0));
   const enemyName = guardTitle || arch.name;
   if (isGuard) {
     fighterRig.arch.name = enemyName;
@@ -2028,14 +2451,15 @@ function spawnEnemy(x, z, archIdx = 0, isGuard = false, guardTitle = null) {
     rig: fighterRig,
     sprite: fighterRig.root, // alias for position compatibility
     name: enemyName,
+    kind: kind, // 'civilian' | 'robot' | 'snatcher'
     hp: maxHp,
     maxHp: maxHp,
-    speed: arch.speed * cfg.speedMult * (isGuard ? 1.1 : 1.0),
-    damage: Math.round(arch.damage * cfg.damageMult * (isGuard ? 1.2 : 1.0)),
+    speed: arch.speed * (kind === 'civilian' ? 1.0 : cfg.speedMult) * (isGuard ? 1.1 : 1.0),
+    damage: Math.round(arch.damage * (kind === 'civilian' ? 0 : cfg.damageMult) * (isGuard ? 1.2 : 1.0)),
     attackCooldown: 1.1 / cfg.attackCooldownMult,
     attackTimer: 0.5 + Math.random() * 0.5,
     attackProg: 0,
-    aggroDist: isGuard ? 42 : cfg.aggroDist,
+    aggroDist: isGuard ? 42 : (kind === 'civilian' ? 0 : cfg.aggroDist),
     isPunching: false,
     punchArm: 'right',
     punchHasDealtDamage: false,
@@ -2049,9 +2473,17 @@ function spawnEnemy(x, z, archIdx = 0, isGuard = false, guardTitle = null) {
     vx: 0,
     vz: 0,
     isMissionGuard: isGuard,
-    guardAnchor: isGuard ? { x, z } : null
+    guardAnchor: isGuard ? { x, z } : null,
+    // Civilian / Snatcher specific fields
+    isFleeing: false,
+    fleeTimer: 0,
+    unmasked: false,
+    wanderAngle: Math.random() * Math.PI * 2,
+    wanderTimer: 2.0 + Math.random() * 3.0
   };
 
+  // Provide enemyObj reference to rig for nameplate updates
+  fighterRig.enemyObj = enemyObj;
   enemies.push(enemyObj);
   return enemyObj;
 }
@@ -2133,7 +2565,8 @@ function populateEnemies() {
       if (!city.isInsidePeaceZone(spot.x, spot.z) &&
         fromPeace >= city.peaceZone.radius + 15 &&
         fromPlayer >= 22) {
-        spawnEnemy(spot.x, spot.z, target.idx);
+        const { kind, archIdx } = pickEnemyTypeForCurrentDifficulty();
+        spawnEnemy(spot.x, spot.z, kind, archIdx);
         spawnedCount++;
       }
     }
@@ -2149,7 +2582,10 @@ function populateEnemies() {
       [-8, -18, 0], [8, -18, 1], [-20, 16, 2], [20, 16, 3],
       [-26, -10, 0], [26, -10, 1], [0, 28, 2], [-18, -28, 3]
     ];
-    spawns.slice(0, cfg.targetEnemies).forEach(([x, z, idx]) => spawnEnemy(x, z, idx));
+    spawns.slice(0, cfg.targetEnemies).forEach(([x, z, idx]) => {
+      const { kind, archIdx } = pickEnemyTypeForCurrentDifficulty();
+      spawnEnemy(x, z, kind, archIdx);
+    });
   }
 }
 
@@ -2180,8 +2616,8 @@ function spawnSingleReinforcement(originX, originZ) {
     if (!city.isInsidePeaceZone(spot.x, spot.z) &&
         fromPeace >= city.peaceZone.radius + 15 &&
         fromPlayer >= 24 && fromPlayer <= 90) {
-      const archIdx = Math.floor(Math.random() * 4);
-      return spawnEnemy(spot.x, spot.z, archIdx);
+      const { kind, archIdx } = pickEnemyTypeForCurrentDifficulty();
+      return spawnEnemy(spot.x, spot.z, kind, archIdx);
     }
   }
   return null;
@@ -2218,10 +2654,12 @@ function setDifficulty(diffKey, announce = true) {
   // Adjust existing live enemies to new multipliers
   enemies.forEach(enemy => {
     if (enemy.isDead || enemy.isKnockedOut) return;
-    enemy.speed = enemy.rig.arch.speed * cfg.speedMult;
-    enemy.damage = Math.round(enemy.rig.arch.damage * cfg.damageMult);
-    enemy.attackCooldown = (1.1 / cfg.attackCooldownMult);
-    enemy.aggroDist = cfg.aggroDist;
+    if (enemy.kind !== 'civilian') {
+      enemy.speed = enemy.rig.arch.speed * cfg.speedMult;
+      enemy.damage = Math.round(enemy.rig.arch.damage * cfg.damageMult);
+      enemy.attackCooldown = (1.1 / cfg.attackCooldownMult);
+      enemy.aggroDist = cfg.aggroDist;
+    }
   });
 
   // Scale active enemy population
@@ -2244,7 +2682,7 @@ function setDifficulty(diffKey, announce = true) {
   }
 
   if (announce) {
-    showAnnouncement(`⚡ DIFFICULTY SET: ${cfg.name} (${cfg.targetEnemies} FOES) ⚡`);
+    showAnnouncement(`⚡ DIFFICULTY: ${cfg.name} — ${cfg.sub} ⚡`);
     audio.playImpact('heavy');
   }
 }
@@ -2759,6 +3197,11 @@ function openElevatorPanel() {
   const el = document.getElementById('elevator-panel');
   if (el) el.classList.remove('hidden');
   audio.playElevatorDing();
+
+  // Free mouse cursor from pointer lock so player can easily move mouse and click floor buttons!
+  if (document.pointerLockElement) {
+    document.exitPointerLock();
+  }
 }
 
 function closeElevatorPanel() {
@@ -2766,6 +3209,11 @@ function closeElevatorPanel() {
   elevatorPanel.open = false;
   const el = document.getElementById('elevator-panel');
   if (el) el.classList.add('hidden');
+
+  // Re-acquire pointer lock if playing in mouse-look mode and not paused
+  if (state.inGame && !state.freeMouseMode && !state.isPaused && !state.isDead && !state.inElevator) {
+    container.requestPointerLock();
+  }
 }
 
 function moveElevatorHighlight(delta) {
@@ -2785,6 +3233,10 @@ function selectElevatorFloor(idx) {
   }
   startElevatorRide(idx);
 }
+
+window.openElevatorPanel = openElevatorPanel;
+window.closeElevatorPanel = closeElevatorPanel;
+window.selectElevatorFloor = selectElevatorFloor;
 
 function startElevatorRide(targetIdx) {
   if (elevatorController.isMoving || !city || !city.cnElevator) return;
@@ -2949,7 +3401,10 @@ function updateObservationDeck(dt) {
       setDeckPrompt('[E]', 'CN TOWER ELEVATOR • CHOOSE A FLOOR');
       return;
     }
-    closeElevatorPanel();
+    // Only auto-close if player has walked well away from the elevator entrance (> 8m)
+    if (dElev > 8.0 && dPav > 8.0) {
+      closeElevatorPanel();
+    }
   }
 
   if (feet > 200) {
@@ -2967,12 +3422,15 @@ function updateObservationDeck(dt) {
     const glassFloorEl = document.getElementById('glass-floor-indicator');
     if (glassFloorEl) glassFloorEl.classList.toggle('hidden', !onSouthGlassFloor);
 
-    if (dElev < elevCallR && [342, 348, 354].some(y => Math.abs(feet - y) < 0.2)) {
+    if (dElev < elevCallR && [342, 348, 354].some(y => Math.abs(feet - y) < 0.6)) {
       activeDeckAction = 'elevator';
       setDeckPrompt('[E]', 'GLASS ELEVATOR • CHOOSE A FLOOR');
       return;
     }
-    closeElevatorPanel();
+    // Only auto-close if player has walked away (> 8m)
+    if (dElev > 8.0) {
+      closeElevatorPanel();
+    }
 
     if (state.deckFloor === 2 && city.cnElevator.viewfinders && !state.telescopeActive) {
       for (let i = 0; i < city.cnElevator.viewfinders.length; i++) {
@@ -3447,14 +3905,15 @@ document.addEventListener('pointerlockchange', () => {
   }
 
   // When pointer lock is lost in mouse-look mode (e.g. user pressed Esc), pause the game
-  if (!state.isPointerLocked && state.inGame && !state.freeMouseMode && !state.isDead && !state.isPaused) {
+  // (unless the elevator panel is intentionally open for floor selection)
+  if (!state.isPointerLocked && state.inGame && !state.freeMouseMode && !state.isDead && !state.isPaused && !elevatorPanel.open) {
     pauseGame();
   }
 });
 
 // Canvas Click & Mousedown: Executes attacks during gameplay with zero dropped inputs
 container.addEventListener('mousedown', (e) => {
-  if (!state.inGame || state.isPaused || state.isDead) return;
+  if (!state.inGame || state.isPaused || state.isDead || elevatorPanel.open) return;
   if (e.button === 0) {
     // If near the active mission box, instantly crack it open!
     if (missionState.active && missionState.state === 'active' && missionState.boxObj) {
@@ -3469,7 +3928,7 @@ container.addEventListener('mousedown', (e) => {
 });
 
 container.addEventListener('click', (e) => {
-  if (!state.inGame || state.isPaused || state.isDead) return;
+  if (!state.inGame || state.isPaused || state.isDead || elevatorPanel.open) return;
   if (state.telescopeActive) {
     if (!e.target.closest('.telescope-card') && !e.target.closest('.telescope-telemetry-top')) {
       cycleTelescopeZoom(1);
@@ -3491,7 +3950,7 @@ window.addEventListener('wheel', (e) => {
 
 // Mouse Movement: Rotates camera or swivels telescope
 document.addEventListener('mousemove', (e) => {
-  if (state.isDead || state.isPaused) return;
+  if (state.isDead || state.isPaused || elevatorPanel.open) return;
   if (state.telescopeActive) {
     const zoomRatio = (camera.fov / 78);
     const sens = mouseSensitivity * zoomRatio * 0.9;
@@ -3530,6 +3989,50 @@ if (deckPromptEl) {
 // Keyboard - use e.code exclusively to prevent Shift/caps desync
 window.addEventListener('keydown', (e) => {
   keys[e.code] = true;
+
+  // CN Tower Elevator Floor Selector Keyboard Controls
+  if (elevatorPanel.open) {
+    // Number keys 1-4 directly choose floor
+    if (e.code.startsWith('Digit') || e.code.startsWith('Numpad')) {
+      const numStr = e.code.replace(/\D/g, '') || e.key;
+      const keyNum = parseInt(numStr, 10);
+      const stops = elevatorStops();
+      if (!isNaN(keyNum) && keyNum >= 1 && keyNum <= stops.length) {
+        e.preventDefault();
+        e.stopPropagation();
+        selectElevatorFloor(keyNum - 1);
+        return;
+      }
+    }
+    // Arrow keys or W/S to navigate floors
+    if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+      e.preventDefault();
+      e.stopPropagation();
+      moveElevatorHighlight(-1);
+      return;
+    }
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+      e.preventDefault();
+      e.stopPropagation();
+      moveElevatorHighlight(1);
+      return;
+    }
+    // Enter or Space confirms highlighted floor
+    if (e.code === 'Enter' || e.code === 'Space') {
+      e.preventDefault();
+      e.stopPropagation();
+      selectElevatorFloor(elevatorPanel.highlight);
+      return;
+    }
+    // Escape or E closes panel
+    if (e.code === 'Escape' || e.code === 'KeyE') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeElevatorPanel();
+      return;
+    }
+    return;
+  }
 
   // Active Telescope hotkeys: Z, +, - for zoom; Esc, E, V to exit
   if (state.telescopeActive) {
@@ -3701,7 +4204,6 @@ function triggerAttack() {
 
   // Peace Sanctuary: No fighting allowed against humans at ground level (allowed on observation deck!)
   if (city && city.isInsidePeaceZone(player.pos.x, player.pos.z, player.pos.y)) {
-    showAnnouncement("🕊️ PEACE SANCTUARY: NO COMBAT PERMITTED");
     audio.playPeaceChime?.();
     return;
   }
@@ -3753,7 +4255,6 @@ function triggerQuickKick() {
 
   // Peace Sanctuary: No fighting allowed against humans at ground level (allowed on observation deck!)
   if (city && city.isInsidePeaceZone(player.pos.x, player.pos.z, player.pos.y)) {
-    showAnnouncement("🕊️ PEACE SANCTUARY: NO COMBAT PERMITTED");
     audio.playPeaceChime?.();
     return;
   }
@@ -3781,7 +4282,6 @@ function executeMeteorSlam() {
   }
 
   if (!allowSlamInPeace && city && city.isInsidePeaceZone(player.pos.x, player.pos.z, player.pos.y)) {
-    showAnnouncement("🕊️ PEACE SANCTUARY: NO COMBAT PERMITTED");
     audio.playPeaceChime?.();
     return;
   }
@@ -3795,7 +4295,6 @@ function executeMeteorSlam() {
 
   // Rocket downward with immense slam velocity
   player.velocity.y = -22.0;
-  showAnnouncement("💥 METEOR JUMP SLAM!");
   audio.playPunch(2.4, true);
 
   const checkImpact = setInterval(() => {
@@ -3843,13 +4342,16 @@ function executeGloryKill(enemy) {
   state.isAttacking = true;
   state.currentAnimType = 'heavy';
 
-  showAnnouncement("⚡ BRUTAL KNOCKOUT TAKEDOWN! ⚡");
   audio.playImpact('glory');
   triggerScreenShake(20);
 
   const pos = enemy.rig ? enemy.rig.root.position : enemy.sprite.position;
-  // Massive blood fountain
-  spawnDebris(pos.x, 1.2, pos.z, 0x9e0b11, 55, 12);
+  if (enemy.kind === 'snatcher') {
+    spawnDebris(pos.x, 1.2, pos.z, 0xc026d3, 50, 11);
+  } else {
+    spawnDebris(pos.x, 1.2, pos.z, 0x00f0ff, 35, 10);
+    spawnDebris(pos.x, 1.2, pos.z, 0xffd700, 25, 9);
+  }
 
   // Guaranteed Health & Shield drops
   state.health = Math.min(state.maxHealth, state.health + 35);
@@ -3949,11 +4451,73 @@ function restoreEnemyTint(enemy) {
   }
 }
 
+function exposeBodySnatcher(enemy) {
+  if (enemy.unmasked) return;
+  enemy.unmasked = true;
+  audio.playAlienScreech();
+  triggerScreenShake(14);
+  if (enemy.rig && enemy.rig.unmaskSnatcher) {
+    enemy.rig.unmaskSnatcher();
+  }
+  if (enemy.rig && enemy.rig.updateNameplate) {
+    enemy.rig.updateNameplate(enemy.hp, enemy.maxHp, enemy.isStaggered);
+  }
+}
+
 function hitEnemy(enemy, dmg, knockback, type) {
   if (enemy.isDead || enemy.isKnockedOut) return;
 
+  // 1. INNOCENT CIVILIAN HIT HANDLING
+  if (enemy.kind === 'civilian') {
+    enemy.hp -= dmg;
+    enemy.flinchTimer = 0.25;
+    enemy.isFleeing = true;
+    enemy.fleeTimer = 6.0;
+
+    // Score penalty
+    state.score = Math.max(0, state.score - 100);
+    const scoreEl = document.getElementById('hud-score');
+    if (scoreEl) scoreEl.innerText = state.score;
+
+    audio.playPenaltySound();
+    audio.playCivilianGasp();
+    setEnemyTint(enemy, 0x22c55e); // gentle green warning flash
+    setTimeout(() => {
+      if (!enemy.isDead && !enemy.isStaggered) restoreEnemyTint(enemy);
+    }, 120);
+
+    // Update 3D overhead health bar
+    if (enemy.rig && enemy.rig.updateNameplate) {
+      enemy.rig.updateNameplate(enemy.hp, enemy.maxHp, false);
+    }
+
+    // Knockback physics
+    const pos = enemy.rig ? enemy.rig.root.position : enemy.sprite.position;
+    const dir = pos.clone().sub(player.pos).normalize();
+    enemy.vx = dir.x * knockback * 0.9;
+    enemy.vz = dir.z * knockback * 0.9;
+    spawnDebris(pos.x, 1.0, pos.z, 0x38bdf8, 12, 6);
+
+    // CRITICAL USER CONSTRAINT: don't reset combos for attacking civilians, just lose points!
+
+    if (enemy.hp <= 0 && !enemy.isDead) {
+      killEnemy(enemy);
+    }
+    return;
+  }
+
+  // 2. BODY SNATCHER UNMASKING ON IMPACT
+  if (enemy.kind === 'snatcher' && !enemy.unmasked) {
+    exposeBodySnatcher(enemy);
+  }
+
+  // 3. HOSTILE ROBOT OR EXPOSED SNATCHER HIT
   enemy.hp -= dmg;
   enemy.flinchTimer = 0.22;
+
+  if (enemy.kind === 'robot') {
+    audio.playRobotClank();
+  }
 
   // Update 3D overhead health bar
   if (enemy.rig && enemy.rig.updateNameplate) {
@@ -3969,8 +4533,8 @@ function hitEnemy(enemy, dmg, knockback, type) {
       enemy.rig.updateNameplate(enemy.hp, enemy.maxHp, true);
     }
   } else {
-    // Normal flash red on hit
-    setEnemyTint(enemy, 0xff2222);
+    // Normal flash on hit
+    setEnemyTint(enemy, enemy.kind === 'snatcher' ? 0xc026d3 : 0xff2222);
     setTimeout(() => {
       if (!enemy.isDead && !enemy.isStaggered) {
         restoreEnemyTint(enemy);
@@ -3993,7 +4557,15 @@ function hitEnemy(enemy, dmg, knockback, type) {
   enemy.vx = dir.x * knockback;
   enemy.vz = dir.z * knockback;
 
-  spawnDebris(pos.x, 1.0, pos.z, 0xb91c1c, 18, 8);
+  // Particle debris: Sparks for robot, alien purple slime for snatcher
+  if (enemy.kind === 'robot') {
+    spawnDebris(pos.x, 1.0, pos.z, 0x00f0ff, 22, 9);
+    spawnDebris(pos.x, 1.0, pos.z, 0xf59e0b, 12, 7);
+  } else if (enemy.kind === 'snatcher') {
+    spawnDebris(pos.x, 1.0, pos.z, 0xc026d3, 24, 8);
+  } else {
+    spawnDebris(pos.x, 1.0, pos.z, 0xb91c1c, 18, 8);
+  }
 
   if (enemy.hp <= 0 && !enemy.isDead) {
     killEnemy(enemy);
@@ -4005,28 +4577,58 @@ function killEnemy(enemy, isGlory = false) {
   enemy.isDead = true;
   enemy.isKnockedOut = true;
   enemy.koProgress = 0;
-  state.kills++;
-  state.score += isGlory ? 500 : 300;
-  document.getElementById('hud-kills').innerText = state.kills;
-  document.getElementById('hud-score').innerText = state.score;
+
+  const pos = enemy.rig ? enemy.rig.root.position : enemy.sprite.position;
+
+  // 1. CIVILIAN KO PENALTY
+  if (enemy.kind === 'civilian') {
+    state.score = Math.max(0, state.score - 250);
+    const scoreEl = document.getElementById('hud-score');
+    if (scoreEl) scoreEl.innerText = state.score;
+    audio.playPenaltySound();
+    audio.playCivilianGasp();
+    spawnDebris(pos.x, 1.0, pos.z, 0x38bdf8, 20, 7);
+    // Combos are NOT reset
+  } else if (enemy.kind === 'snatcher') {
+    // 2. BODY SNATCHER DEFEAT (+400 PTS / +600 Glory)
+    state.kills++;
+    const pts = isGlory ? 600 : 400;
+    state.score += pts;
+    document.getElementById('hud-kills').innerText = state.kills;
+    document.getElementById('hud-score').innerText = state.score;
+
+    state.rage = Math.min(100, state.rage + 30);
+    updateRageBar();
+    if (state.rage >= 100 && !state.isBerserk) {
+      activateBerserkMode();
+    }
+
+    setFaceExpression('grin', 1.5);
+    audio.playImpact('heavy');
+    spawnDebris(pos.x, 1.0, pos.z, 0xc026d3, 44, 11);
+  } else {
+    // 3. ROBOT DEFEAT (+250 PTS / +500 Glory)
+    state.kills++;
+    const pts = isGlory ? 500 : 250;
+    state.score += pts;
+    document.getElementById('hud-kills').innerText = state.kills;
+    document.getElementById('hud-score').innerText = state.score;
+
+    state.rage = Math.min(100, state.rage + 25);
+    updateRageBar();
+    if (state.rage >= 100 && !state.isBerserk) {
+      activateBerserkMode();
+    }
+
+    setFaceExpression('grin', 1.4);
+    audio.playImpact('heavy');
+    spawnDebris(pos.x, 1.0, pos.z, 0x00f0ff, 32, 10);
+    spawnDebris(pos.x, 1.0, pos.z, 0xf59e0b, 20, 8);
+  }
 
   if (enemy.isDeckEnemy) {
     onDeckEnemyDefeated(enemy);
   }
-
-  // Build Rage
-  state.rage = Math.min(100, state.rage + 25);
-  updateRageBar();
-  if (state.rage >= 100 && !state.isBerserk) {
-    activateBerserkMode();
-  }
-
-  setFaceExpression('grin', 1.4);
-  audio.playImpact('heavy');
-  showAnnouncement(`💀 ${enemy.name} KNOCKED OUT! 💀`);
-
-  const pos = enemy.rig ? enemy.rig.root.position : enemy.sprite.position;
-  spawnDebris(pos.x, 1.0, pos.z, 0xb91c1c, 32, 9);
 
   // Hide overhead nameplate upon KO
   if (enemy.rig && enemy.rig.nameplateSprite) {
@@ -4037,7 +4639,7 @@ function killEnemy(enemy, isGlory = false) {
   setTimeout(() => {
     if (enemy.rig && enemy.rig.root) scene.remove(enemy.rig.root);
 
-    // If an ambient enemy was defeated, schedule a reinforcement near the player
+    // If an ambient enemy/civilian was defeated, schedule a reinforcement near the player
     if (!enemy.isMissionGuard && !enemy.isDeckEnemy) {
       const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
       const aliveAmbient = enemies.filter(e => !e.isDead && !e.isMissionGuard && !e.isDeckEnemy).length;
@@ -4047,9 +4649,9 @@ function killEnemy(enemy, isGlory = false) {
     }
 
     // Respawn next wave of fighters when all ambient foes are KO'd
-    const ambientEnemies = enemies.filter(e => !e.isMissionGuard && !e.isDeckEnemy);
-    if (ambientEnemies.length > 0 && ambientEnemies.every(e => e.isDead)) {
-      showAnnouncement("🔥 ARENA CLEARED! NEXT RIVAL FIGHTERS INCOMING! 🔥");
+    const ambientThreats = enemies.filter(e => !e.isMissionGuard && !e.isDeckEnemy && e.kind !== 'civilian');
+    if (ambientThreats.length > 0 && ambientThreats.every(e => e.isDead)) {
+      showAnnouncement("🔥 STREET SECTOR SECURED! NEXT PATROL INCOMING! 🔥");
       setTimeout(() => populateEnemies(), 2200);
     }
   }, 2400);
@@ -4423,14 +5025,12 @@ function triggerPeaceZoneBanner(insidePeace) {
     if (title) title.innerText = 'CN TOWER PEACE SANCTUARY';
     if (sub) sub.innerText = 'NO COMBAT PERMITTED • SAFE HAVEN • VITALITY REGENERATING';
     if (icon) icon.innerText = '🕊️';
-    showAnnouncement('🕊️ ENTERED CN TOWER PEACE SANCTUARY');
     audio.playPeaceChime?.();
   } else {
     banner.classList.add('combat-alert');
     if (title) title.innerText = 'EXITING PEACE SANCTUARY';
     if (sub) sub.innerText = 'COMBAT ZONE ACTIVE • WATCH YOUR BACK!';
     if (icon) icon.innerText = '⚠️';
-    showAnnouncement('⚔️ ENTERING TORONTO COMBAT ZONE');
   }
 
   peaceBannerTimer = setTimeout(() => {
@@ -4443,7 +5043,7 @@ function registerCombo() {
   state.comboTimer = 2.2;
   const countEl = document.getElementById('combo-count');
   const titleEl = document.getElementById('combo-title');
-  titleEl.innerText = state.comboCount > 4 ? '🔥 BRUTAL COMBO' : 'COMBO';
+  titleEl.innerText = state.comboCount > 4 ? '⚡ DEFENDER COMBO' : 'COMBO';
   countEl.innerText = `x${state.comboCount}`;
   countEl.style.transform = 'scale(1.25)';
   setTimeout(() => countEl.style.transform = 'scale(1.0)', 100);
@@ -4552,11 +5152,25 @@ function animate(now) {
     const dots = [];
     enemies.forEach(e => {
       if (!e.isDead && !e.isKnockedOut) {
+        let dotColor = '#ef4444'; // Red for robots
+        let dotRadius = 3.0;
+
+        if (e.isStaggered) {
+          dotColor = '#ffea00'; // Gold for glory kill targets
+          dotRadius = 4.5;
+        } else if (e.kind === 'civilian') {
+          dotColor = '#22c55e'; // Green for innocent civilians
+          dotRadius = 2.8;
+        } else if (e.kind === 'snatcher') {
+          dotColor = '#c026d3'; // Purple/magenta for body snatchers
+          dotRadius = 3.5;
+        }
+
         dots.push({
           x: e.rig.root.position.x,
           z: e.rig.root.position.z,
-          c: e.isStaggered ? '#ffea00' : '#ff3344',
-          r: e.isStaggered ? 4 : 3
+          c: dotColor,
+          r: dotRadius
         });
       }
     });
@@ -5019,6 +5633,110 @@ function updateEnemies(dt) {
     const isDifferentFloor = (enemy.isDeckEnemy && Math.abs(player.pos.y - enemy.rig.root.position.y) > 2.5) ||
                              (!enemy.isDeckEnemy && player.pos.y > 50);
 
+    // =========================================================================
+    // CIVILIAN AI BEHAVIOR (NON-VIOLENT CITIZEN)
+    // =========================================================================
+    if (enemy.kind === 'civilian') {
+      if (enemy.isFleeing || enemy.fleeTimer > 0) {
+        enemy.fleeTimer -= dt;
+        if (enemy.fleeTimer <= 0) enemy.isFleeing = false;
+
+        // Flee rapidly away from the player
+        const fleeDir = enemy.rig.root.position.clone().sub(player.pos);
+        fleeDir.y = 0;
+        if (fleeDir.length() < 0.1) fleeDir.set(1, 0, 0);
+        fleeDir.normalize();
+
+        const nextCx = enemy.rig.root.position.x + fleeDir.x * (enemy.speed * 1.5) * dt;
+        const nextCz = enemy.rig.root.position.z + fleeDir.z * (enemy.speed * 1.5) * dt;
+        if (!city || city.canMoveTo(nextCx, nextCz, 0.4, 0)) {
+          enemy.rig.root.position.x = nextCx;
+          enemy.rig.root.position.z = nextCz;
+        }
+        enemy.rig.root.rotation.y = Math.atan2(fleeDir.x, fleeDir.z);
+
+        // Sprinting walk animation
+        enemy.walkPhase += dt * enemy.speed * 5.5;
+        const legSwing = Math.sin(enemy.walkPhase) * 0.7;
+        enemy.rig.leftLegPivot.rotation.x = legSwing;
+        enemy.rig.leftCalfPivot.rotation.x = Math.max(0, -legSwing * 0.7);
+        enemy.rig.rightLegPivot.rotation.x = -legSwing;
+        enemy.rig.rightCalfPivot.rotation.x = Math.max(0, legSwing * 0.7);
+
+        enemy.rig.leftArmPivot.rotation.x = -legSwing * 0.9;
+        enemy.rig.rightArmPivot.rotation.x = legSwing * 0.9;
+        enemy.rig.torsoPivot.position.y = 0.98 + Math.abs(Math.sin(enemy.walkPhase * 2)) * 0.05;
+      } else {
+        // Peaceful civilian stroll around Toronto streets
+        enemy.wanderTimer = (enemy.wanderTimer || 3.0) - dt;
+        if (enemy.wanderTimer <= 0) {
+          enemy.wanderAngle = (enemy.wanderAngle || 0) + (Math.random() - 0.5) * Math.PI * 0.8;
+          enemy.wanderTimer = 3.0 + Math.random() * 4.0;
+        }
+
+        const wx = Math.sin(enemy.wanderAngle);
+        const wz = Math.cos(enemy.wanderAngle);
+        const nextCx = enemy.rig.root.position.x + wx * (enemy.speed * 0.6) * dt;
+        const nextCz = enemy.rig.root.position.z + wz * (enemy.speed * 0.6) * dt;
+        if (!city || city.canMoveTo(nextCx, nextCz, 0.4, 0)) {
+          enemy.rig.root.position.x = nextCx;
+          enemy.rig.root.position.z = nextCz;
+        } else {
+          enemy.wanderAngle = (enemy.wanderAngle || 0) + Math.PI * 0.75;
+          enemy.wanderTimer = 1.0;
+        }
+        enemy.rig.root.rotation.y = enemy.wanderAngle;
+
+        // Gentle walk cycle with natural swinging arms
+        enemy.walkPhase += dt * enemy.speed * 2.8;
+        const legSwing = Math.sin(enemy.walkPhase) * 0.45;
+        enemy.rig.leftLegPivot.rotation.x = legSwing;
+        enemy.rig.leftCalfPivot.rotation.x = Math.max(0, -legSwing * 0.4);
+        enemy.rig.rightLegPivot.rotation.x = -legSwing;
+        enemy.rig.rightCalfPivot.rotation.x = Math.max(0, legSwing * 0.4);
+
+        enemy.rig.leftArmPivot.rotation.set(-legSwing * 0.4, 0, 0.08);
+        enemy.rig.rightArmPivot.rotation.set(legSwing * 0.4, 0, -0.08);
+        enemy.rig.leftForearmPivot.rotation.set(-0.2, 0, 0);
+        enemy.rig.rightForearmPivot.rotation.set(-0.2, 0, 0);
+        enemy.rig.torsoPivot.position.y = 0.98 + Math.abs(Math.sin(enemy.walkPhase * 2)) * 0.02;
+      }
+      return; // Civilians never punch or attack!
+    }
+
+    // Body Snatcher proximity trigger: unmask if player gets within 10m!
+    if (enemy.kind === 'snatcher' && !enemy.unmasked && distToPlayer <= 10.0 && !playerInPeace && !isDifferentFloor) {
+      exposeBodySnatcher(enemy);
+    }
+
+    // Disguised Snatchers wander peacefully until exposed, so players are never swarmed by disguised figures
+    if (enemy.kind === 'snatcher' && !enemy.unmasked) {
+      enemy.wanderTimer = (enemy.wanderTimer || 3.0) - dt;
+      if (enemy.wanderTimer <= 0) {
+        enemy.wanderAngle = (enemy.wanderAngle || 0) + (Math.random() - 0.5) * Math.PI * 0.8;
+        enemy.wanderTimer = 3.0 + Math.random() * 4.0;
+      }
+      const wx = Math.sin(enemy.wanderAngle);
+      const wz = Math.cos(enemy.wanderAngle);
+      const nextEx = enemy.rig.root.position.x + wx * (enemy.speed * 0.6) * dt;
+      const nextEz = enemy.rig.root.position.z + wz * (enemy.speed * 0.6) * dt;
+      if (!city || city.canMoveTo(nextEx, nextEz, 0.4, 0)) {
+        enemy.rig.root.position.x = nextEx;
+        enemy.rig.root.position.z = nextEz;
+      }
+      enemy.rig.root.rotation.y = enemy.wanderAngle;
+
+      enemy.walkPhase += dt * enemy.speed * 2.8;
+      const legSwing = Math.sin(enemy.walkPhase) * 0.45;
+      enemy.rig.leftLegPivot.rotation.x = legSwing;
+      enemy.rig.leftCalfPivot.rotation.x = Math.max(0, -legSwing * 0.4);
+      enemy.rig.rightLegPivot.rotation.x = -legSwing;
+      enemy.rig.rightCalfPivot.rotation.x = Math.max(0, legSwing * 0.4);
+      enemy.rig.leftArmPivot.rotation.set(-legSwing * 0.4, 0, 0.08);
+      enemy.rig.rightArmPivot.rotation.set(legSwing * 0.4, 0, -0.08);
+      return;
+    }
+
     // AI Chasing, Footwork & Punch Attacks (Enemies CANNOT pursue into or attack inside Peace Sanctuary, or across different deck floors)
     if (!enemy.isStaggered) {
       const aggroLimit = enemy.aggroDist || 45;
@@ -5030,8 +5748,10 @@ function updateEnemies(dt) {
         const nextEz = enemy.rig.root.position.z + dir.z * enemy.speed * dt;
         const nextDist = Math.hypot(nextEx - player.pos.x, nextEz - player.pos.z);
         if (nextDist >= 1.35) {
-          enemy.rig.root.position.x = nextEx;
-          enemy.rig.root.position.z = nextEz;
+          if (!city || city.canMoveTo(nextEx, nextEz, 0.45, enemy.rig.root.position.y)) {
+            enemy.rig.root.position.x = nextEx;
+            enemy.rig.root.position.z = nextEz;
+          }
         }
 
         // Human walk cycle animation
@@ -5186,13 +5906,10 @@ const trafficHooks = {
     damagePlayer(dmg);
     triggerScreenShake(26);
     state.camPunch = 1.5;
-    showAnnouncement('🚗 HIT BY A CAR! LOOK BOTH WAYS!');
   },
   onHitEnemy(enemy, dmg, kx, kz) {
-    const wasAlive = !enemy.isDead;
     hitEnemy(enemy, dmg, 0, 'car');
     enemy.vx = kx; enemy.vz = kz;      // thrown along the car's path, not away from you
-    if (wasAlive && enemy.isDead) showAnnouncement('🚗 ROADKILL!');
   },
   pushOut(p, dx, dz) {
     if (p.isPlayer) {
@@ -5238,13 +5955,13 @@ function damagePlayer(dmg) {
 
 function playerDeath() {
   state.isDead = true;
-  showAnnouncement("💀 SLAIN IN BATTLE! 💀");
+  showAnnouncement("💀 FALLEN IN DEFENSE OF TORONTO! 💀");
   if (document.pointerLockElement) document.exitPointerLock();
   const overlay = document.getElementById('menu-overlay');
   overlay.classList.remove('hidden');
   document.getElementById('menu-title').innerText = 'YOU DIED';
-  document.getElementById('menu-subtitle').innerText = 'THE RIVAL FIGHTERS KNOCKED YOU OUT IN THE ARENA.';
-  document.getElementById('start-mouse-btn').innerText = 'RESPAWN & FIGHT AGAIN';
+  document.getElementById('menu-subtitle').innerText = 'FALLEN DEFENDER! TORONTO CITIZENS NEED YOU. RESPAWN TO PROTECT THE 6IX!';
+  document.getElementById('start-mouse-btn').innerText = 'RESPAWN & DEFEND TORONTO';
 }
 
 function updatePickups(dt) {
@@ -5394,6 +6111,10 @@ function resetGame() {
   spawnCrates();
   startNextMission();
   updateHUDHealth();
+  document.getElementById('menu-title').innerText = 'FISTS OF DOOM: TORONTO';
+  document.getElementById('menu-subtitle').innerText = 'PROTECT TORONTO CITIZENS FROM ROGUE ROBOTS & DISGUISED BODY SNATCHERS • DO NOT ATTACK INNOCENTS!';
+  document.getElementById('start-mouse-btn').innerText = 'ENTER TORONTO ARENA — MOUSE LOOK MODE';
+  document.getElementById('start-free-btn').innerText = 'PLAY IN FREE MOUSE MODE (NEVER LOCKS CURSOR, USE ARROWS TO AIM)';
 }
 
 window.addEventListener('resize', () => {

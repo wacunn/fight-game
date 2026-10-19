@@ -1,26 +1,25 @@
-# FIST OF DOOM: TORONTO
+# FISTS OF DOOM: TORONTO — DEFENDER OF THE 6IX
 
-A first-person 3D retro-modern open-world street fighting game inspired by *Doom* and *Duke Nukem*, set in an authentic 3D open-world downtown Toronto arena featuring the **553m CN Tower**, Rogers Centre, Scotiabank Arena, Union Station, and the Financial District.
+A first-person 3D retro-modern superhero street defense game set in an authentic 3D open-world downtown Toronto arena featuring the **553m CN Tower**, The Well, Rogers Centre, Scotiabank Arena, Union Station, and the Financial District. Protect innocent Toronto citizens from rogue combat androids and disguised alien body snatchers!
 
 Live GitHub Pages: [https://wacunn.github.io/toronto-fight-game/](https://wacunn.github.io/toronto-fight-game/)
 
 ---
 
-## 🍁 New Features in the Toronto Edition
+## 🛡️ Defender of the 6ix Mechanics
 
-### 1. 🗼 CN Tower Plaza Peace Sanctuary & Spawn
-- The player spawns directly at the **CN Tower Plaza** facing the towering 553m needle.
-- The plaza is enclosed by an emerald **Peace Sanctuary** aura (55m radius):
-  - **Zero combat allowed**: Neither player nor rivals can attack inside.
-  - **Rival exclusion forcefield**: Enemy combatants are repelled and cannot enter.
-  - **Restorative aura**: Gradually regenerates vitality and shield while resting inside.
+### 1. 👥 The Three Populations of Toronto
+- **🟢 Innocent Citizens (Real Torontonians)**: Friendly citizens walking the streets. **DO NOT HIT!** Hurting citizens deducts 100 points (-250 on KO), but combos are preserved so you can keep momentum against real threats.
+- **🔴 Humanoid Robots**: Rogue combat androids with a signature single-eye horizontal glowing optic visor, ear transceiver LEDs, and electric power fists. Destroy them for **+250 PTS** and sparks.
+- **🟣 Body Snatchers**: Disguised alien parasites infiltrating Toronto! Look closely to spot their **glowing bioluminescent violet/magenta slit pupils** and **pulsating neck spore tendrils**. When attacked or approached, their disguise drops with an alien screech—purge them for **+400 PTS**!
+- **👁️ HUD Bio-Scanner**: Point your crosshair at any character to identify their threat level (🟢 INNOCENT, 🔴 THREAT: HIGH, 🟣 BIO-ANOMALY).
 
-### 2. 🎚️ Arena Difficulty Levels (Tourist to Toronto Mayhem)
-Select difficulty in the start window or dynamically adjust on-the-fly during combat:
-- **🟢 EASY (TOURIST)**: 14 foes, 0.7x HP, 0.65x damage, slower aggression.
-- **🔵 MEDIUM (BRAWLER)**: 30 foes, 1.0x HP, 1.0x damage, balanced street rumble.
-- **🟡 HARD (BRUTAL)**: 52 foes, 1.35x HP, 1.4x damage, faster strikes, persistent pursuit.
-- **🔴 IMPOSSIBLE (TORONTO MAYHEM)**: 88 foes, 1.75x HP, 1.9x damage, rapid continuous reinforcement spawns!
+### 2. 🎚️ Arena Difficulty Levels (Baddie vs. Good Citizen Ratios)
+Toronto remains a densely packed, bustling metropolis on all difficulties (50 to 88 people), with difficulty adjusting the ratio of threats to innocent citizens:
+- **🟢 EASY (TOURIST)**: 75% Civilians, 18% Robots, 7% Snatchers (50 citizens & threats). Relaxed stroll.
+- **🔵 MEDIUM (DEFENDER)**: 50% Civilians, 35% Robots, 15% Snatchers (55 population). Balanced street defense.
+- **🟡 HARD (INVASION)**: 25% Civilians, 50% Robots, 25% Snatchers (65 population). City under heavy siege.
+- **🔴 IMPOSSIBLE (OVERRUN)**: 10% Civilians, 55% Robots, 35% Snatchers (88 population). Metropolis completely overrun!
 - **In-Game Controls**:
   - Click the **`[◀]`** and **`[▶]`** step buttons in the top HUD or click the **`DIFF: ...`** badge.
   - Keyboard hotkeys: **`[`** (decrease difficulty) and **`]`** (increase difficulty).

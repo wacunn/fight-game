@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FIST OF DOOM: BRUTAL BRAWLER</title>
+  <title>FISTS OF DOOM: TORONTO — DEFENDER OF THE 6IX</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥊</text></svg>">
   <link rel="stylesheet" href="styles.css">
   <!-- Three.js + Postprocessing + Tween.js for ultra-smooth dynamic combat -->
@@ -24,7 +24,7 @@
         <span class="icon">🔓</span> <span class="btn-text">ESC: RELEASE MOUSE / PAUSE</span>
       </button>
       <div id="status-badges">
-        <div class="diff-control-group" title="Difficulty level (use [ and ] keys to change anytime)">
+        <div class="diff-control-group" title="Difficulty level: controls ratio of baddies vs good people (use [ and ] keys)">
           <button id="diff-prev-btn" class="diff-step-btn" type="button" title="Decrease difficulty [ [ key ]">◀</button>
           <span id="diff-badge" class="tag tag-cyan">DIFF: MEDIUM</span>
           <button id="diff-next-btn" class="diff-step-btn" type="button" title="Increase difficulty [ ] key ]">▶</button>
@@ -46,7 +46,7 @@
       <div class="mission-meta">
         <span id="mission-distance" class="mission-dist">📐 245m</span>
         <span id="mission-dir" class="mission-dir">↗ NE</span>
-        <span id="mission-status-pill" class="mission-status-pill">⚔️ 3 GUARDS</span>
+        <span id="mission-status-pill" class="mission-status-pill">⚔️ 3 SENTRY GUARDS</span>
       </div>
     </div>
 
@@ -71,6 +71,12 @@
             <span class="m-label" id="minimap-goal-label">GOAL:</span>
           </div>
           <span id="minimap-goal-distance" class="m-val">--</span>
+        </div>
+        <!-- Minimap Radar Threat & Civilian Color Legend -->
+        <div class="minimap-legend-row" title="Green: Citizens (Do not hit) | Red: Robots | Purple: Body Snatchers">
+          <span class="legend-chip chip-civ">🟢 CITIZENS</span>
+          <span class="legend-chip chip-bot">🔴 ROBOTS</span>
+          <span class="legend-chip chip-snatcher">🟣 SNATCHERS</span>
         </div>
       </div>
     </div>
@@ -285,7 +291,7 @@
 
       <!-- Score & Kills -->
       <div class="hud-stat-box score-box">
-        <div class="stat-row"><span>FIGHTERS KO'D:</span> <span id="hud-kills" class="stat-highlight red">0</span></div>
+        <div class="stat-row"><span>THREATS KO'D:</span> <span id="hud-kills" class="stat-highlight red">0</span></div>
         <div class="stat-row"><span>CRATES SMASHED:</span> <span id="hud-boxes" class="stat-highlight cyan">0/8</span></div>
         <div class="stat-row"><span>SCORE:</span> <span id="hud-score" class="stat-highlight gold">0</span></div>
       </div>
@@ -299,14 +305,14 @@
     <div id="menu-overlay">
       <div class="menu-modal">
         <div class="brand-header">
-          <span class="brand-badge">BRUTAL FIRST-PERSON ACTION</span>
-          <h1 id="menu-title" class="hero-title">FIST OF DOOM: TORONTO</h1>
-          <p id="menu-subtitle" class="hero-desc">DOWNTOWN TORONTO STREET ARENA • VISIT THE CN TOWER PEACE SANCTUARY TO REST SAFELY</p>
+          <span class="brand-badge">DEFENDER OF THE 6IX</span>
+          <h1 id="menu-title" class="hero-title">FISTS OF DOOM: TORONTO</h1>
+          <p id="menu-subtitle" class="hero-desc">PROTECT TORONTO CITIZENS FROM ROGUE ROBOTS &amp; DISGUISED BODY SNATCHERS • DO NOT ATTACK INNOCENTS!</p>
         </div>
 
         <div class="menu-content-grid">
           <div class="menu-card">
-            <h3>🕹️ COMBAT CONTROLS</h3>
+            <h3>🕹️ HERO CONTROLS</h3>
             <ul>
               <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> &mdash; Move &amp; Strafe</li>
               <li><kbd>MOUSE</kbd> or <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> &mdash; Look &amp; Turn</li>
@@ -314,27 +320,26 @@
               <li><kbd>RIGHT CLICK</kbd> or <kbd>E</kbd> &mdash; Mighty Boot Kick</li>
               <li><kbd>SPACEBAR</kbd> &mdash; Jump</li>
               <li><kbd>SHIFT</kbd> &mdash; Rush / Sprint</li>
-              <li><kbd>SPACE</kbd> + <kbd>ATTACK</kbd> &mdash; <b>💥 METEOR JUMP SLAM (Strongest Attack!)</b></li>
-              <li><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> &mdash; Switch Unlocked Attacks</li>
+              <li><kbd>SPACE</kbd> + <kbd>ATTACK</kbd> &mdash; <b>💥 METEOR JUMP SLAM</b></li>
+              <li><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> &mdash; Switch Attacks</li>
               <li><kbd>ESC</kbd> or <kbd>P</kbd> &mdash; <b>Instant Release Mouse / Pause</b></li>
             </ul>
           </div>
 
           <div class="menu-card">
-            <h3>🕊️ CN TOWER PEACE SANCTUARY</h3>
-            <p>Need a breather? Head to the <b>CN Tower Plaza</b> marked on your GPS radar:</p>
+            <h3>🛡️ TARGET IDENTIFICATION</h3>
             <div class="crate-items-list">
               <div class="crate-item">
-                <span class="item-badge green">☮️ Strict Peace Zone</span>
-                <span class="item-desc">No fighting is permitted! Bad guys cannot enter or harm you inside.</span>
+                <span class="item-badge green">🟢 Real Torontonians</span>
+                <span class="item-desc">Innocent civilians! <b>DO NOT HIT</b> &mdash; you lose 100 points for hurting citizens!</span>
               </div>
               <div class="crate-item">
-                <span class="item-badge cyan">❤️ Vitality &amp; Shield Regen</span>
-                <span class="item-desc">Bask in the emerald sanctuary aura to regenerate your health and armor.</span>
+                <span class="item-badge cyan">🔴 Humanoid Robots</span>
+                <span class="item-desc">Rogue combat androids with horizontal glowing visor eyes. Destroy them for +250 PTS!</span>
               </div>
               <div class="crate-item">
-                <span class="item-badge gold">📦 Streets of Toronto</span>
-                <span class="item-desc">Smash supply crates on Front St, Union Station &amp; Rogers Centre for upgrades!</span>
+                <span class="item-badge purple">🟣 Body Snatchers</span>
+                <span class="item-desc">Disguised alien parasites! Spot their <b>glowing purple eyes &amp; neck tendrils</b> to unmask them for +400 PTS!</span>
               </div>
             </div>
           </div>
@@ -343,25 +348,25 @@
         <!-- Difficulty Selection -->
         <div class="difficulty-section">
           <div class="difficulty-title">
-            <span>SELECT ARENA DIFFICULTY</span>
+            <span>SELECT ARENA DIFFICULTY (BADDIES VS GOOD CITIZENS RATIO)</span>
             <span style="font-size: 10px; color: #64748b; font-weight: normal;">CHANGE ANYTIME IN-GAME WITH ◀ ▶ OR [ / ] KEYS</span>
           </div>
           <div class="difficulty-buttons">
             <button class="diff-btn" data-diff="easy" type="button">
               <span class="diff-badge green">🟢 EASY</span>
-              <span class="diff-sub">TOURIST (14 FOES)</span>
+              <span class="diff-sub">TOURIST (75% CITIZENS)</span>
             </button>
             <button class="diff-btn active" data-diff="medium" type="button">
               <span class="diff-badge cyan">🔵 MEDIUM</span>
-              <span class="diff-sub">BRAWLER (30 FOES)</span>
+              <span class="diff-sub">DEFENDER (50% CITIZENS)</span>
             </button>
             <button class="diff-btn" data-diff="hard" type="button">
               <span class="diff-badge gold">🟡 HARD</span>
-              <span class="diff-sub">BRUTAL (52 FOES)</span>
+              <span class="diff-sub">INVASION (25% CITIZENS)</span>
             </button>
             <button class="diff-btn" data-diff="impossible" type="button">
               <span class="diff-badge red">🔴 IMPOSSIBLE</span>
-              <span class="diff-sub">MAYHEM (88 FOES)</span>
+              <span class="diff-sub">OVERRUN (10% CITIZENS)</span>
             </button>
           </div>
         </div>
