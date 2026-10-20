@@ -61,6 +61,16 @@ class AICopilot {
     topBar.appendChild(btn);
     this.btnEl = btn;
 
+    const boardBtn = document.createElement('a');
+    boardBtn.id = 'ai-leaderboard-btn';
+    boardBtn.className = 'ai-toggle-btn';
+    boardBtn.innerHTML = '📊 RL LEADERBOARD';
+    boardBtn.href = 'dashboard.html';
+    boardBtn.target = '_blank';
+    boardBtn.title = 'Open Live Real-Time Training Telemetry & District Leaderboard';
+    boardBtn.style.textDecoration = 'none';
+    topBar.appendChild(boardBtn);
+
     // 2. Holographic HUD overlay for AI telemetry
     const banner = document.createElement('div');
     banner.id = 'ai-pilot-hud';

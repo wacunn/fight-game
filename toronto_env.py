@@ -265,11 +265,16 @@ class TorontoFightGymEnv(gym.Env):
         if random.random() < 0.75:
             district = random.choice(DISTRICT_SPAWNS)
             cx, cz, cr = district["x"], district["z"], district["radius"]
+            self.current_district = district["name"]
         else:
             # Full city exploration
             cx = random.uniform(self.map_col.min_x + 50, self.map_col.max_x - 50)
             cz = random.uniform(self.map_col.min_z + 50, self.map_col.max_z - 50)
             cr = 40.0
+            self.current_district = "Downtown Grid Patrol"
+
+        self.episode_reward = 0.0
+        self.episode_length = 0
 
         # Find open walkable spot
         player_x, player_z = cx, cz
@@ -615,4 +620,20 @@ class TorontoFightGymEnv(gym.Env):
             terminated = True
 
         truncated = self.step_count >= self.max_steps
-        return self._get_obs(), reward, terminated, truncated, {"health": self.player["health"]}
+
+        self.episode_reward += reward
+        self.episode_length += 1
+
+        info = {
+            "health": self.player["health"],
+            "district": self.current_district,
+            "goal_reached": cur_dist_to_goal <= self.goal["radius"],
+        }
+        if terminated or truncated:
+            info["episode"] = {
+                "r": round(float(self.episode_reward), 2),
+                "l": int(self.episode_length),
+                "district": self.current_district,
+                "won": cur_dist_to_goal <= self.goal["radius"],
+            }
+        return self._get_obs(), reward, terminated, truncated, info

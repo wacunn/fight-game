@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Toronto Brawl RL — Live Neural Training Leaderboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Teko:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #070a12;
+      --card-bg: rgba(14, 20, 36, 0.85);
+      --card-border: #1e293b;
+      --cyan: #00f0ff;
+      --cyan-glow: rgba(0, 240, 255, 0.35);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.35);
+      --amber: #fbbf24;
+      --rose: #f43f5e;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: 'Chakra Petch', -apple-system, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(0, 240, 255, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.06) 0%, transparent 45%),
+        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Header */
+    header {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-left: 4px solid var(--cyan);
+      border-radius: 12px;
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+    }
+
+    .header-left h1 {
+      font-family: 'Teko', sans-serif;
+      font-size: 34px;
+      letter-spacing: 1.5px;
+      color: var(--text-main);
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-left h1 span.tag {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(0, 240, 255, 0.15);
+      color: var(--cyan);
+      border: 1px solid var(--cyan);
+      letter-spacing: 1px;
+    }
+
+    .header-left p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .live-pulse {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--emerald);
+      background: rgba(16, 185, 129, 0.15);
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 10px var(--emerald);
+      animation: dot-glow 1.2s infinite alternate;
+    }
+
+    @keyframes dot-glow {
+      from { opacity: 0.4; transform: scale(0.85); }
+      to { opacity: 1; transform: scale(1.25); }
+    }
+
+    .btn {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: rgba(0, 240, 255, 0.18);
+      border: 1.5px solid var(--cyan);
+      color: var(--cyan);
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.3);
+    }
+
+    .btn-primary:hover {
+      background: var(--cyan);
+      color: #000;
+      box-shadow: 0 0 22px rgba(0, 240, 255, 0.7);
+    }
+
+    /* Overall Progress Bar */
+    .progress-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .progress-bar-track {
+      width: 100%;
+      height: 12px;
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #0ea5e9, var(--cyan), #10b981);
+      box-shadow: 0 0 12px var(--cyan);
+      transition: width 0.4s ease;
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(0, 240, 255, 0.4);
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .kpi-value {
+      font-family: 'Teko', sans-serif;
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1.1;
+      color: var(--text-main);
+    }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--emerald);
+      font-weight: 600;
+    }
+
+    /* Main Content Layout: Charts + Leaderboard */
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 1024px) {
+      .dashboard-layout { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      backdrop-filter: blur(10px);
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 10px;
+    }
+
+    .panel-title {
+      font-family: 'Teko', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Charts */
+    .chart-box {
+      width: 100%;
+      height: 220px;
+      position: relative;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+
+    /* Leaderboard Table */
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th {
+      text-align: left;
+      padding: 8px 12px;
+      color: var(--text-muted);
+      font-size: 10px;
+      letter-spacing: 1px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      font-weight: 600;
+    }
+
+    tr:hover td {
+      background: rgba(0, 240, 255, 0.04);
+    }
+
+    .rank-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .rank-1 { background: #ffd700; color: #000; box-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
+    .rank-2 { background: #e2e8f0; color: #000; }
+    .rank-3 { background: #d97706; color: #fff; }
+
+    .status-badge {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .status-mastered {
+      background: rgba(16, 185, 129, 0.18);
+      color: var(--emerald);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .status-trained {
+      background: rgba(0, 240, 255, 0.18);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+    }
+
+    .status-patrolling {
+      background: rgba(251, 191, 36, 0.18);
+      color: var(--amber);
+      border: 1px solid rgba(251, 191, 36, 0.4);
+    }
+
+    /* Footer */
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 10px 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="header-left">
+        <h1>
+          TORONTO DEFENDER AI // LIVE TRAINING DECK
+          <span class="tag">RECURRENT PPO (GRU/LSTM 128)</span>
+        </h1>
+        <p>Continuous overnight reinforcement learning with multi-district spawning and goal conditioning.</p>
+      </div>
+      <div class="header-actions">
+        <div class="live-pulse">
+          <span class="pulse-dot"></span>
+          LIVE TELEMETRY ACTIVE
+        </div>
+        <a href="play.html" class="btn btn-primary" target="_blank">
+          🎮 LAUNCH GAME (WATCH AI)
+        </a>
+      </div>
+    </header>
+
+    <!-- Global Progress Bar -->
+    <div class="progress-card">
+      <div class="progress-meta">
+        <span id="step-label">PROGRESS: 0 / 5,000,000 STEPS (0.0%)</span>
+        <span id="eta-label">ESTIMATED TIME REMAINING: CALCULATING...</span>
+      </div>
+      <div class="progress-bar-track">
+        <div id="progress-bar" class="progress-bar-fill"></div>
+      </div>
+    </div>
+
+    <!-- KPI Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">Average Episode Reward</span>
+        <span id="kpi-reward" class="kpi-value">--</span>
+        <span id="kpi-reward-sub" class="kpi-sub">Best: --</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Simulation Speed</span>
+        <span id="kpi-fps" class="kpi-value" style="color: var(--cyan);">--</span>
+        <span id="kpi-elapsed" class="kpi-sub" style="color: var(--text-muted);">Elapsed: 0s</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Value Loss (Critic)</span>
+        <span id="kpi-val-loss" class="kpi-value" style="color: var(--amber);">--</span>
+        <span id="kpi-explained-var" class="kpi-sub" style="color: var(--text-muted);">Explained Var: --</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Policy Loss (Actor)</span>
+        <span id="kpi-pol-loss" class="kpi-value" style="color: #a78bfa;">--</span>
+        <span id="kpi-approx-kl" class="kpi-sub" style="color: var(--text-muted);">Approx KL: --</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Entropy Loss</span>
+        <span id="kpi-entropy" class="kpi-value" style="color: #f43f5e;">--</span>
+        <span class="kpi-sub" style="color: var(--text-muted);">Exploration Sharpness</span>
+      </div>
+    </div>
+
+    <!-- Charts & Leaderboard Layout -->
+    <div class="dashboard-layout">
+      <!-- Left: Real-time Charts -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">📈 REWARD CONVERGENCE CURVE</span>
+          <span id="reward-points-count" style="font-size: 11px; color: var(--text-muted);">0 data points</span>
+        </div>
+        <div class="chart-box">
+          <canvas id="rewardChart"></canvas>
+        </div>
+
+        <div class="panel-head" style="margin-top: 10px;">
+          <span class="panel-title">📉 ACTOR / CRITIC LOSS CURVES</span>
+          <span style="font-size: 11px; color: var(--text-muted);">Value Loss (Amber) vs Policy Loss (Cyan)</span>
+        </div>
+        <div class="chart-box">
+          <canvas id="lossChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Right: Toronto District Mastery Leaderboard -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">🏆 TORONTO DISTRICT MASTERY LEADERBOARD</span>
+          <span style="font-size: 11px; color: var(--cyan); font-weight: 700;">LIVE EPISODE STATS</span>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px;">Rank</th>
+                <th>District / Landmark</th>
+                <th>Episodes</th>
+                <th>Avg Score</th>
+                <th>Win Rate</th>
+                <th>Mastery Level</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                  Collecting district patrol statistics from parallel environments...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <span>Checkpoint location: <code>checkpoints/rppo_toronto_latest.zip</code> (Auto-exported to <code>ai_model.json</code>)</span>
+      <span id="last-update">Last update: Connecting...</span>
+    </footer>
+  </div>
+
+  <script>
+    // Live polling and canvas rendering for RL Training Leaderboard
+    let statusData = null;
+
+    async function fetchStatus() {
+      try {
+        const resp = await fetch('train_status.json?t=' + Date.now());
+        if (resp.ok) {
+          statusData = await resp.json();
+          renderDashboard(statusData);
+        }
+      } catch (e) {
+        console.warn('Status fetch pending...', e);
+      }
+    }
+
+    function renderDashboard(data) {
+      if (!data) return;
+
+      // Progress
+      const step = data.step || 0;
+      const target = data.target_steps || 5000000;
+      const pct = Math.min(100, (step / target) * 100).toFixed(1);
+      document.getElementById('step-label').innerText = `PROGRESS: ${step.toLocaleString()} / ${target.toLocaleString()} STEPS (${pct}%)`;
+      document.getElementById('progress-bar').style.width = pct + '%';
+
+      if (data.eta_hours !== undefined) {
+        document.getElementById('eta-label').innerText = `ETA: ~${data.eta_hours} HOURS (@ ${data.fps || 0} STEPS/SEC)`;
+      }
+
+      // KPIs
+      document.getElementById('kpi-reward').innerText = (data.mean_reward !== undefined) ? data.mean_reward.toFixed(2) : '--';
+      document.getElementById('kpi-reward-sub').innerText = `Best: ${(data.best_reward || 0).toFixed(2)}`;
+      document.getElementById('kpi-fps').innerText = Math.round(data.fps || 0).toLocaleString();
+      document.getElementById('kpi-elapsed').innerText = `Elapsed: ${Math.round((data.elapsed_seconds || 0) / 60)}m ${Math.round((data.elapsed_seconds || 0) % 60)}s`;
+      document.getElementById('kpi-val-loss').innerText = (data.value_loss !== undefined) ? data.value_loss.toFixed(3) : '--';
+      document.getElementById('kpi-explained-var').innerText = `Explained Var: ${data.explained_variance || '--'}`;
+      document.getElementById('kpi-pol-loss').innerText = (data.policy_loss !== undefined) ? data.policy_loss.toFixed(4) : '--';
+      document.getElementById('kpi-approx-kl').innerText = `Approx KL: ${data.approx_kl || '--'}`;
+      document.getElementById('kpi-entropy').innerText = (data.entropy_loss !== undefined) ? data.entropy_loss.toFixed(3) : '--';
+
+      document.getElementById('last-update').innerText = `Last updated: ${data.timestamp || 'Just now'}`;
+
+      // Leaderboard
+      const lbBody = document.getElementById('leaderboard-body');
+      if (data.leaderboard && data.leaderboard.length > 0) {
+        lbBody.innerHTML = data.leaderboard.map(item => {
+          let rankClass = item.rank === 1 ? 'rank-1' : (item.rank === 2 ? 'rank-2' : (item.rank === 3 ? 'rank-3' : ''));
+          let statusClass = item.status === 'Mastered' ? 'status-mastered' : (item.status === 'Combat Trained' ? 'status-trained' : 'status-patrolling');
+          return `
+            <tr>
+              <td><span class="rank-badge ${rankClass}">${item.rank}</span></td>
+              <td><b>${item.district}</b></td>
+              <td>${item.episodes.toLocaleString()}</td>
+              <td style="color: ${item.avg_reward >= 0 ? '#10b981' : '#f43f5e'}; font-weight: 700;">${item.avg_reward.toFixed(1)}</td>
+              <td>${item.win_rate}</td>
+              <td><span class="status-badge ${statusClass}">${item.status}</span></td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // Draw Charts
+      if (data.history && data.history.length > 1) {
+        document.getElementById('reward-points-count').innerText = `${data.history.length} snapshots`;
+        drawRewardChart(data.history);
+        drawLossChart(data.history);
+      }
+    }
+
+    function drawRewardChart(history) {
+      const cvs = document.getElementById('rewardChart');
+      const ctx = cvs.getContext('2d');
+      const w = cvs.parentElement.clientWidth;
+      const h = cvs.parentElement.clientHeight;
+      cvs.width = w * window.devicePixelRatio;
+      cvs.height = h * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+      ctx.clearRect(0, 0, w, h);
+
+      const rewards = history.map(d => d.reward);
+      let minR = Math.min(...rewards, -10);
+      let maxR = Math.max(...rewards, 40);
+      if (maxR === minR) maxR = minR + 10;
+
+      // Draw grid
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = h - (i / 4) * (h - 20) - 10;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px Chakra Petch';
+        const val = minR + (i / 4) * (maxR - minR);
+        ctx.fillText(val.toFixed(0), 6, y - 4);
+      }
+
+      // Draw curve
+      ctx.beginPath();
+      for (let i = 0; i < history.length; i++) {
+        const x = (i / (history.length - 1)) * (w - 40) + 30;
+        const normY = (history[i].reward - minR) / (maxR - minR);
+        const y = h - 15 - normY * (h - 30);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Draw glowing end dot
+      const lastX = w - 10;
+      const lastNormY = (rewards[rewards.length - 1] - minR) / (maxR - minR);
+      const lastY = h - 15 - lastNormY * (h - 30);
+      ctx.fillStyle = '#10b981';
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawLossChart(history) {
+      const cvs = document.getElementById('lossChart');
+      const ctx = cvs.getContext('2d');
+      const w = cvs.parentElement.clientWidth;
+      const h = cvs.parentElement.clientHeight;
+      cvs.width = w * window.devicePixelRatio;
+      cvs.height = h * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+      ctx.clearRect(0, 0, w, h);
+
+      const valLosses = history.map(d => d.value_loss || 0);
+      let maxV = Math.max(...valLosses, 10);
+      let minV = Math.min(...valLosses, 0);
+
+      // Value loss (amber)
+      ctx.beginPath();
+      for (let i = 0; i < history.length; i++) {
+        const x = (i / (history.length - 1)) * (w - 40) + 30;
+        const normY = ((history[i].value_loss || 0) - minV) / (maxV - minV || 1);
+        const y = h - 15 - normY * (h - 30);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Policy loss (cyan)
+      const polLosses = history.map(d => Math.abs(d.policy_loss || 0));
+      let maxP = Math.max(...polLosses, 0.05);
+      ctx.beginPath();
+      for (let i = 0; i < history.length; i++) {
+        const x = (i / (history.length - 1)) * (w - 40) + 30;
+        const normY = Math.abs(history[i].policy_loss || 0) / (maxP || 1);
+        const y = h - 15 - normY * (h - 30);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Poll every 1.5s
+    setInterval(fetchStatus, 1500);
+    fetchStatus();
+  </script>
+</body>
+</html>
