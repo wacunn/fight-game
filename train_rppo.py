@@ -132,6 +132,11 @@ class LiveProgressAndExportCallback(BaseCallback):
             with open(self.status_file, "w") as f:
                 json.dump(status, f, indent=2)
 
+            # Also write as JS for local file:// protocol support without CORS restrictions
+            js_file = self.status_file.replace(".json", ".js")
+            with open(js_file, "w") as f:
+                f.write(f"window.LIVE_TRAIN_STATUS = {json.dumps(status, indent=2)};\n")
+
             # Save latest checkpoint & export json
             os.makedirs("checkpoints", exist_ok=True)
             ckpt_path = "checkpoints/rppo_toronto_latest.zip"

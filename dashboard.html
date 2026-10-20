@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Teko:wght@600;700&display=swap" rel="stylesheet">
+  <script src="train_status.js"></script>
   <style>
     :root {
       --bg: #070a12;
@@ -498,15 +499,38 @@
     let statusData = null;
 
     async function fetchStatus() {
+      // 1. Try standard fetch (works on http://localhost:8080)
       try {
         const resp = await fetch('train_status.json?t=' + Date.now());
         if (resp.ok) {
           statusData = await resp.json();
           renderDashboard(statusData);
+          return;
         }
       } catch (e) {
-        console.warn('Status fetch pending...', e);
+        // CORS or local file:// protocol
       }
+
+      // 2. Dynamic script loader (works 100% on local file:// URLs with zero CORS restrictions)
+      const oldScript = document.getElementById('live-status-script');
+      if (oldScript) oldScript.remove();
+
+      const script = document.createElement('script');
+      script.id = 'live-status-script';
+      script.src = 'train_status.js?t=' + Date.now();
+      script.onload = () => {
+        if (window.LIVE_TRAIN_STATUS) {
+          statusData = window.LIVE_TRAIN_STATUS;
+          renderDashboard(statusData);
+        }
+      };
+      document.head.appendChild(script);
+    }
+
+    // Check if initial static script tag loaded
+    if (window.LIVE_TRAIN_STATUS) {
+      statusData = window.LIVE_TRAIN_STATUS;
+      renderDashboard(statusData);
     }
 
     function renderDashboard(data) {
