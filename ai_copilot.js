@@ -35,6 +35,12 @@ class AICopilot {
   }
 
   async loadWeights() {
+    if (window.AI_MODEL_WEIGHTS) {
+      this.modelData = window.AI_MODEL_WEIGHTS;
+      this.isModelLoaded = true;
+      console.log('🤖 AI Copilot: Inlined Recurrent PPO neural network weights loaded!');
+      return;
+    }
     try {
       const resp = await fetch('ai_model.json');
       if (resp.ok) {
@@ -60,6 +66,20 @@ class AICopilot {
     btn.onclick = () => this.toggle();
     topBar.appendChild(btn);
     this.btnEl = btn;
+
+    const muteBtn = document.createElement('button');
+    muteBtn.id = 'audio-mute-btn';
+    muteBtn.className = 'ai-toggle-btn';
+    const isMuted = (window.audio && window.audio.isMuted) || (new URLSearchParams(window.location.search).get('muted') === '1');
+    muteBtn.innerHTML = isMuted ? '🔇 MUTED <span class="ai-key-hint">[M]</span>' : '🔊 SOUND <span class="ai-key-hint">[M]</span>';
+    if (isMuted) muteBtn.classList.add('active');
+    muteBtn.title = 'Toggle Audio Sound / Mute (Hotkey: M)';
+    muteBtn.onclick = () => {
+      if (window.audio && window.audio.toggleMute) {
+        window.audio.toggleMute();
+      }
+    };
+    topBar.appendChild(muteBtn);
 
     const boardBtn = document.createElement('a');
     boardBtn.id = 'ai-leaderboard-btn';
@@ -101,6 +121,24 @@ class AICopilot {
   toggle(forceState) {
     this.isActive = (forceState !== undefined) ? forceState : !this.isActive;
 
+    if (this.isActive) {
+      // If game has not started yet or is paused, start/resume it immediately
+      if (window.gameState && (!window.gameState.inGame || window.gameState.isPaused)) {
+        if (window.audio && !window.audio.isMuted && window.audio.init) window.audio.init();
+        if (window.gameState.isDead && window.resetGame) window.resetGame();
+        if (window.resumeGame) window.resumeGame(false); // Free mouse look mode for spectator
+      }
+      const overlay = document.getElementById('menu-overlay');
+      if (overlay && !overlay.classList.contains('hidden')) {
+        overlay.classList.add('hidden');
+      }
+      if (window.gameState) {
+        window.gameState.inGame = true;
+        window.gameState.isPaused = false;
+        window.gameState.freeMouseMode = true;
+      }
+    }
+
     if (this.btnEl) {
       if (this.isActive) {
         this.btnEl.classList.add('active');
@@ -114,7 +152,7 @@ class AICopilot {
     if (this.bannerEl) {
       if (this.isActive) {
         this.bannerEl.classList.remove('hidden');
-        if (window.audio && window.audio.playBerserkRoar) {
+        if (window.audio && !window.audio.isMuted && window.audio.playPunch) {
           window.audio.playPunch(0.9, false);
         }
       } else {
@@ -138,9 +176,13 @@ class AICopilot {
       this.evaluatePolicy(player, state, city, enemies, traffic, missionState);
     }
 
-    // Apply smooth movement
+    // Smoothly turn player and camera towards AI target heading
     if (this.moveDir.lengthSq() > 0.01) {
       player.yaw = THREE.MathUtils.lerp(player.yaw, this.targetYaw, dt * 10.0);
+      if (typeof camera !== 'undefined' && camera) {
+        camera.rotation.order = 'YXZ';
+        camera.rotation.y = player.yaw;
+      }
     }
 
     // Update HUD intent
@@ -211,6 +253,10 @@ class AICopilot {
       const obs = this.buildObservation(player, state, city, enemies, traffic, gx, gz, goalType);
       const action = this.forwardPass(obs);
       this.executeAction(action, player, state, gx, gz);
+      // If neural network selected idle but target is far away, smoothly drive via tactical guidance
+      if (this.moveDir.lengthSq() < 0.01 && goalDist > 2.0) {
+        this.executeTacticalHeuristic(player, state, city, enemies, traffic, gx, gz, goalType, goalDist);
+      }
     } else {
       // High-performance tactical heuristic autopilot
       this.executeTacticalHeuristic(player, state, city, enemies, traffic, gx, gz, goalType, goalDist);
@@ -219,8 +265,11 @@ class AICopilot {
 
   findNearestSanctuary(px, pz, city) {
     const sanctuaries = [
+      { x: -286.5, z: 159.4, name: 'CN Tower Peace Sanctuary' },
       { x: -245.0, z: -240.0, name: 'Pecaut Square' },
-      { x: -203.9, z: 349.5, name: 'Roundhouse Park' }
+      { x: -203.9, z: 349.5, name: 'Roundhouse Park' },
+      { x: 956.7, z: -534.9, name: 'St. Lawrence Market' },
+      { x: 265.4, z: -128.9, name: 'Union Station' }
     ];
     let best = sanctuaries[0];
     let bestDist = Math.hypot(sanctuaries[0].x - px, sanctuaries[0].z - pz);
@@ -384,7 +433,7 @@ class AICopilot {
     if (action.move > 0 && moveAngles[action.move] !== null) {
       const ang = moveAngles[action.move];
       this.moveDir.set(Math.cos(ang), 0, Math.sin(ang));
-      this.targetYaw = ang;
+      this.targetYaw = Math.atan2(-this.moveDir.x, -this.moveDir.z);
     } else {
       this.moveDir.set(0, 0, 0);
     }
@@ -431,7 +480,7 @@ class AICopilot {
       const awayZ = pz - cPos.z;
       const len = Math.hypot(awayX, awayZ) || 1.0;
       this.moveDir.set(awayX / len, 0, awayZ / len);
-      this.targetYaw = Math.atan2(this.moveDir.z, this.moveDir.x);
+      this.targetYaw = Math.atan2(-this.moveDir.x, -this.moveDir.z);
       return;
     }
 
@@ -459,10 +508,10 @@ class AICopilot {
 
     // Melee attack triggers
     if (nearestHostile && minEnemyDist <= 3.2 && state.health > 25) {
-      // Rotate to face enemy
+      // Rotate to face enemy in Three.js coordinates
       const ex = nearestHostile.rig.root.position.x;
       const ez = nearestHostile.rig.root.position.z;
-      this.targetYaw = Math.atan2(ez - pz, ex - px);
+      this.targetYaw = Math.atan2(-(ex - px), -(ez - pz));
 
       // Perform meteor slam if surrounded or kick/punch
       if (minEnemyDist <= 2.2) {
@@ -506,13 +555,19 @@ class AICopilot {
 
       if (walkable && score > bestScore) {
         bestScore = score;
-        bestDir = { x: candX, z: candZ, yaw: ang };
+        bestDir = { x: candX, z: candZ };
       }
     }
 
-    if (bestDir && dGoal > 1.5) {
+    if (bestDir && dGoal > 1.2) {
       this.moveDir.set(bestDir.x, 0, bestDir.z);
-      this.targetYaw = bestDir.yaw;
+      this.targetYaw = Math.atan2(-this.moveDir.x, -this.moveDir.z);
+    } else if (dGoal > 1.2) {
+      // Direct vector fallback so hero never gets stuck
+      const directX = directDx / dGoal;
+      const directZ = directDz / dGoal;
+      this.moveDir.set(directX, 0, directZ);
+      this.targetYaw = Math.atan2(-directX, -directZ);
     } else {
       this.moveDir.set(0, 0, 0);
     }

@@ -6,13 +6,37 @@
 class EnhancedRetroAudio {
   constructor() {
     this.ctx = null;
-    this.isMuted = false;
+    const params = (typeof window !== 'undefined' && window.location) ? new URLSearchParams(window.location.search) : null;
+    this.isMuted = params ? (params.get('muted') === '1' || params.get('mute') === '1') : false;
     this.musicTimer = null;
     this.isOCanada = false;
     this.oCanadaTimer = null;
   }
 
+  toggleMute() {
+    this.isMuted = !this.isMuted;
+    if (this.isMuted) {
+      this.stopMusic();
+      this.stopOCanada();
+      if (this.ctx && this.ctx.state === 'running') {
+        this.ctx.suspend().catch(() => {});
+      }
+    } else {
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+      this.startMusic();
+    }
+    const muteBtn = document.getElementById('audio-mute-btn');
+    if (muteBtn) {
+      muteBtn.innerHTML = this.isMuted ? '🔇 MUTED <span class="ai-key-hint">[M]</span>' : '🔊 SOUND <span class="ai-key-hint">[M]</span>';
+      muteBtn.classList.toggle('active', this.isMuted);
+    }
+    return this.isMuted;
+  }
+
   init() {
+    if (this.isMuted) return;
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AudioCtx();
@@ -340,7 +364,7 @@ class EnhancedRetroAudio {
     let step = 0;
 
     const tick = () => {
-      if (!this.ctx || this.ctx.state !== 'running' || this.isOCanada) return;
+      if (!this.ctx || this.ctx.state !== 'running' || this.isOCanada || this.isMuted) return;
       const t = this.ctx.currentTime;
 
       // Heavy Kick on beat 0, 2
@@ -4097,6 +4121,16 @@ window.addEventListener('keydown', (e) => {
       e.preventDefault();
       return;
     }
+    if (window.aiCopilot) {
+      e.preventDefault();
+      window.aiCopilot.toggle();
+      return;
+    }
+  }
+  if (e.code === 'KeyM') {
+    e.preventDefault();
+    if (audio) audio.toggleMute();
+    return;
   }
   if (e.code === 'KeyG') {
     if (handleShowdownAction()) {
@@ -6226,7 +6260,12 @@ window.updateHUDHealth = updateHUDHealth;
 window.playerDeath = playerDeath;
 window.spawnDebris = spawnDebris;
 window.pauseGame = pauseGame;
+window.resumeGame = resumeGame;
+window.resetGame = resetGame;
+window.gameState = state;
+window.gamePlayer = player;
 window.audio = audio;
+window.completeMission = completeMission;
 
 if (window.multiplayer && window.multiplayer.init) {
   window.multiplayer.init(scene, player, state);

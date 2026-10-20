@@ -33,11 +33,18 @@ def bundle():
     ai_tag = '<script src="ai_copilot.js"></script>'
     game_tag = '<script src="game.js"></script>'
 
+    ai_model_file = BASE_DIR / 'ai_model.json'
+    if ai_model_file.exists():
+        ai_model_json = ai_model_file.read_text(encoding='utf-8')
+        ai_inline = f'<script>\nwindow.AI_MODEL_WEIGHTS = {ai_model_json};\n</script>\n<script>\n{ai_copilot_js}\n</script>'
+    else:
+        ai_inline = f'<script>\n{ai_copilot_js}\n</script>'
+
     out = out.replace(map_tag, f'<script>\n{toronto_map}\n</script>')
     out = out.replace(city_tag, f'<script>\n{city_js}\n</script>')
     out = out.replace(traffic_tag, f'<script>\n{traffic_js}\n</script>')
     out = out.replace(multiplayer_tag, f'<script>\n{multiplayer_js}\n</script>')
-    out = out.replace(ai_tag, f'<script>\n{ai_copilot_js}\n</script>')
+    out = out.replace(ai_tag, ai_inline)
     out = out.replace(game_tag, f'<script>\n{game_js}\n</script>')
 
     (BASE_DIR / 'play.html').write_text(out, encoding='utf-8')
