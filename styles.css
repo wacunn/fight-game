@@ -2057,4 +2057,137 @@ body.telescope-mode #crosshair-wrapper {
   }
 }
 
+/* ==========================================================================
+   AI COPILOT & WATCH AI STYLES
+   ========================================================================== */
+.ai-toggle-btn {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1.5px solid #0ea5e9;
+  color: #38bdf8;
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.25);
+  pointer-events: auto;
+  user-select: none;
+}
+
+.ai-toggle-btn:hover {
+  background: rgba(14, 165, 233, 0.25);
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.6);
+  transform: translateY(-1px);
+}
+
+.ai-toggle-btn.active {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: #10b981;
+  color: #34d399;
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.6);
+  animation: ai-glow-pulse 2s infinite alternate;
+}
+
+.ai-key-hint {
+  font-size: 9px;
+  color: #94a3b8;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.ai-toggle-btn.active .ai-key-hint {
+  color: #a7f3d0;
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
+@keyframes ai-glow-pulse {
+  from { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
+  to { box-shadow: 0 0 22px rgba(16, 185, 129, 0.85); }
+}
+
+/* Holographic AI Pilot Banner */
+.ai-pilot-banner {
+  position: absolute;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 95;
+  background: rgba(10, 15, 26, 0.92);
+  border: 1.5px solid #00f0ff;
+  border-radius: 8px;
+  padding: 8px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.4), inset 0 0 12px rgba(0, 240, 255, 0.15);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  animation: ai-slide-down 0.25s ease-out;
+}
+
+.ai-pilot-banner.hidden {
+  display: none !important;
+}
+
+@keyframes ai-slide-down {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.ai-pilot-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00f0ff;
+  box-shadow: 0 0 8px #00f0ff;
+  animation: dot-pulse 1s infinite alternate;
+}
+
+@keyframes dot-pulse {
+  from { transform: scale(0.8); opacity: 0.6; }
+  to { transform: scale(1.3); opacity: 1; }
+}
+
+.ai-title {
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #00f0ff;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+}
+
+.ai-cancel-prompt {
+  font-family: 'Chakra Petch', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fbbf24;
+  letter-spacing: 1px;
+}
+
+.ai-intent-sub {
+  font-family: 'Chakra Petch', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.8px;
+}
+
 

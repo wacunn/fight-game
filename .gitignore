@@ -2,3 +2,7 @@
 __pycache__/
 *.pyc
 scratch/
+logs/
+checkpoints/*.zip
+train_status.json
+

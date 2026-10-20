@@ -14,6 +14,7 @@ def bundle():
     city_js = (BASE_DIR / 'city.js').read_text(encoding='utf-8')
     traffic_js = (BASE_DIR / 'traffic.js').read_text(encoding='utf-8')
     multiplayer_js = (BASE_DIR / 'multiplayer.js').read_text(encoding='utf-8')
+    ai_copilot_js = (BASE_DIR / 'ai_copilot.js').read_text(encoding='utf-8')
     game_js = (BASE_DIR / 'game.js').read_text(encoding='utf-8')
 
     # Replace CSS link
@@ -29,12 +30,14 @@ def bundle():
     city_tag = '<script src="city.js"></script>'
     traffic_tag = '<script src="traffic.js"></script>'
     multiplayer_tag = '<script src="multiplayer.js"></script>'
+    ai_tag = '<script src="ai_copilot.js"></script>'
     game_tag = '<script src="game.js"></script>'
 
     out = out.replace(map_tag, f'<script>\n{toronto_map}\n</script>')
     out = out.replace(city_tag, f'<script>\n{city_js}\n</script>')
     out = out.replace(traffic_tag, f'<script>\n{traffic_js}\n</script>')
     out = out.replace(multiplayer_tag, f'<script>\n{multiplayer_js}\n</script>')
+    out = out.replace(ai_tag, f'<script>\n{ai_copilot_js}\n</script>')
     out = out.replace(game_tag, f'<script>\n{game_js}\n</script>')
 
     (BASE_DIR / 'play.html').write_text(out, encoding='utf-8')

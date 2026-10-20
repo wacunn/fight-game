@@ -4370,6 +4370,12 @@ function executeGloryKill(enemy) {
   killEnemy(enemy, true);
 }
 
+// Expose combat triggers globally for AI Copilot / Watch AI Mode
+window.triggerAttack = triggerAttack;
+window.triggerQuickKick = triggerQuickKick;
+window.executeMeteorSlam = executeMeteorSlam;
+window.executeGloryKill = executeGloryKill;
+
 function checkMeleeHits(atk) {
   let hitSomething = false;
 
@@ -5347,6 +5353,14 @@ function updatePlayer(dt) {
   if (keys['KeyD']) moveDir.add(right);
   if (keys['KeyA']) moveDir.sub(right);
 
+  // Autonomous AI Copilot / Watch AI Mode integration
+  if (window.aiCopilot && window.aiCopilot.isActive) {
+    window.aiCopilot.update(dt, player, state, city, enemies, traffic, missionState);
+    if (moveDir.lengthSq() === 0 && window.aiCopilot.moveDir.lengthSq() > 0.01) {
+      moveDir.copy(window.aiCopilot.moveDir);
+    }
+  }
+
   const isMoving = moveDir.lengthSq() > 0;
   if (isMoving) {
     moveDir.normalize();
@@ -5359,7 +5373,8 @@ function updatePlayer(dt) {
     return;
   }
 
-  const isSprinting = keys['ShiftLeft'] || keys['ShiftRight'] || state.isBerserk;
+  const isSprinting = keys['ShiftLeft'] || keys['ShiftRight'] || state.isBerserk ||
+    (window.aiCopilot && window.aiCopilot.isActive && state.health < 40);
   const curSpeed = isSprinting ? player.sprintSpeed : player.speed;
 
   // Jump
