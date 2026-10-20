@@ -301,19 +301,55 @@ class TorontoFightGymEnv(gym.Env):
         self.goal_type = random.choice([0, 1, 2]) # 0=Waypoint/Beacon, 1=Hostile Boss, 2=Peace Sanctuary
         if self.goal_type == 2:
             sanc = random.choice(self.sanctuaries)
-            self.goal = {"x": sanc["x"], "z": sanc["z"], "radius": sanc["r"]}
+            self.goal = {"x": sanc["x"], "z": sanc["z"], "radius": sanc["r"], "is_marathon": False}
+            self.max_steps = 700
         else:
-            # Spawn goal 30m to 100m away in valid terrain
-            gx, gz = player_x, player_z
-            for _ in range(80):
-                ang = random.uniform(0, math.pi * 2)
-                dist = random.uniform(30.0, 90.0)
-                tx = player_x + math.cos(ang) * dist
-                tz = player_z + math.sin(ang) * dist
-                if self.map_col.can_move_to(tx, tz, radius=1.0):
-                    gx, gz = tx, tz
-                    break
-            self.goal = {"x": gx, "z": gz, "radius": 4.5}
+            # Multi-tier curriculum navigation:
+            # 35% Local Block (30m - 90m)
+            # 35% Multi-Block Neighborhood (100m - 350m)
+            # 30% Full Cross-City Marathon (350m - 1400m, e.g. CN Tower -> St. Lawrence Market!)
+            tier = random.random()
+            if tier < 0.35:
+                min_d, max_d = 30.0, 90.0
+                target_landmark = None
+            elif tier < 0.70:
+                min_d, max_d = 100.0, 350.0
+                target_landmark = None
+            else:
+                min_d, max_d = 350.0, 1400.0
+                other_landmarks = [d for d in DISTRICT_SPAWNS if d["name"] != self.current_district]
+                target_landmark = random.choice(other_landmarks) if other_landmarks else None
+
+            if target_landmark:
+                gx, gz = target_landmark["x"], target_landmark["z"]
+                for _ in range(30):
+                    cand_gx = gx + random.uniform(-target_landmark["radius"], target_landmark["radius"])
+                    cand_gz = gz + random.uniform(-target_landmark["radius"], target_landmark["radius"])
+                    if self.map_col.can_move_to(cand_gx, cand_gz, radius=1.0):
+                        gx, gz = cand_gx, cand_gz
+                        break
+            else:
+                gx, gz = player_x, player_z
+                for _ in range(80):
+                    ang = random.uniform(0, math.pi * 2)
+                    dist = random.uniform(min_d, max_d)
+                    tx = player_x + math.cos(ang) * dist
+                    tz = player_z + math.sin(ang) * dist
+                    if self.map_col.can_move_to(tx, tz, radius=1.0):
+                        gx, gz = tx, tz
+                        break
+
+            target_dist = math.hypot(gx - player_x, gz - player_z)
+            is_marathon = target_dist >= 350.0
+            self.goal = {
+                "x": gx,
+                "z": gz,
+                "radius": 6.0 if is_marathon else 4.5,
+                "is_marathon": is_marathon,
+                "dest_name": target_landmark["name"] if target_landmark else "Street Waypoint"
+            }
+            # Dynamically scale max steps so the agent has plenty of time for cross-city travel
+            self.max_steps = max(500, min(2500, int(350 + target_dist * 1.6)))
 
         # Spawn Hostile Enemies (Snatcher robots, surveillance drones)
         self.enemies = []
@@ -612,7 +648,8 @@ class TorontoFightGymEnv(gym.Env):
         # Goal Completion Check
         terminated = False
         if cur_dist_to_goal <= self.goal["radius"]:
-            reward += 30.0 # Reached active goal!
+            is_m = self.goal.get("is_marathon", False)
+            reward += 60.0 if is_m else 30.0 # Huge bonus for completing cross-city marathon!
             terminated = True
 
         if self.player["health"] <= 0:
@@ -628,6 +665,8 @@ class TorontoFightGymEnv(gym.Env):
             "health": self.player["health"],
             "district": self.current_district,
             "goal_reached": cur_dist_to_goal <= self.goal["radius"],
+            "is_marathon": self.goal.get("is_marathon", False),
+            "dest_name": self.goal.get("dest_name", ""),
         }
         if terminated or truncated:
             info["episode"] = {
@@ -635,5 +674,6 @@ class TorontoFightGymEnv(gym.Env):
                 "l": int(self.episode_length),
                 "district": self.current_district,
                 "won": cur_dist_to_goal <= self.goal["radius"],
+                "is_marathon": self.goal.get("is_marathon", False),
             }
         return self._get_obs(), reward, terminated, truncated, info
