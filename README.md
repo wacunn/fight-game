@@ -26,6 +26,7 @@ Toronto remains a densely packed, bustling metropolis on all difficulties (50 to
 
 ### 3. 🏒 Canadian Berserk Mode & "O Canada" Anthem
 - Building rage or finding Berserk stimpacks triggers **Canadian Berserker Mode**:
+  - **Civilians are never hurt in Berserk mode** — the hockey stick just shoves them aside (no damage, no penalty). Robots and disguised snatchers still get the full slapshot, so anyone who *doesn't* get shoved aside is an alien.
   - The player's standard fists are replaced with a full 3D **Canadian Hockey Stick** (maple shaft, red/white Team Canada stripes, taped blade, and hockey gloves).
   - First-person **slapshot swing animations** with bone-cracking composite wood impact audio (`playHockeySlapshot`).
   - 3x slapshot damage and 2.2x knockback!
@@ -67,3 +68,21 @@ Smash crates around the exits of the Peace Sanctuary and across Toronto:
 3. **Combat Boots [3]**: Mighty boot kick that sends rivals flying.
 4. **Meteor Gauntlet [4]**: Devastating airborne jump slam with radial ground shockwave.
 5. **Berserk Stimpacks & Shields**: Vitality recovery and Canadian Hockey Stick Berserk mode.
+
+---
+
+## 🌐 Multiplayer (Squad Co-op / Brawl Duel)
+
+**Play together at home (same Wi-Fi):**
+1. On one computer: `pip install -r requirements.txt` then `python3 server_multiplayer.py`
+2. Both players open `http://<that-computer's-IP>:8080/?room=family` (the host computer can use `http://localhost:8080/?room=family`).
+3. Same `room` = same city. Different rooms are completely separate.
+
+**How it works**
+- The first player in a room is the **host**: their game runs the robots, snatchers and civilians and streams them to everyone else ~10×/s. Everyone fights the *same* robots; whoever lands the KO gets the points.
+- If the host leaves, the next player takes over the city seamlessly (no reset).
+- **Co-op vs PvP is a room setting** — toggling it changes it for everyone in the room, and the server refuses player-vs-player hits unless the room is in PvP.
+- A paused or dead player doesn't freeze the city for the others, and robots won't attack someone sitting in the menu.
+- Cars aren't synced (each screen has its own traffic). Missions and the CN Tower sky showdown are per-player.
+
+**Online:** deploy with `render.yaml` (Render free tier), then open your Render URL. The GitHub Pages build connects to the Render relay by default; override with `?server=wss://your-host/ws`.

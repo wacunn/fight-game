@@ -1753,6 +1753,33 @@ function createMeteorShockwave(x, z) {
 // ============================================================================
 const enemies = [];
 
+// ---------------------------------------------------------------------------
+// MULTIPLAYER ROLE HELPERS
+// One browser per room (the host) owns the ambient robots/snatchers/civilians.
+// Guests render "mirrors" of them and forward their hits to the host.
+// ---------------------------------------------------------------------------
+const NET_PREFIX = Math.random().toString(36).slice(2, 6);
+let netEnemySeq = 0;
+function isNetGuest() {
+  return !!(window.multiplayer && window.multiplayer.isGuest && window.multiplayer.isGuest());
+}
+function isNetHostWithPeers() {
+  return !!(window.multiplayer && window.multiplayer.isHostWithPeers && window.multiplayer.isHostWithPeers());
+}
+// Positions (x,z) of every player whose game we're simulating enemies for
+function allPlayerPositions() {
+  const out = [{ x: player.pos.x, z: player.pos.z }];
+  if (isNetHostWithPeers()) {
+    window.multiplayer.remotePlayers.forEach(rp => { out.push({ x: rp.currentPos.x, z: rp.currentPos.z }); });
+  }
+  return out;
+}
+function nearestPlayerDist(x, z) {
+  let best = Infinity;
+  allPlayerPositions().forEach(p => { best = Math.min(best, Math.hypot(p.x - x, p.z - z)); });
+  return best;
+}
+
 // 1. INNOCENT TORONTONIAN CIVILIANS (Friendly - Do NOT hit!)
 const CIVILIAN_ARCHETYPES = [
   {
@@ -2506,6 +2533,10 @@ function spawnEnemy(x, z, kind = 'robot', archIdx = 0, isGuard = false, guardTit
     wanderTimer: 2.0 + Math.random() * 3.0
   };
 
+  // Network identity (host-authoritative multiplayer sync)
+  enemyObj.archIdx = archIdx;
+  enemyObj.netId = NET_PREFIX + '-' + (netEnemySeq++);
+
   // Provide enemyObj reference to rig for nameplate updates
   fighterRig.enemyObj = enemyObj;
   enemies.push(enemyObj);
@@ -2558,14 +2589,15 @@ const ALL_TORONTO_STREET_TARGETS = [
 ];
 
 function populateEnemies() {
-  // Clear any existing ambient enemies (preserve alive mission guards if any)
+  // Clear any existing ambient enemies (preserve alive mission guards and network mirrors)
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
-    if (!e.isMissionGuard) {
+    if (!e.isMissionGuard && !e.isRemoteMirror) {
       if (e.rig && e.rig.root) scene.remove(e.rig.root);
       enemies.splice(i, 1);
     }
   }
+  if (isNetGuest()) return;   // the host populates the shared city
 
   const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
 
@@ -2614,9 +2646,14 @@ function populateEnemies() {
 }
 
 function spawnSingleReinforcement(originX, originZ) {
-  if (!city) return null;
-  const pX = (originX !== undefined) ? originX : player.pos.x;
-  const pZ = (originZ !== undefined) ? originZ : player.pos.z;
+  if (!city || isNetGuest()) return null;
+  let pX = originX, pZ = originZ;
+  if (pX === undefined) {
+    // Spread reinforcements around ALL players so a guest exploring elsewhere still has foes
+    const players = allPlayerPositions();
+    const o = players[Math.floor(Math.random() * players.length)];
+    pX = o.x; pZ = o.z;
+  }
 
   // Try several angles to ensure finding an open walkable street
   for (let attempt = 0; attempt < 8; attempt++) {
@@ -2635,11 +2672,12 @@ function spawnSingleReinforcement(originX, originZ) {
 
     const spot = city.findOpenSpot(tx, tz, 2, 18, 2.0);
     const fromPeace = Math.hypot(spot.x - city.peaceZone.x, spot.z - city.peaceZone.z);
-    const fromPlayer = Math.hypot(spot.x - player.pos.x, spot.z - player.pos.z);
+    const fromOrigin = Math.hypot(spot.x - pX, spot.z - pZ);
+    const fromAnyPlayer = nearestPlayerDist(spot.x, spot.z);
 
     if (!city.isInsidePeaceZone(spot.x, spot.z) &&
       fromPeace >= city.peaceZone.radius + 15 &&
-      fromPlayer >= 24 && fromPlayer <= 90) {
+      fromAnyPlayer >= 24 && fromOrigin <= 90) {
       const { kind, archIdx } = pickEnemyTypeForCurrentDifficulty();
       return spawnEnemy(spot.x, spot.z, kind, archIdx);
     }
@@ -2686,9 +2724,11 @@ function setDifficulty(diffKey, announce = true) {
     }
   });
 
-  // Scale active enemy population
-  const aliveEnemies = enemies.filter(e => !e.isDead);
-  if (aliveEnemies.length < cfg.targetEnemies) {
+  // Scale active enemy population (host only; guests see the host's city)
+  const aliveEnemies = enemies.filter(e => !e.isDead && !e.isRemoteMirror);
+  if (isNetGuest()) {
+    // nothing: difficulty of the shared city is the host's setting
+  } else if (aliveEnemies.length < cfg.targetEnemies) {
     spawnAdditionalEnemies(cfg.targetEnemies - aliveEnemies.length);
   } else if (aliveEnemies.length > cfg.targetEnemies) {
     const excess = aliveEnemies.length - cfg.targetEnemies;
@@ -4520,8 +4560,28 @@ function exposeBodySnatcher(enemy) {
   }
 }
 
-function hitEnemy(enemy, dmg, knockback, type) {
+// attacker: undefined for the local player, or { id, pos } when the host applies a guest's hit
+function hitEnemy(enemy, dmg, knockback, type, attacker) {
   if (enemy.isDead || enemy.isKnockedOut) return;
+
+  // 0. NETWORK MIRROR (we're a guest): show the hit now, let the host decide what it did
+  if (enemy.isRemoteMirror) {
+    if (type === 'car') return;   // the host's own traffic handles its NPCs
+    mirrorHitCosmetics(enemy, type);
+    if (window.multiplayer) window.multiplayer.sendEnemyHit(enemy.netId, dmg, knockback, type, false);
+    return;
+  }
+  const srcPos = (attacker && attacker.pos) || player.pos;
+  const remoteId = attacker ? attacker.id : null;
+  enemy.lastHitType = type;
+
+  // 1a. BERSERK NEVER HURTS CIVILIANS: the hockey-stick rampage just shoves them out of the way
+  //     (no damage, no penalty). Requested by the game's #1 player.
+  const attackerBerserk = attacker ? !!attacker.berserk : state.isBerserk;
+  if (enemy.kind === 'civilian' && attackerBerserk && type !== 'car') {
+    shoveCivilianAside(enemy, srcPos);
+    return;
+  }
 
   // 1. INNOCENT CIVILIAN HIT HANDLING
   if (enemy.kind === 'civilian') {
@@ -4530,13 +4590,8 @@ function hitEnemy(enemy, dmg, knockback, type) {
     enemy.isFleeing = true;
     enemy.fleeTimer = 6.0;
 
-    // Score penalty
-    state.score = Math.max(0, state.score - 100);
-    const scoreEl = document.getElementById('hud-score');
-    if (scoreEl) scoreEl.innerText = state.score;
-
-    audio.playPenaltySound();
-    audio.playCivilianGasp();
+    // Score penalty goes to whoever threw the punch (a car isn't anybody's punch)
+    if (type !== 'car') creditScore({ ev: 'civ_hit' }, remoteId);
     setEnemyTint(enemy, 0x22c55e); // gentle green warning flash
     setTimeout(() => {
       if (!enemy.isDead && !enemy.isStaggered) restoreEnemyTint(enemy);
@@ -4549,7 +4604,7 @@ function hitEnemy(enemy, dmg, knockback, type) {
 
     // Knockback physics
     const pos = enemy.rig ? enemy.rig.root.position : enemy.sprite.position;
-    const dir = pos.clone().sub(player.pos).normalize();
+    const dir = pos.clone().sub(srcPos); dir.y = 0; dir.normalize();
     enemy.vx = dir.x * knockback * 0.9;
     enemy.vz = dir.z * knockback * 0.9;
     spawnDebris(pos.x, 1.0, pos.z, 0x38bdf8, 12, 6);
@@ -4557,7 +4612,7 @@ function hitEnemy(enemy, dmg, knockback, type) {
     // CRITICAL USER CONSTRAINT: don't reset combos for attacking civilians, just lose points!
 
     if (enemy.hp <= 0 && !enemy.isDead) {
-      killEnemy(enemy);
+      killEnemy(enemy, false, attacker);
     }
     return;
   }
@@ -4607,9 +4662,9 @@ function hitEnemy(enemy, dmg, knockback, type) {
     }
   }
 
-  // Knockback physics
+  // Knockback physics (away from whoever hit it)
   const pos = enemy.rig ? enemy.rig.root.position : enemy.sprite.position;
-  const dir = pos.clone().sub(player.pos).normalize();
+  const dir = pos.clone().sub(srcPos); dir.y = 0; dir.normalize();
   enemy.vx = dir.x * knockback;
   enemy.vz = dir.z * knockback;
 
@@ -4624,12 +4679,19 @@ function hitEnemy(enemy, dmg, knockback, type) {
   }
 
   if (enemy.hp <= 0 && !enemy.isDead) {
-    killEnemy(enemy);
+    killEnemy(enemy, false, attacker);
   }
 }
 
-function killEnemy(enemy, isGlory = false) {
+function killEnemy(enemy, isGlory = false, attacker) {
   if (enemy.isDead) return;
+  if (enemy.isRemoteMirror) {
+    // Guest glory kill: the host performs the KO and credits us
+    if (isGlory && window.multiplayer) window.multiplayer.sendEnemyHit(enemy.netId, 0, 0, 'glory', true);
+    enemy.isStaggered = false;
+    return;
+  }
+  const remoteId = attacker ? attacker.id : null;
   enemy.isDead = true;
   enemy.isKnockedOut = true;
   enemy.koProgress = 0;
@@ -4638,46 +4700,16 @@ function killEnemy(enemy, isGlory = false) {
 
   // 1. CIVILIAN KO PENALTY
   if (enemy.kind === 'civilian') {
-    state.score = Math.max(0, state.score - 250);
-    const scoreEl = document.getElementById('hud-score');
-    if (scoreEl) scoreEl.innerText = state.score;
-    audio.playPenaltySound();
-    audio.playCivilianGasp();
+    if (enemy.lastHitType !== 'car') creditScore({ ev: 'civ_ko' }, remoteId);
     spawnDebris(pos.x, 1.0, pos.z, 0x38bdf8, 20, 7);
     // Combos are NOT reset
   } else if (enemy.kind === 'snatcher') {
     // 2. BODY SNATCHER DEFEAT (+400 PTS / +600 Glory)
-    state.kills++;
-    const pts = isGlory ? 600 : 400;
-    state.score += pts;
-    document.getElementById('hud-kills').innerText = state.kills;
-    document.getElementById('hud-score').innerText = state.score;
-
-    state.rage = Math.min(100, state.rage + 30);
-    updateRageBar();
-    if (state.rage >= 100 && !state.isBerserk) {
-      activateBerserkMode();
-    }
-
-    setFaceExpression('grin', 1.5);
-    audio.playImpact('heavy');
+    creditScore({ ev: 'ko', kind: 'snatcher', glory: !!isGlory }, remoteId);
     spawnDebris(pos.x, 1.0, pos.z, 0xc026d3, 44, 11);
   } else {
     // 3. ROBOT DEFEAT (+250 PTS / +500 Glory)
-    state.kills++;
-    const pts = isGlory ? 500 : 250;
-    state.score += pts;
-    document.getElementById('hud-kills').innerText = state.kills;
-    document.getElementById('hud-score').innerText = state.score;
-
-    state.rage = Math.min(100, state.rage + 25);
-    updateRageBar();
-    if (state.rage >= 100 && !state.isBerserk) {
-      activateBerserkMode();
-    }
-
-    setFaceExpression('grin', 1.4);
-    audio.playImpact('heavy');
+    creditScore({ ev: 'ko', kind: 'robot', glory: !!isGlory }, remoteId);
     spawnDebris(pos.x, 1.0, pos.z, 0x00f0ff, 32, 10);
     spawnDebris(pos.x, 1.0, pos.z, 0xf59e0b, 20, 8);
   }
@@ -4706,12 +4738,308 @@ function killEnemy(enemy, isGlory = false) {
 
     // Respawn next wave of fighters when all ambient foes are KO'd
     const ambientThreats = enemies.filter(e => !e.isMissionGuard && !e.isDeckEnemy && e.kind !== 'civilian');
-    if (ambientThreats.length > 0 && ambientThreats.every(e => e.isDead)) {
+    if (!isNetGuest() && ambientThreats.length > 0 && ambientThreats.every(e => e.isDead)) {
       showAnnouncement("🔥 STREET SECTOR SECURED! NEXT PATROL INCOMING! 🔥");
       setTimeout(() => populateEnemies(), 2200);
     }
   }, 2400);
 }
+
+// ---------------------------------------------------------------------------
+// SCORE CREDIT — points go to whoever landed the blow (local, or a guest via the host)
+// ---------------------------------------------------------------------------
+function creditScore(ev, remoteId) {
+  if (remoteId) {
+    if (window.multiplayer) window.multiplayer.sendScoreEvent(remoteId, ev);
+  } else {
+    applyScoreEvent(ev);
+  }
+}
+
+function applyScoreEvent(ev) {
+  const scoreEl = document.getElementById('hud-score');
+  if (ev.ev === 'civ_hit' || ev.ev === 'civ_ko') {
+    state.score = Math.max(0, state.score - (ev.ev === 'civ_hit' ? 100 : 250));
+    if (scoreEl) scoreEl.innerText = state.score;
+    audio.playPenaltySound();
+    audio.playCivilianGasp();
+  } else if (ev.ev === 'ko') {
+    const snatcher = ev.kind === 'snatcher';
+    state.kills++;
+    state.score += snatcher ? (ev.glory ? 600 : 400) : (ev.glory ? 500 : 250);
+    document.getElementById('hud-kills').innerText = state.kills;
+    if (scoreEl) scoreEl.innerText = state.score;
+    state.rage = Math.min(100, state.rage + (snatcher ? 30 : 25));
+    updateRageBar();
+    if (state.rage >= 100 && !state.isBerserk) activateBerserkMode();
+    setFaceExpression('grin', snatcher ? 1.5 : 1.4);
+    audio.playImpact('heavy');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// HOST-AUTHORITATIVE NPC SYNC
+// Snapshot row: [netId, kind, archIdx, x, y, z, rotY, hp, maxHp, flags, guardName]
+// flags: 1 punching, 2 staggered, 4 unmasked, 8 dead, 16 fleeing, 32 guard, 64 flinch
+// ---------------------------------------------------------------------------
+const r2 = v => Math.round(v * 100) / 100;
+
+function buildEnemySnapshot() {
+  const rows = [];
+  for (const e of enemies) {
+    if (!e.rig || e.isDeckEnemy || e.isRemoteMirror) continue;
+    if (e.isDead && e.koProgress >= 1) continue;   // KO animation finished on our side
+    const p = e.rig.root.position;
+    let f = 0;
+    if (e.isPunching) f |= 1;
+    if (e.isStaggered) f |= 2;
+    if (e.unmasked) f |= 4;
+    if (e.isDead) f |= 8;
+    if (e.isFleeing) f |= 16;
+    if (e.isMissionGuard) f |= 32;
+    if (e.flinchTimer > 0) f |= 64;
+    rows.push([e.netId, e.kind[0], e.archIdx || 0, r2(p.x), r2(p.y), r2(p.z), r2(e.rig.root.rotation.y),
+      Math.round(e.hp), e.maxHp, f, e.isMissionGuard ? e.name : 0]);
+  }
+  return rows;
+}
+
+const mirrorsById = new Map();
+
+function removeMirror(e, delayMs) {
+  mirrorsById.delete(e.netId);
+  const kill = () => {
+    if (e.rig && e.rig.root) scene.remove(e.rig.root);
+    const i = enemies.indexOf(e);
+    if (i !== -1) enemies.splice(i, 1);
+  };
+  if (delayMs) setTimeout(kill, delayMs); else kill();
+}
+
+function nearLocal(e, r) {
+  const p = e.rig.root.position;
+  return Math.hypot(p.x - player.pos.x, p.z - player.pos.z) < r;
+}
+
+function applyEnemySnapshot(rows) {
+  const seen = new Set();
+  let created = 0;
+  for (const row of rows) {
+    const [id, k, arch, x, y, z, ry, hp, maxHp, f, guardName] = row;
+    seen.add(id);
+    let e = mirrorsById.get(id);
+    if (!e) {
+      if (f & 8) continue;   // never create an already-dead mirror
+      // Building a fighter rig is expensive; spread a big initial batch over several
+      // snapshots (8 per 100 ms) instead of hitching one frame on join.
+      if (created >= 8) continue;
+      created++;
+      const kind = k === 'c' ? 'civilian' : (k === 's' ? 'snatcher' : 'robot');
+      e = spawnEnemy(x, z, kind, arch, !!(f & 32), guardName || null);
+      e.isMissionGuard = false; e.guardAnchor = null;   // guarding is the host's business
+      e.netId = id;
+      e.isRemoteMirror = true;
+      e.netTarget = new THREE.Vector3(x, y, z);
+      e.netMoving = false;
+      e.rig.root.position.set(x, y, z);
+      e.rig.root.rotation.y = ry;
+      mirrorsById.set(id, e);
+    }
+    if (e.isDead) continue;
+    e.netMoving = Math.hypot(x - e.netTarget.x, z - e.netTarget.z) > 0.03;
+    e.netTarget.set(x, y, z);
+    e.netRotY = ry;
+    e.netPunching = !!(f & 1);
+    e.isFleeing = !!(f & 16);
+    if (f & 64) e.flinchTimer = Math.max(e.flinchTimer, 0.12);
+    if (e.hp !== hp || e.maxHp !== maxHp) {
+      e.hp = hp; e.maxHp = maxHp;
+      if (e.rig.updateNameplate) e.rig.updateNameplate(hp, maxHp, !!(f & 2));
+    }
+    if ((f & 2) && !e.isStaggered) { e.isStaggered = true; }
+    else if (!(f & 2) && e.isStaggered) { e.isStaggered = false; restoreEnemyTint(e); }
+    if ((f & 4) && !e.unmasked) {
+      e.unmasked = true;
+      if (e.rig.unmaskSnatcher) e.rig.unmaskSnatcher();
+      if (nearLocal(e, 20)) { audio.playAlienScreech(); triggerScreenShake(10); }
+    }
+    if (f & 8) mirrorKO(e);
+  }
+  // Anything the host no longer reports was despawned (or finished its KO)
+  mirrorsById.forEach((e, id) => {
+    if (!seen.has(id)) removeMirror(e, e.isDead ? 2400 : 0);
+  });
+}
+
+function mirrorKO(e) {
+  if (e.isDead) return;
+  e.isDead = true;
+  e.isKnockedOut = true;
+  e.koProgress = 0;
+  e.isStaggered = false;
+  restoreEnemyTint(e);
+  if (e.rig && e.rig.nameplateSprite) e.rig.nameplateSprite.visible = false;
+  const pos = e.rig.root.position;
+  const col = e.kind === 'snatcher' ? 0xc026d3 : (e.kind === 'civilian' ? 0x38bdf8 : 0x00f0ff);
+  spawnDebris(pos.x, 1.0, pos.z, col, 30, 10);
+  if (nearLocal(e, 40)) audio.playImpact('heavy');
+  removeMirror(e, 2400);
+}
+
+function shoveCivilianAside(enemy, srcPos) {
+  const pos = enemy.rig.root.position;
+  let ax = pos.x - srcPos.x, az = pos.z - srcPos.z;
+  const L = Math.hypot(ax, az) || 1; ax /= L; az /= L;
+  // Mostly sideways, a bit away: they step out of your path rather than flying down the street
+  const side = (Math.random() < 0.5 ? 1 : -1);
+  const sx = -az * side, sz = ax * side;
+  enemy.vx = (sx * 0.8 + ax * 0.45) * 7.5;
+  enemy.vz = (sz * 0.8 + az * 0.45) * 7.5;
+  enemy.isFleeing = true;
+  enemy.fleeTimer = Math.max(enemy.fleeTimer || 0, 2.5);
+  enemy.flinchTimer = 0.12;
+  spawnDebris(pos.x, 1.1, pos.z, 0xffffff, 8, 4);   // little white "whoosh", not a hit spark
+}
+
+function mirrorHitCosmetics(e, type) {
+  const pos = e.rig.root.position;
+  e.flinchTimer = 0.22;
+  if (e.kind === 'civilian' && state.isBerserk) {
+    spawnDebris(pos.x, 1.1, pos.z, 0xffffff, 8, 4);   // host will shove them aside
+    return;
+  }
+  if (e.kind === 'civilian') {
+    setEnemyTint(e, 0x22c55e);
+    audio.playCivilianGasp();
+    spawnDebris(pos.x, 1.0, pos.z, 0x38bdf8, 12, 6);
+  } else {
+    if (e.kind === 'robot') audio.playRobotClank();
+    if (!e.isStaggered) setEnemyTint(e, e.kind === 'snatcher' ? 0xc026d3 : 0xff2222);
+    spawnDebris(pos.x, 1.0, pos.z, e.kind === 'snatcher' ? 0xc026d3 : 0x00f0ff, 18, 8);
+  }
+  setTimeout(() => { if (!e.isDead && !e.isStaggered) restoreEnemyTint(e); }, 110);
+}
+
+function updateMirrorEnemy(e, dt) {
+  const rig = e.rig, p = rig.root.position;
+  const gap = p.distanceTo(e.netTarget);
+  if (gap > 12) p.copy(e.netTarget); else p.lerp(e.netTarget, Math.min(1, dt * 10));
+  let dy = (e.netRotY || 0) - rig.root.rotation.y;
+  dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+  rig.root.rotation.y += dy * Math.min(1, dt * 12);
+
+  if (e.flinchTimer > 0) {
+    e.flinchTimer -= dt;
+    rig.torsoPivot.rotation.x = 0.35; rig.headPivot.rotation.x = -0.3;
+  } else {
+    rig.torsoPivot.rotation.x = 0; rig.headPivot.rotation.x = 0;
+  }
+  if (e.isStaggered) {
+    setEnemyTint(e, Math.sin(Date.now() * 0.02) > 0 ? 0xffea00 : 0xef4444);
+    rig.torsoPivot.rotation.x = 0.3;
+    rig.headPivot.rotation.z = Math.sin(Date.now() * 0.007) * 0.25;
+    rig.leftArmPivot.rotation.x = -0.3; rig.rightArmPivot.rotation.x = -0.3;
+    return;
+  }
+
+  const calm = e.kind === 'civilian' || (e.kind === 'snatcher' && !e.unmasked);
+  if (e.netMoving || gap > 0.08) {
+    const rate = e.isFleeing ? 5.5 : (calm ? 2.8 : 3.8);
+    const amp = e.isFleeing ? 0.7 : (calm ? 0.45 : 0.6);
+    e.walkPhase += dt * (e.speed || 2.6) * rate;
+    const s = Math.sin(e.walkPhase) * amp;
+    rig.leftLegPivot.rotation.x = s; rig.leftCalfPivot.rotation.x = Math.max(0, -s * 0.6);
+    rig.rightLegPivot.rotation.x = -s; rig.rightCalfPivot.rotation.x = Math.max(0, s * 0.6);
+    if (calm || e.isFleeing) {
+      rig.leftArmPivot.rotation.set(-s * 0.6, 0, 0.08);
+      rig.rightArmPivot.rotation.set(s * 0.6, 0, -0.08);
+    }
+  } else {
+    rig.leftLegPivot.rotation.x = 0.1; rig.leftCalfPivot.rotation.x = 0;
+    rig.rightLegPivot.rotation.x = -0.15; rig.rightCalfPivot.rotation.x = 0.1;
+  }
+  if (calm) return;
+
+  if (e.netPunching && !e.isPunching) {
+    e.isPunching = true; e.attackProg = 0;
+    e.punchArm = Math.random() > 0.4 ? 'right' : 'left';
+    if (nearLocal(e, 15)) audio.playPunch(0.9, false);
+  }
+  if (e.isPunching) {
+    e.attackProg += dt * 3.2;
+    const reach = Math.sin(Math.min(1, e.attackProg) * Math.PI);
+    const [A, AF, B, BF, sgn] = e.punchArm === 'right'
+      ? [rig.rightArmPivot, rig.rightForearmPivot, rig.leftArmPivot, rig.leftForearmPivot, -1]
+      : [rig.leftArmPivot, rig.leftForearmPivot, rig.rightArmPivot, rig.rightForearmPivot, 1];
+    A.rotation.x = -1.3 - reach * 0.65; AF.rotation.x = -0.2 - reach * 0.75;
+    B.rotation.x = -1.2; BF.rotation.x = -0.8;
+    rig.torsoPivot.rotation.y = sgn * reach * 0.35;
+    if (e.attackProg >= 1) { e.isPunching = false; e.attackProg = 0; }
+  } else {
+    const sway = Math.sin(Date.now() * 0.004) * 0.08;
+    rig.leftArmPivot.rotation.set(-1.15 + sway, 0.3, 0.15);
+    rig.leftForearmPivot.rotation.set(-0.85, 0, 0);
+    rig.rightArmPivot.rotation.set(-1.25 - sway, -0.3, -0.15);
+    rig.rightForearmPivot.rotation.set(-0.85, 0, 0);
+  }
+}
+
+// Host side: a guest landed a blow on one of our NPCs
+function applyNetEnemyHit(msg) {
+  const e = enemies.find(x => x.netId === msg.nid && !x.isRemoteMirror);
+  if (!e || e.isDead || e.isKnockedOut) return;
+  const rp = window.multiplayer && window.multiplayer.remotePlayers.get(msg.from);
+  const pos = rp ? rp.eyePos.clone() : player.pos.clone();
+  const attacker = { id: msg.from, pos, berserk: !!(rp && rp.isBerserk) };
+  if (msg.glory) {
+    if (e.isStaggered) killEnemy(e, true, attacker);
+    return;
+  }
+  const dmg = Math.max(0, Math.min(500, Number(msg.dmg) || 0));
+  const kb = Math.max(0, Math.min(40, Number(msg.kb) || 0));
+  hitEnemy(e, dmg, kb, msg.atype || 'punch', attacker);
+}
+
+// Guest side: one of the host's robots punched us
+function applyNetEnemyDamage(dmg) {
+  if (state.isDead) return;
+  if (city && player.pos.y <= 50 && city.isInsidePeaceZone(player.pos.x, player.pos.z, player.pos.y)) return;
+  damagePlayer(Math.max(0, Math.min(200, Number(dmg) || 0)));
+  audio.playImpact('punch');
+}
+
+// Role transitions
+function netBecomeGuest() {
+  // Drop our own ambient NPCs; the host's city replaces them. Keep our mission guards & deck fights.
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    if (e.isRemoteMirror || e.isMissionGuard || e.isDeckEnemy) continue;
+    if (e.rig && e.rig.root) scene.remove(e.rig.root);
+    enemies.splice(i, 1);
+  }
+  state.gloryTarget = null;
+}
+
+function netBecomeHost() {
+  // Host left or we went offline: adopt the mirrors as our own NPCs and keep playing
+  mirrorsById.forEach(e => {
+    e.isRemoteMirror = false;
+    e.netTarget = null;
+    if (!e.isDead) {
+      restoreEnemyTint(e);
+      if (e.rig.updateNameplate) e.rig.updateNameplate(e.hp, e.maxHp, e.isStaggered);
+    }
+  });
+  mirrorsById.clear();
+}
+
+window.buildEnemySnapshot = buildEnemySnapshot;
+window.applyEnemySnapshot = applyEnemySnapshot;
+window.applyNetEnemyHit = applyNetEnemyHit;
+window.applyNetEnemyDamage = applyNetEnemyDamage;
+window.applyScoreEvent = applyScoreEvent;
+window.netBecomeGuest = netBecomeGuest;
+window.netBecomeHost = netBecomeHost;
 
 function activateBerserkMode() {
   state.isBerserk = true;
@@ -5196,6 +5524,13 @@ function animate(now) {
     if (window.multiplayer && window.multiplayer.update) {
       window.multiplayer.update(simDt);
     }
+  } else if (window.multiplayer && window.multiplayer.connected && window.multiplayer.remotePlayers.size > 0) {
+    // Shared room: our menu / death screen must not freeze the city for everyone else.
+    // Keep NPCs (or their mirrors), effects and networking running; only local input stops.
+    updateEnemies(dt);
+    keepPeopleOutOfRailCut();
+    updateParticles(dt);
+    window.multiplayer.update(dt);
   }
 
   if (traffic && (!state.inGame || state.isPaused || state.isDead)) traffic.silence();
@@ -5601,19 +5936,42 @@ function updateEnemies(dt) {
   let minDist = 4.0;
   const playerInPeace = (city && player.pos.y <= 50) ? city.isInsidePeaceZone(player.pos.x, player.pos.z, player.pos.y) : false;
 
+  // Who can NPCs go after? Just us in single-player; every living player when hosting.
+  // A paused / dead / in-menu player isn't a valid target (matters once the world keeps running for others)
+  const localAway = state.isDead || state.isPaused || !state.inGame;
+  const netTargets = [{ pos: player.pos, remoteId: null, inPeace: playerInPeace, dead: localAway }];
+  if (isNetHostWithPeers()) {
+    window.multiplayer.remotePlayers.forEach((rp, id) => {
+      const ep = rp.eyePos;
+      const inPeace = (city && ep.y <= 50) ? city.isInsidePeaceZone(ep.x, ep.z, ep.y) : false;
+      netTargets.push({ pos: ep, remoteId: id, inPeace, dead: !(rp.health > 0) });
+    });
+  }
+  const anyAlive = netTargets.some(t => !t.dead);
+  function pickTarget(epos) {
+    let best = netTargets[0], bd = Infinity;
+    for (const t of netTargets) {
+      if (anyAlive && t.dead) continue;
+      const d = Math.hypot(t.pos.x - epos.x, t.pos.z - epos.z);
+      if (d < bd) { bd = d; best = t; }
+    }
+    // Nobody available: stand down (treated like a sanctuary — no chasing, no punching)
+    return anyAlive ? best : { pos: best.pos, remoteId: best.remoteId, inPeace: true, dead: true };
+  }
+
   // Dynamic Roaming Distance Culling & Local Neighborhood Respawn
   // If player runs away into the city (> 110m away), despawn distant ambient enemies
   // and spawn fresh enemies near the player's new position!
   state.enemyRoamingTimer = (state.enemyRoamingTimer || 0) + dt;
-  if (state.enemyRoamingTimer >= 1.2) {
+  if (state.enemyRoamingTimer >= 1.2 && !isNetGuest()) {
     state.enemyRoamingTimer = 0;
     const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
 
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
-      if (e.isDead || e.isKnockedOut || e.isMissionGuard || e.isDeckEnemy) continue;
+      if (e.isDead || e.isKnockedOut || e.isMissionGuard || e.isDeckEnemy || e.isRemoteMirror) continue;
 
-      const d = e.rig.root.position.distanceTo(player.pos);
+      const d = nearestPlayerDist(e.rig.root.position.x, e.rig.root.position.z);
       if (d > 115) {
         if (e.rig && e.rig.root) scene.remove(e.rig.root);
         enemies.splice(i, 1);
@@ -5644,6 +6002,16 @@ function updateEnemies(dt) {
     }
 
     if (enemy.isDead) return;
+
+    // Network mirror of a host-owned NPC: render only, no AI
+    if (enemy.isRemoteMirror) {
+      updateMirrorEnemy(enemy, dt);
+      if (enemy.isStaggered) {
+        const d = enemy.rig.root.position.distanceTo(player.pos);
+        if (d < minDist) { nearestStaggered = enemy; minDist = d; }
+      }
+      return;
+    }
 
     // Apply knockback velocity
     enemy.rig.root.position.x += enemy.vx * dt;
@@ -5689,8 +6057,13 @@ function updateEnemies(dt) {
       }
     }
 
-    // Rotate whole body to face the player (only Y yaw, perfectly upright!)
-    const targetAngle = Math.atan2(player.pos.x - enemy.rig.root.position.x, player.pos.z - enemy.rig.root.position.z);
+    // Pick the nearest living player to chase / face / punch
+    const tgt = pickTarget(enemy.rig.root.position);
+    const tpos = tgt.pos;
+    const targetInPeace = tgt.inPeace;
+
+    // Rotate whole body to face the target (only Y yaw, perfectly upright!)
+    const targetAngle = Math.atan2(tpos.x - enemy.rig.root.position.x, tpos.z - enemy.rig.root.position.z);
     enemy.rig.root.rotation.y = targetAngle;
 
     // Handle Flinch on Hit
@@ -5720,7 +6093,8 @@ function updateEnemies(dt) {
       enemy.rig.updateNameplate(enemy.hp, enemy.maxHp, true);
     }
 
-    const distToPlayer = enemy.rig.root.position.distanceTo(player.pos);
+    const distToPlayer = enemy.rig.root.position.distanceTo(player.pos);   // local player (glory prompt)
+    const distToTarget = enemy.rig.root.position.distanceTo(tpos);
 
     // Track Glory Target
     if (enemy.isStaggered && distToPlayer < minDist) {
@@ -5728,8 +6102,8 @@ function updateEnemies(dt) {
       minDist = distToPlayer;
     }
 
-    const isDifferentFloor = (enemy.isDeckEnemy && Math.abs(player.pos.y - enemy.rig.root.position.y) > 2.5) ||
-      (!enemy.isDeckEnemy && player.pos.y > 50);
+    const isDifferentFloor = (enemy.isDeckEnemy && Math.abs(tpos.y - enemy.rig.root.position.y) > 2.5) ||
+      (!enemy.isDeckEnemy && tpos.y > 50);
 
     // =========================================================================
     // CIVILIAN AI BEHAVIOR (NON-VIOLENT CITIZEN)
@@ -5740,7 +6114,7 @@ function updateEnemies(dt) {
         if (enemy.fleeTimer <= 0) enemy.isFleeing = false;
 
         // Flee rapidly away from the player
-        const fleeDir = enemy.rig.root.position.clone().sub(player.pos);
+        const fleeDir = enemy.rig.root.position.clone().sub(tpos);
         fleeDir.y = 0;
         if (fleeDir.length() < 0.1) fleeDir.set(1, 0, 0);
         fleeDir.normalize();
@@ -5803,7 +6177,7 @@ function updateEnemies(dt) {
     }
 
     // Body Snatcher proximity trigger: unmask if player gets within 10m!
-    if (enemy.kind === 'snatcher' && !enemy.unmasked && distToPlayer <= 10.0 && !playerInPeace && !isDifferentFloor) {
+    if (enemy.kind === 'snatcher' && !enemy.unmasked && distToTarget <= 10.0 && !targetInPeace && !isDifferentFloor) {
       exposeBodySnatcher(enemy);
     }
 
@@ -5838,13 +6212,13 @@ function updateEnemies(dt) {
     // AI Chasing, Footwork & Punch Attacks (Enemies CANNOT pursue into or attack inside Peace Sanctuary, or across different deck floors)
     if (!enemy.isStaggered) {
       const aggroLimit = enemy.aggroDist || 45;
-      const isMoving = !playerInPeace && !isDifferentFloor && distToPlayer > 1.35 && distToPlayer < aggroLimit;
+      const isMoving = !targetInPeace && !isDifferentFloor && distToTarget > 1.35 && distToTarget < aggroLimit;
 
       if (isMoving) {
-        const dir = player.pos.clone().sub(enemy.rig.root.position).normalize();
+        const dir = tpos.clone().sub(enemy.rig.root.position).normalize();
         const nextEx = enemy.rig.root.position.x + dir.x * enemy.speed * dt;
         const nextEz = enemy.rig.root.position.z + dir.z * enemy.speed * dt;
-        const nextDist = Math.hypot(nextEx - player.pos.x, nextEz - player.pos.z);
+        const nextDist = Math.hypot(nextEx - tpos.x, nextEz - tpos.z);
         if (nextDist >= 1.35) {
           if (!city || city.canMoveTo(nextEx, nextEz, 0.45, enemy.rig.root.position.y)) {
             enemy.rig.root.position.x = nextEx;
@@ -5871,7 +6245,7 @@ function updateEnemies(dt) {
         enemy.rig.torsoPivot.position.y = 0.98 + Math.sin(Date.now() * 0.005) * 0.02;
 
         // If this is a mission guard and player has disengaged far away, patrol back toward the mission box
-        if (enemy.isMissionGuard && enemy.guardAnchor && distToPlayer >= aggroLimit) {
+        if (enemy.isMissionGuard && enemy.guardAnchor && distToTarget >= aggroLimit) {
           const dAnchor = Math.hypot(enemy.guardAnchor.x - enemy.rig.root.position.x, enemy.guardAnchor.z - enemy.rig.root.position.z);
           if (dAnchor > 6.0) {
             const gdx = (enemy.guardAnchor.x - enemy.rig.root.position.x) / dAnchor;
@@ -5884,10 +6258,12 @@ function updateEnemies(dt) {
       }
 
       // Keep enemy body from clipping inside player camera/body (only when on same floor!)
-      if (!isDifferentFloor && distToPlayer < 1.10 && distToPlayer > 0.05) {
-        const overlap = 1.10 - distToPlayer;
-        const pushX = (enemy.rig.root.position.x - player.pos.x) / distToPlayer;
-        const pushZ = (enemy.rig.root.position.z - player.pos.z) / distToPlayer;
+      // (horizontal distance: tpos is at eye height, so the old 3D check could never fire)
+      const flatToTarget = Math.hypot(enemy.rig.root.position.x - tpos.x, enemy.rig.root.position.z - tpos.z);
+      if (!isDifferentFloor && flatToTarget < 1.10 && flatToTarget > 0.05) {
+        const overlap = 1.10 - flatToTarget;
+        const pushX = (enemy.rig.root.position.x - tpos.x) / flatToTarget;
+        const pushZ = (enemy.rig.root.position.z - tpos.z) / flatToTarget;
         enemy.rig.root.position.x += pushX * overlap;
         enemy.rig.root.position.z += pushZ * overlap;
       }
@@ -5914,9 +6290,13 @@ function updateEnemies(dt) {
         // Deal damage at peak extension (strictly blocked if player is in Peace Sanctuary or different floor)
         if (enemy.attackProg >= 0.5 && !enemy.punchHasDealtDamage) {
           enemy.punchHasDealtDamage = true;
-          if (distToPlayer <= 2.4 && !playerInPeace && !isDifferentFloor) {
-            damagePlayer(enemy.damage);
-            audio.playImpact('punch');
+          if (distToTarget <= 2.4 && !targetInPeace && !isDifferentFloor) {
+            if (tgt.remoteId) {
+              if (window.multiplayer) window.multiplayer.sendEnemyDamage(tgt.remoteId, enemy.damage);
+            } else {
+              damagePlayer(enemy.damage);
+              audio.playImpact('punch');
+            }
           }
         }
 
@@ -5933,7 +6313,7 @@ function updateEnemies(dt) {
         enemy.rig.rightForearmPivot.rotation.set(-0.85, 0, 0);
 
         // Within attack range -> trigger a punch (strictly blocked if player is in Peace Sanctuary or different floor)
-        if (distToPlayer <= 2.2 && !playerInPeace && !isDifferentFloor) {
+        if (distToTarget <= 2.2 && !targetInPeace && !isDifferentFloor) {
           enemy.attackTimer -= dt;
           if (enemy.attackTimer <= 0) {
             enemy.attackTimer = enemy.attackCooldown + Math.random() * 0.4;
@@ -5951,12 +6331,12 @@ function updateEnemies(dt) {
   // Mutual enemy-enemy physical body blocking (sentry guards & crowd spacing)
   for (let i = 0; i < enemies.length; i++) {
     const e1 = enemies[i];
-    if (e1.isDead || e1.isKnockedOut || !e1.rig || !e1.rig.root) continue;
+    if (e1.isDead || e1.isKnockedOut || !e1.rig || !e1.rig.root || e1.isRemoteMirror) continue;
     const p1 = e1.rig.root.position;
 
     for (let j = i + 1; j < enemies.length; j++) {
       const e2 = enemies[j];
-      if (e2.isDead || e2.isKnockedOut || !e2.rig || !e2.rig.root) continue;
+      if (e2.isDead || e2.isKnockedOut || !e2.rig || !e2.rig.root || e2.isRemoteMirror) continue;
       const p2 = e2.rig.root.position;
 
       const sepDx = p2.x - p1.x;

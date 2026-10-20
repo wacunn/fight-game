@@ -1,251 +1,248 @@
 #!/usr/bin/env python3
 """
-Fists of Doom: Toronto — High-Performance Multiplayer WebSocket & HTTP Server
-Supports simultaneous real-time WebSockets and HTTP static file serving on a single port.
-Runs locally or on free cloud hosts (Render.com, Fly.io, Railway, etc.)
+Fists of Doom: Toronto — multiplayer relay + static file server (one port).
+
+Model
+-----
+* Rooms come from the WebSocket URL:  ws://host/ws?room=6ix&name=MAPLE-FIST
+* Each room has ONE host (the first player in; the oldest remaining player if the
+  host leaves). The host's browser runs the robots / snatchers / civilians and
+  streams snapshots ("world"); everyone else renders those and sends their hits
+  back to the host ("enemy_hit"). The host tells players when a robot punched
+  them ("enemy_dmg") and who earned points ("score_event").
+* Co-op vs PvP is a ROOM setting held here, so one kid toggling PvP can't hurt
+  someone who thinks they're in co-op. Player-vs-player "hit" packets are only
+  relayed while the room is in PvP mode.
+* All sends use websockets.broadcast(): fire-and-forget, never awaits a slow
+  client, and never iterates a dict that another coroutine can mutate.
+
+Runs locally (python3 server_multiplayer.py) or on Render/Fly/Railway ($PORT).
 """
 import asyncio
 import json
 import mimetypes
 import os
+import re
 import sys
-import time
+import uuid
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 try:
-    import websockets
-    from websockets.asyncio.server import serve
+    from websockets.asyncio.server import broadcast, serve
     from websockets.datastructures import Headers
     from websockets.http11 import Response
 except ImportError:
-    print("Error: 'websockets' library is required. Install with: pip install websockets")
+    print("Error: websockets>=13 is required:  pip install -r requirements.txt")
     sys.exit(1)
 
 PORT = int(os.environ.get("PORT", 8080))
 BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_ROOM = "6ix"
 
-# Color palette for players
 PLAYER_COLORS = [
-    0xef4444,  # Red (P1 / Host)
-    0x00f0ff,  # Cyan
-    0xf59e0b,  # Amber / Gold
-    0x10b981,  # Emerald Green
-    0xc026d3,  # Purple
-    0xf43f5e,  # Rose
-    0x38bdf8,  # Sky Blue
-    0xffffff   # White
+    0xef4444,  # red
+    0x00f0ff,  # cyan
+    0xf59e0b,  # amber
+    0x10b981,  # emerald
+    0xc026d3,  # purple
+    0xf43f5e,  # rose
+    0x38bdf8,  # sky
+    0xffffff,  # white
 ]
+
+STATE_KEYS = ("x", "y", "z", "yaw", "pitch", "anim", "isBerserk", "health", "armor", "score")
+
+
+def clean_room(raw):
+    r = re.sub(r"[^a-z0-9_-]", "", (raw or "").strip().lower())[:24]
+    return r or DEFAULT_ROOM
+
+
+def clean_name(raw, fallback):
+    n = re.sub(r"[\x00-\x1f<>]", "", (raw or "").strip())[:20]
+    return n or fallback
+
+
+class Room:
+    def __init__(self, name):
+        self.name = name
+        self.players = {}   # pid -> {"ws": ws, "info": {...}}   (insertion order = join order)
+        self.host = None
+        self.pvp = False
+
+    def conns(self, exclude=None):
+        return [p["ws"] for pid, p in self.players.items() if pid != exclude]
+
+    def free_color(self):
+        used = {p["info"]["color"] for p in self.players.values()}
+        for c in PLAYER_COLORS:
+            if c not in used:
+                return c
+        return PLAYER_COLORS[len(self.players) % len(PLAYER_COLORS)]
+
 
 class GameServer:
     def __init__(self):
-        # rooms: room_name -> { player_id: { 'ws': websocket, 'info': {...} } }
         self.rooms = {}
-        self.next_player_num = 1
 
-    def get_static_response(self, path_str):
-        clean_path = path_str.split('?')[0].strip('/')
-        if not clean_path or clean_path == '':
-            clean_path = 'play.html'
+    # ------------------------------------------------------------------ HTTP
+    def static_response(self, path_str):
+        clean = urlsplit(path_str).path.strip("/") or "play.html"
+        if any(part.startswith(".") for part in clean.split("/")):
+            return self.text(404, "Not Found")
+        file_path = (BASE_DIR / clean).resolve()
+        if not file_path.is_relative_to(BASE_DIR) or not file_path.is_file():
+            return self.text(404, "Not Found")
+        mime = mimetypes.guess_type(str(file_path))[0] or {
+            ".js": "application/javascript", ".css": "text/css"}.get(file_path.suffix, "application/octet-stream")
+        body = file_path.read_bytes()
+        return Response(200, "OK", Headers([
+            ("Content-Type", mime),
+            ("Content-Length", str(len(body))),
+            ("Access-Control-Allow-Origin", "*"),
+            ("Cache-Control", "no-cache, must-revalidate"),
+        ]), body)
 
-        file_path = (BASE_DIR / clean_path).resolve()
-        # Security: prevent directory traversal outside BASE_DIR
-        if not str(file_path).startswith(str(BASE_DIR)) or not file_path.exists() or not file_path.is_file():
-            return Response(404, 'Not Found', Headers([
-                ('Content-Type', 'text/plain'),
-                ('Access-Control-Allow-Origin', '*')
-            ]), b'404 Not Found')
+    @staticmethod
+    def text(code, msg):
+        body = msg.encode()
+        return Response(code, msg, Headers([
+            ("Content-Type", "text/plain"),
+            ("Content-Length", str(len(body))),
+            ("Access-Control-Allow-Origin", "*"),
+        ]), body)
 
-        mime, _ = mimetypes.guess_type(str(file_path))
-        if not mime:
-            if file_path.suffix == '.js':
-                mime = 'application/javascript'
-            elif file_path.suffix == '.css':
-                mime = 'text/css'
-            else:
-                mime = 'application/octet-stream'
+    async def process_request(self, connection, request):
+        if request.headers.get("Upgrade", "").lower() == "websocket":
+            return None  # continue the WebSocket handshake
+        if urlsplit(request.path).path in ("/health", "/ping"):
+            return self.text(200, "pong")
+        return self.static_response(request.path)
 
-        try:
-            content = file_path.read_bytes()
-            headers = Headers([
-                ('Content-Type', mime),
-                ('Content-Length', str(len(content))),
-                ('Access-Control-Allow-Origin', '*'),
-                ('Cache-Control', 'no-cache, must-revalidate')
-            ])
-            return Response(200, 'OK', headers, content)
-        except Exception as e:
-            return Response(500, 'Server Error', Headers([('Content-Type', 'text/plain')]), str(e).encode('utf-8'))
+    # ------------------------------------------------------------- helpers
+    @staticmethod
+    def send(ws, obj):
+        broadcast([ws], json.dumps(obj))
 
-    async def process_http_request(self, connection, request):
-        # If it's a WebSocket upgrade request, return None to continue handshake
-        upgrade = request.headers.get("Upgrade", "")
-        if upgrade.lower() == "websocket":
-            return None
+    def send_room(self, room, obj, exclude=None):
+        broadcast(room.conns(exclude), json.dumps(obj))
 
-        # Health check endpoint for cloud hosting monitoring
-        if request.path in ('/health', '/ping'):
-            return Response(200, 'OK', Headers([
-                ('Content-Type', 'text/plain'),
-                ('Access-Control-Allow-Origin', '*')
-            ]), b'pong')
+    # ----------------------------------------------------------- WebSocket
+    async def handle(self, ws):
+        q = parse_qs(urlsplit(ws.request.path).query)
+        room_name = clean_room(q.get("room", [None])[0])
+        room = self.rooms.get(room_name)
+        if room is None:
+            room = self.rooms[room_name] = Room(room_name)
 
-        # Static files
-        return self.get_static_response(request.path)
-
-    async def broadcast_to_room(self, room_name, message_str, exclude_ws=None):
-        if room_name not in self.rooms:
-            return
-        dead_ids = []
-        for pid, pdata in self.rooms[room_name].items():
-            ws = pdata['ws']
-            if ws == exclude_ws:
-                continue
-            try:
-                await ws.send(message_str)
-            except Exception:
-                dead_ids.append(pid)
-
-        for did in dead_ids:
-            if did in self.rooms[room_name]:
-                del self.rooms[room_name][did]
-
-    async def handle_websocket(self, websocket):
-        player_id = f"p_{self.next_player_num}_{int(time.time()*1000)%100000}"
-        color_idx = (self.next_player_num - 1) % len(PLAYER_COLORS)
-        default_color = PLAYER_COLORS[color_idx]
-        self.next_player_num += 1
-
-        current_room = "6ix"
-        player_info = {
-            "id": player_id,
-            "name": f"DEFENDER-{self.next_player_num - 1}",
-            "color": default_color,
-            "x": 0, "y": 1.7, "z": 0,
-            "yaw": 0, "pitch": 0,
-            "anim": "idle",
-            "isBerserk": False,
-            "health": 100,
-            "armor": 50,
-            "score": 0
+        pid = "p_" + uuid.uuid4().hex[:8]
+        info = {
+            "id": pid,
+            "name": clean_name(q.get("name", [None])[0], f"DEFENDER-{len(room.players) + 1}"),
+            "color": room.free_color(),
+            "x": 0, "y": 0, "z": 0, "yaw": 0, "pitch": 0,
+            "anim": "idle", "isBerserk": False, "health": 100, "armor": 50, "score": 0,
         }
+        room.players[pid] = {"ws": ws, "info": info}
+        if room.host is None:
+            room.host = pid
+        print(f"[+] {info['name']} ({pid}) joined [{room_name}] host={room.host} n={len(room.players)}")
 
-        if current_room not in self.rooms:
-            self.rooms[current_room] = {}
-        self.rooms[current_room][player_id] = { 'ws': websocket, 'info': player_info }
-
-        print(f"🥊 [+] Player connected: {player_id} in room [{current_room}] (Total: {len(self.rooms[current_room])})")
-
-        # 1. Send Welcome message with existing room members
-        existing_players = [
-            pdata['info'] for pid, pdata in self.rooms[current_room].items()
-            if pid != player_id
-        ]
-        welcome_pkt = json.dumps({
-            "type": "welcome",
-            "id": player_id,
-            "color": default_color,
-            "room": current_room,
-            "players": existing_players
+        self.send(ws, {
+            "type": "welcome", "id": pid, "color": info["color"], "name": info["name"],
+            "room": room_name, "hostId": room.host, "pvp": room.pvp,
+            "players": [p["info"] for k, p in room.players.items() if k != pid],
         })
-        await websocket.send(welcome_pkt)
-
-        # 2. Announce join to other players in room
-        join_pkt = json.dumps({
-            "type": "player_joined",
-            "player": player_info
-        })
-        await self.broadcast_to_room(current_room, join_pkt, exclude_ws=websocket)
+        self.send_room(room, {"type": "player_joined", "player": info}, exclude=pid)
 
         try:
-            async for raw_msg in websocket:
+            async for raw in ws:
                 try:
-                    data = json.loads(raw_msg)
-                except Exception:
-                    continue
-
-                m_type = data.get("type")
-
-                if m_type == "state":
-                    # Update internal tracking
-                    for k in ("x", "y", "z", "yaw", "pitch", "anim", "isBerserk", "health", "armor", "score"):
-                        if k in data:
-                            player_info[k] = data[k]
-                    # Relay to other peers
-                    data["id"] = player_id
-                    await self.broadcast_to_room(current_room, json.dumps(data), exclude_ws=websocket)
-
-                elif m_type == "join_info":
-                    # Player sends custom name and color
-                    if "name" in data and data["name"]:
-                        player_info["name"] = str(data["name"])[:20]
-                    if "color" in data:
-                        player_info["color"] = int(data["color"])
-                    update_pkt = json.dumps({
-                        "type": "player_updated",
-                        "player": player_info
-                    })
-                    await self.broadcast_to_room(current_room, update_pkt)
-
-                elif m_type == "attack":
-                    # Relays a swing/kick/slam event so other players see the attack animation & hear sound
-                    data["id"] = player_id
-                    await self.broadcast_to_room(current_room, json.dumps(data), exclude_ws=websocket)
-
-                elif m_type == "hit":
-                    # Player A hit Player B
-                    target_id = data.get("targetId")
-                    if target_id and current_room in self.rooms and target_id in self.rooms[current_room]:
-                        target_ws = self.rooms[current_room][target_id]["ws"]
-                        data["attackerId"] = player_id
-                        data["attackerName"] = player_info["name"]
-                        try:
-                            await target_ws.send(json.dumps(data))
-                        except Exception:
-                            pass
-
-                elif m_type == "ko":
-                    # Broadcast kill announcement
-                    data["victimId"] = player_id
-                    data["victimName"] = player_info["name"]
-                    await self.broadcast_to_room(current_room, json.dumps(data))
-
-                elif m_type == "taunt":
-                    data["id"] = player_id
-                    data["name"] = player_info["name"]
-                    await self.broadcast_to_room(current_room, json.dumps(data))
-
-        except Exception as e:
+                    msg = json.loads(raw)
+                    if not isinstance(msg, dict):
+                        continue
+                    self.dispatch(room, pid, info, msg)
+                except Exception as e:  # one bad packet must never kill the connection
+                    print(f"  bad packet from {pid}: {e}")
+        except Exception:
             pass
         finally:
-            if current_room in self.rooms and player_id in self.rooms[current_room]:
-                del self.rooms[current_room][player_id]
-                count = len(self.rooms[current_room])
-                if count == 0:
-                    del self.rooms[current_room]
-                print(f"🚪 [-] Player disconnected: {player_id} (Remaining: {count})")
+            room.players.pop(pid, None)
+            host_changed = False
+            if room.host == pid:
+                room.host = next(iter(room.players), None)
+                host_changed = True
+            print(f"[-] {info['name']} ({pid}) left [{room_name}] n={len(room.players)} host={room.host}")
+            if not room.players:
+                self.rooms.pop(room_name, None)
+            else:
+                self.send_room(room, {"type": "player_left", "id": pid, "name": info["name"]})
+                if host_changed:
+                    self.send_room(room, {"type": "host", "hostId": room.host})
 
-            leave_pkt = json.dumps({
-                "type": "player_left",
-                "id": player_id,
-                "name": player_info["name"]
-            })
-            await self.broadcast_to_room(current_room, leave_pkt)
+    def dispatch(self, room, pid, info, msg):
+        t = msg.get("type")
+        is_host = (room.host == pid)
+
+        if t == "state":
+            out = {"type": "state", "id": pid}
+            for k in STATE_KEYS:
+                if k in msg:
+                    info[k] = msg[k]
+                    out[k] = msg[k]
+            self.send_room(room, out, exclude=pid)
+
+        elif t == "join_info":
+            info["name"] = clean_name(msg.get("name"), info["name"])
+            self.send_room(room, {"type": "player_updated", "player": info}, exclude=pid)
+
+        elif t in ("attack", "taunt"):
+            msg["id"] = pid
+            msg["name"] = info["name"]
+            self.send_room(room, msg, exclude=pid)
+
+        elif t == "set_mode":
+            room.pvp = bool(msg.get("pvp"))
+            self.send_room(room, {"type": "mode", "pvp": room.pvp, "by": info["name"]})
+
+        elif t == "hit":  # player-vs-player, only in PvP rooms
+            target = room.players.get(msg.get("targetId"))
+            if room.pvp and target:
+                msg.update(attackerId=pid, attackerName=info["name"])
+                self.send(target["ws"], msg)
+
+        elif t == "ko":
+            msg.update(victimId=pid, victimName=info["name"])
+            self.send_room(room, msg)
+
+        # ---- host-authoritative NPC sync ----
+        elif t == "world":
+            if is_host:
+                self.send_room(room, msg, exclude=pid)
+
+        elif t == "enemy_hit":  # guest -> host
+            host = room.players.get(room.host)
+            if host and not is_host:
+                msg["from"] = pid
+                self.send(host["ws"], msg)
+
+        elif t in ("enemy_dmg", "score_event"):  # host -> one guest
+            target = room.players.get(msg.get("targetId"))
+            if is_host and target:
+                self.send(target["ws"], msg)
+
 
 async def main():
     server = GameServer()
     print("=" * 60)
-    print("🥊 FISTS OF DOOM: TORONTO — MULTIPLAYER RELAY SERVER")
-    print(f"🎮 Listening on: http://0.0.0.0:{PORT} / ws://0.0.0.0:{PORT}/ws")
-    print("🚀 Ready for local LAN play & cloud deployment (Render/Fly.io)")
+    print("FISTS OF DOOM: TORONTO — multiplayer relay")
+    print(f"http://0.0.0.0:{PORT}   ws://0.0.0.0:{PORT}/ws?room=<name>")
     print("=" * 60)
-
-    async with serve(
-        server.handle_websocket,
-        "0.0.0.0",
-        PORT,
-        process_request=server.process_http_request
-    ):
+    async with serve(server.handle, "0.0.0.0", PORT, process_request=server.process_request,
+                     max_size=2 ** 20, ping_interval=20, ping_timeout=60):
         await asyncio.get_running_loop().create_future()
+
 
 if __name__ == "__main__":
     try:

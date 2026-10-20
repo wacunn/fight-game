@@ -125,7 +125,7 @@ class AICopilot {
       <div class="ai-pilot-indicator">
         <span class="ai-pulse-dot"></span>
         <span class="ai-title">NEURAL AI COPILOT ACTIVE</span>
-        <span id="ai-mode-pill" class="ai-mode-pill" style="cursor: pointer; background: rgba(0,0,0,0.5); border: 1px solid #3b82f6; color: #93c5fd; padding: 3px 8px; border-radius: 4px; margin-left: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase;">🤖 MODE: HYBRID (RL + NAV) <span style="opacity:0.7">[CLICK / B]</span></span>
+        <span id="ai-mode-pill" class="ai-mode-pill" style="cursor: pointer; pointer-events: auto; background: rgba(0,0,0,0.5); border: 1px solid #3b82f6; color: #93c5fd; padding: 3px 8px; border-radius: 4px; margin-left: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase;">🤖 MODE: HYBRID (RL + NAV) <span style="opacity:0.7">[CLICK / B]</span></span>
         <span class="ai-cancel-prompt">[PRESS V TO TAKE OVER]</span>
       </div>
       <div id="ai-intent-status" class="ai-intent-sub">INITIALIZING TELEMETRY...</div>
@@ -140,9 +140,6 @@ class AICopilot {
   bindEvents() {
     window.addEventListener('keydown', (e) => {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
-      if (e.code === 'KeyV' && !e.repeat && !e.ctrlKey && !e.metaKey) {
-        this.toggle();
-      }
       if (e.code === 'KeyB' && !e.repeat && !e.ctrlKey && !e.metaKey) {
         this.cycleMode();
       }
@@ -150,6 +147,13 @@ class AICopilot {
   }
 
   toggle(forceState) {
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if (forceState === undefined && this._lastToggleTime && (now - this._lastToggleTime < 250)) {
+      console.warn('🤖 AI Copilot: toggle debounced');
+      return;
+    }
+    this._lastToggleTime = now;
+
     this.isActive = (forceState !== undefined) ? forceState : !this.isActive;
 
     if (this.isActive) {
@@ -207,9 +211,12 @@ class AICopilot {
       this.evaluatePolicy(player, state, city, enemies, traffic, missionState);
     }
 
-    // Smoothly turn player and camera towards AI target heading
+    // Smoothly turn player and camera towards AI target heading (shortest angle interpolation)
     if (this.moveDir.lengthSq() > 0.01) {
-      player.yaw = THREE.MathUtils.lerp(player.yaw, this.targetYaw, dt * 10.0);
+      let diff = this.targetYaw - player.yaw;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      player.yaw += diff * Math.min(1.0, dt * 10.0);
       if (typeof camera !== 'undefined' && camera) {
         camera.rotation.order = 'YXZ';
         camera.rotation.y = player.yaw;
@@ -290,9 +297,11 @@ class AICopilot {
     } else {
       // Default: Intelligent Hybrid Mode (Neural Policy + Tactical Obstacle Avoidance)
       let rlActionUsable = false;
+      let neuralAction = null;
       if (this.isModelLoaded && this.modelData && this.modelData.weights) {
         const obs = this.buildObservation(player, state, city, enemies, traffic, gx, gz, goalType);
         const action = this.forwardPass(obs);
+        neuralAction = action;
         this.executeAction(action, player, state, gx, gz);
 
         // Check if RL movement direction is walkable and active
@@ -308,6 +317,9 @@ class AICopilot {
       // If RL chose Idle while goal is distant, or RL path is blocked by a wall:
       if (!rlActionUsable && goalDist > 1.2) {
         this.executeTacticalHeuristic(player, state, city, enemies, traffic, gx, gz, goalType, goalDist);
+        this.aiIntentText = `🧭 [HYBRID NAV] Steered around obstacle toward target (${Math.round(goalDist)}m)`;
+      } else if (rlActionUsable && neuralAction) {
+        this.aiIntentText = `🤖 [HYBRID RL] Neural Move: ${neuralAction.move} | Combat: ${neuralAction.combat} | Target: ${Math.round(goalDist)}m`;
       }
     }
   }

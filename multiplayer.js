@@ -19,16 +19,14 @@
     const savedServer = localStorage.getItem('toronto_mp_server');
     if (savedServer) return savedServer;
 
-    // 3. Localhost / local LAN auto-detection
+    // 3. Served by the relay itself (localhost, LAN IP, my-mac.local, Render...): same origin.
+    //    Only static hosts that can't run the relay (GitHub Pages, file://) use the cloud default.
     const host = window.location.host;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-
-    if (host.includes('localhost') || host.includes('127.0.0.1') || host.startsWith('192.168.') || host.startsWith('10.')) {
-      return `${protocol}//${host}/ws`;
+    if (window.location.protocol === 'file:' || !host || host.endsWith('github.io')) {
+      return CLOUD_SERVER_URL;
     }
-
-    // 4. Default to Production Cloud Relay on GitHub Pages / remote hosting
-    return CLOUD_SERVER_URL;
+    return `${protocol}//${host}/ws`;
   }
 
   function getAutoRoom() {
@@ -217,95 +215,103 @@
   }
 
   // --- Multiplayer Controller Class ---
+  // Roles: the server names one HOST per room. The host's game runs the robots, snatchers
+  // and civilians and streams them ("world"); guests render those and send hits back.
+  // A player alone in a room (or offline) is effectively host of their own game.
   class MultiplayerClient {
     constructor() {
       this.ws = null;
       this.connected = false;
       this.connecting = false;
       this.localId = null;
+      this.hostId = null;
+      this.role = 'solo';            // 'solo' | 'host' | 'guest'
       this.localName = getSavedPlayerName();
       this.localColor = 0xef4444;
       this.room = getAutoRoom();
       this.serverUrl = getAutoServerUrl();
-
       this.scene = null;
       this.localPlayer = null;
       this.gameState = null;
-
-      // remotePlayers: id -> { id, name, color, rig, targetPos, targetYaw, currentPos, currentYaw, ... }
       this.remotePlayers = new Map();
-
       this.sendTimer = 0;
+      this.worldTimer = 0;
       this.reconnectTimer = null;
       this.reconnectAttempts = 0;
-      this.friendlyFire = false; // Default: Co-op mode (no friendly fire between kids!)
+      this.friendlyFire = false;     // ROOM setting, owned by the server
     }
 
     init(scene, player, state) {
       this.scene = scene;
       this.localPlayer = player;
       this.gameState = state;
-
       this.initUI();
       this.updateHUDStatus('connecting');
       this.connect();
     }
 
-    connect(overrideUrl) {
-      if (this.ws) {
-        try { this.ws.close(); } catch (e) {}
-        this.ws = null;
-      }
+    isGuest() { return this.role === 'guest'; }
+    isHostWithPeers() { return this.role === 'host' && this.remotePlayers.size > 0; }
 
-      const url = overrideUrl || this.serverUrl;
-      this.serverUrl = url;
+    socketUrl(base) {
+      try {
+        const u = new URL(base);
+        u.searchParams.set('room', this.room);
+        u.searchParams.set('name', this.localName);
+        return u.toString();
+      } catch (e) {
+        const sep = base.includes('?') ? '&' : '?';
+        return `${base}${sep}room=${encodeURIComponent(this.room)}&name=${encodeURIComponent(this.localName)}`;
+      }
+    }
+
+    connect(overrideUrl) {
+      if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+      if (this.ws) {
+        // Detach the old socket completely so its late onclose can't clobber the new one
+        const old = this.ws;
+        old.onopen = old.onmessage = old.onerror = old.onclose = null;
+        try { old.close(); } catch (e) {}
+        this.ws = null;
+        this.connected = false;
+        this.removeAllRemotePlayers();
+        this.setRole('solo');
+      }
+      if (overrideUrl) this.serverUrl = overrideUrl;
       this.connecting = true;
       this.updateHUDStatus('connecting');
-
-      console.log(`[Multiplayer] Connecting to relay server: ${url} (Room: ${this.room})...`);
-
+      const url = this.socketUrl(this.serverUrl);
+      console.log(`[Multiplayer] Connecting to ${url} ...`);
+      let ws;
       try {
-        this.ws = new WebSocket(url);
+        ws = new WebSocket(url);
       } catch (err) {
-        console.warn('[Multiplayer] Failed to create WebSocket connection:', err);
+        console.warn('[Multiplayer] Failed to create WebSocket:', err);
         this.onConnectionFailed();
         return;
       }
-
-      this.ws.onopen = () => {
+      this.ws = ws;
+      ws.onopen = () => {
+        if (this.ws !== ws) return;
         this.connected = true;
         this.connecting = false;
         this.reconnectAttempts = 0;
-        console.log('[Multiplayer] Connected successfully to relay server!');
-
-        // Send Join info with custom name
-        this.send({
-          type: 'join_info',
-          name: this.localName,
-          color: this.localColor
-        });
-
-        this.updateHUDStatus('connected');
       };
-
-      this.ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          this.handleMessage(msg);
-        } catch (e) {
-          console.warn('[Multiplayer] Malformed message received:', e);
-        }
+      ws.onmessage = (event) => {
+        if (this.ws !== ws) return;
+        let msg;
+        try { msg = JSON.parse(event.data); } catch (e) { return; }
+        try { this.handleMessage(msg); } catch (e) { console.warn('[Multiplayer] handler error', msg && msg.type, e); }
       };
-
-      this.ws.onerror = (err) => {
-        console.warn('[Multiplayer] WebSocket error:', err);
-      };
-
-      this.ws.onclose = () => {
+      ws.onerror = (err) => { if (this.ws === ws) console.warn('[Multiplayer] WebSocket error'); };
+      ws.onclose = (ev) => {
+        if (this.ws !== ws) return;
+        console.log(`[Multiplayer] socket closed (code ${ev && ev.code}); will retry`);
+        this.ws = null;
         this.connected = false;
         this.connecting = false;
-        console.log('[Multiplayer] Disconnected from relay server.');
         this.removeAllRemotePlayers();
+        this.setRole('solo');
         this.updateHUDStatus('offline');
         this.scheduleReconnect();
       };
@@ -313,13 +319,11 @@
 
     scheduleReconnect() {
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-      // Reconnect with gentle backoff
       this.reconnectAttempts++;
-      const delay = Math.min(12000, 2000 + this.reconnectAttempts * 2000);
+      const delay = Math.min(15000, 2000 + this.reconnectAttempts * 2000);
       this.reconnectTimer = setTimeout(() => {
-        if (!this.connected) {
-          this.connect();
-        }
+        this.reconnectTimer = null;
+        if (!this.connected && !this.connecting) this.connect();
       }, delay);
     }
 
@@ -336,143 +340,171 @@
       }
     }
 
-    handleMessage(msg) {
-      const type = msg.type;
-
-      if (type === 'welcome') {
-        this.localId = msg.id;
-        if (msg.color) this.localColor = msg.color;
-        console.log(`[Multiplayer] Welcomed by server as ${this.localId}`);
-
-        // Add any players already in the room
-        if (Array.isArray(msg.players)) {
-          msg.players.forEach(p => {
-            if (p.id !== this.localId) {
-              this.addRemotePlayer(p);
-            }
-          });
-        }
-        this.updateHUDStatus('connected');
-
-      } else if (type === 'player_joined') {
-        const p = msg.player;
-        if (p && p.id !== this.localId) {
-          this.addRemotePlayer(p);
-          if (window.showAnnouncement) {
-            window.showAnnouncement(`⭐ ${p.name.toUpperCase()} JOINED THE SQUAD! ⭐`, 2500);
-          }
-        }
-        this.updateHUDStatus('connected');
-
-      } else if (type === 'player_updated') {
-        const p = msg.player;
-        if (p && this.remotePlayers.has(p.id)) {
-          const rp = this.remotePlayers.get(p.id);
-          rp.name = p.name;
-          rp.color = p.color;
-          if (rp.rig && rp.rig.updateNameplate) {
-            rp.rig.updateNameplate(rp.name, rp.health || 100, rp.isBerserk || false);
-          }
-        }
-
-      } else if (type === 'state') {
-        const id = msg.id;
-        if (id && this.remotePlayers.has(id)) {
-          const rp = this.remotePlayers.get(id);
-          rp.targetPos.set(msg.x, msg.y, msg.z);
-          rp.targetYaw = msg.yaw || 0;
-          rp.targetPitch = msg.pitch || 0;
-          rp.anim = msg.anim || 'idle';
-          rp.isBerserk = !!msg.isBerserk;
-          rp.health = (msg.health !== undefined) ? msg.health : 100;
-          rp.armor = (msg.armor !== undefined) ? msg.armor : 50;
-
-          if (rp.rig) {
-            rp.rig.updateNameplate(rp.name, rp.health, rp.isBerserk);
-            if (rp.rig.stickMesh) rp.rig.stickMesh.visible = rp.isBerserk;
-          }
-        }
-
-      } else if (type === 'attack') {
-        const id = msg.id;
-        if (id && this.remotePlayers.has(id)) {
-          const rp = this.remotePlayers.get(id);
-          this.triggerRemoteAttackAnim(rp, msg.attackType || 'punch');
-        }
-
-      } else if (type === 'hit') {
-        // We received a direct punch/kick/slam from another player!
-        this.handleIncomingHit(msg);
-
-      } else if (type === 'ko') {
-        if (window.showAnnouncement) {
-          window.showAnnouncement(`⚡ ${msg.killerName || 'PLAYER'} KO'D ${msg.victimName || 'PLAYER'}! ⚡`, 3500);
-        }
-        if (window.audio && window.audio.playImpact) {
-          window.audio.playImpact('heavy');
-        }
-
-      } else if (type === 'player_left') {
-        const id = msg.id;
-        if (id && this.remotePlayers.has(id)) {
-          const rp = this.remotePlayers.get(id);
-          this.removeRemotePlayer(id);
-          if (window.showAnnouncement) {
-            window.showAnnouncement(`🚪 ${msg.name || 'PLAYER'} LEFT THE 6IX`, 2200);
-          }
-        }
-        this.updateHUDStatus('connected');
+    // ---- role changes drive the NPC ownership hand-off in game.js ----
+    setRole(role) {
+      if (role === this.role) return;
+      const prev = this.role;
+      this.role = role;
+      console.log(`[Multiplayer] role ${prev} -> ${role}`);
+      if (role === 'guest') {
+        if (window.netBecomeGuest) window.netBecomeGuest();
+      } else if (prev === 'guest') {
+        if (window.netBecomeHost) window.netBecomeHost();
       }
+      this.updateHUDStatus(this.connected ? 'connected' : 'offline');
+    }
+
+    refreshRole() {
+      if (!this.connected || !this.localId) { this.setRole('solo'); return; }
+      this.setRole(this.hostId === this.localId ? 'host' : 'guest');
+    }
+
+    handleMessage(msg) {
+      switch (msg.type) {
+        case 'welcome': {
+          this.localId = msg.id;
+          this.hostId = msg.hostId;
+          if (msg.color !== undefined) this.localColor = msg.color;
+          this.applyMode(!!msg.pvp, null);
+          (msg.players || []).forEach(p => { if (p.id !== this.localId) this.addRemotePlayer(p); });
+          this.refreshRole();
+          this.updateHUDStatus('connected');
+          if (window.showAnnouncement && this.role === 'guest') {
+            const host = this.remotePlayers.get(this.hostId);
+            window.showAnnouncement(`🤝 JOINED ${host ? host.name.toUpperCase() : 'THE SQUAD'}'S TORONTO!`, 2500);
+          }
+          break;
+        }
+        case 'host':
+          this.hostId = msg.hostId;
+          this.refreshRole();
+          if (this.role === 'host' && window.showAnnouncement) window.showAnnouncement('👑 YOU ARE NOW RUNNING THE CITY', 2200);
+          break;
+        case 'mode':
+          this.applyMode(!!msg.pvp, msg.by);
+          break;
+        case 'player_joined': {
+          const p = msg.player;
+          if (p && p.id !== this.localId) {
+            this.addRemotePlayer(p);
+            if (window.showAnnouncement) window.showAnnouncement(`⭐ ${String(p.name).toUpperCase()} JOINED THE SQUAD! ⭐`, 2500);
+          }
+          this.updateHUDStatus('connected');
+          break;
+        }
+        case 'player_updated': {
+          const p = msg.player;
+          const rp = p && this.remotePlayers.get(p.id);
+          if (rp) {
+            rp.name = p.name;
+            if (rp.rig) rp.rig.updateNameplate(rp.name, rp.health, rp.isBerserk);
+          }
+          break;
+        }
+        case 'state': {
+          const rp = this.remotePlayers.get(msg.id);
+          if (!rp) break;
+          if (msg.x !== undefined) rp.targetPos.set(msg.x, msg.y, msg.z);
+          rp.targetYaw = msg.yaw || 0;
+          rp.anim = msg.anim || 'idle';
+          const hp = (msg.health !== undefined) ? msg.health : rp.health;
+          const berserk = !!msg.isBerserk;
+          if (rp.rig && (hp !== rp.health || berserk !== rp.isBerserk)) {
+            rp.rig.updateNameplate(rp.name, hp, berserk);
+            if (rp.rig.stickMesh) rp.rig.stickMesh.visible = berserk;
+          }
+          rp.health = hp;
+          rp.isBerserk = berserk;
+          rp.armor = (msg.armor !== undefined) ? msg.armor : rp.armor;
+          break;
+        }
+        case 'attack': {
+          const rp = this.remotePlayers.get(msg.id);
+          if (rp) this.triggerRemoteAttackAnim(rp, msg.attackType || 'punch');
+          break;
+        }
+        case 'hit':
+          this.handleIncomingHit(msg);
+          break;
+        case 'ko':
+          if (window.showAnnouncement) window.showAnnouncement(`⚡ ${msg.killerName || 'PLAYER'} KO'D ${msg.victimName || 'PLAYER'}! ⚡`, 3500);
+          if (window.audio && window.audio.playImpact) window.audio.playImpact('heavy');
+          break;
+        case 'player_left':
+          if (this.remotePlayers.has(msg.id)) {
+            this.removeRemotePlayer(msg.id);
+            if (window.showAnnouncement) window.showAnnouncement(`🚪 ${msg.name || 'PLAYER'} LEFT THE 6IX`, 2200);
+          }
+          this.updateHUDStatus('connected');
+          break;
+
+        // ---- NPC sync ----
+        case 'world':      // host -> guests
+          if (this.role === 'guest' && window.applyEnemySnapshot) window.applyEnemySnapshot(msg.e || []);
+          break;
+        case 'enemy_hit':  // guest -> host
+          if (this.role === 'host' && window.applyNetEnemyHit) window.applyNetEnemyHit(msg);
+          break;
+        case 'enemy_dmg':  // host -> me: a robot punched me on the host's screen
+          if (window.applyNetEnemyDamage) window.applyNetEnemyDamage(msg.damage || 0);
+          break;
+        case 'score_event':
+          if (window.applyScoreEvent) window.applyScoreEvent(msg.ev || {});
+          break;
+      }
+    }
+
+    // ---- outgoing NPC sync helpers (called from game.js) ----
+    sendEnemyHit(nid, dmg, knockback, attackType, glory) {
+      this.send({ type: 'enemy_hit', nid, dmg, kb: knockback, atype: attackType, glory: !!glory });
+    }
+    sendEnemyDamage(targetId, damage) {
+      this.send({ type: 'enemy_dmg', targetId, damage });
+    }
+    sendScoreEvent(targetId, ev) {
+      this.send({ type: 'score_event', targetId, ev });
     }
 
     addRemotePlayer(info) {
       if (this.remotePlayers.has(info.id)) return;
-
-      const spawnX = (info.x !== undefined) ? info.x : (this.localPlayer ? this.localPlayer.pos.x + 3 : 0);
-      const spawnY = (info.y !== undefined) ? info.y : 0;
-      const spawnZ = (info.z !== undefined) ? info.z : (this.localPlayer ? this.localPlayer.pos.z + 3 : 0);
-
+      const has = (info.x || info.z);
+      const spawnX = has ? info.x : (this.localPlayer ? this.localPlayer.pos.x + 3 : 0);
+      const spawnY = has ? (info.y || 0) : 0;
+      const spawnZ = has ? info.z : (this.localPlayer ? this.localPlayer.pos.z + 3 : 0);
       const rig = createRemoteHeroRig(info.name || 'DEFENDER', info.color || 0xef4444);
       rig.root.position.set(spawnX, spawnY, spawnZ);
       if (this.scene) this.scene.add(rig.root);
-
-      const remotePlayer = {
+      this.remotePlayers.set(info.id, {
         id: info.id,
         name: info.name || 'DEFENDER',
         color: info.color || 0xef4444,
-        rig: rig,
+        rig,
         currentPos: new THREE.Vector3(spawnX, spawnY, spawnZ),
         targetPos: new THREE.Vector3(spawnX, spawnY, spawnZ),
+        eyePos: new THREE.Vector3(spawnX, spawnY + 1.7, spawnZ),
         currentYaw: info.yaw || 0,
         targetYaw: info.yaw || 0,
         anim: info.anim || 'idle',
         isBerserk: !!info.isBerserk,
-        health: 100,
+        health: (info.health !== undefined) ? info.health : 100,
         armor: 50,
         walkPhase: Math.random() * Math.PI * 2,
         attackProgress: 0,
         isAttacking: false,
         attackType: 'punch'
-      };
-
-      this.remotePlayers.set(info.id, remotePlayer);
-      console.log(`[Multiplayer] Added remote player avatar: ${info.name} (${info.id})`);
+      });
     }
 
     removeRemotePlayer(id) {
-      if (!this.remotePlayers.has(id)) return;
       const rp = this.remotePlayers.get(id);
-      if (rp.rig && rp.rig.root && this.scene) {
-        this.scene.remove(rp.rig.root);
-      }
+      if (!rp) return;
+      if (rp.rig && rp.rig.root && this.scene) this.scene.remove(rp.rig.root);
       this.remotePlayers.delete(id);
     }
 
     removeAllRemotePlayers() {
-      this.remotePlayers.forEach((rp, id) => {
-        if (rp.rig && rp.rig.root && this.scene) {
-          this.scene.remove(rp.rig.root);
-        }
+      this.remotePlayers.forEach((rp) => {
+        if (rp.rig && rp.rig.root && this.scene) this.scene.remove(rp.rig.root);
       });
       this.remotePlayers.clear();
     }
@@ -481,25 +513,18 @@
       rp.isAttacking = true;
       rp.attackProgress = 0;
       rp.attackType = atkType;
-
-      if (window.audio && window.audio.playPunch) {
+      if (window.audio && window.audio.playPunch && this.localPlayer &&
+          Math.hypot(rp.currentPos.x - this.localPlayer.pos.x, rp.currentPos.z - this.localPlayer.pos.z) < 30) {
         window.audio.playPunch(atkType === 'heavy' ? 1.5 : 1.0, rp.isBerserk);
       }
     }
 
     handleIncomingHit(msg) {
       if (!this.gameState || this.gameState.isDead) return;
-
-      // In Cooperative Mode, kids take zero damage and zero knockback from each other!
-      if (!this.friendlyFire && !msg.isPvP) {
-        return;
-      }
-
-      const dmg = msg.damage || 20;
+      if (!this.friendlyFire) return;   // room is co-op: server shouldn't send these, but be safe
+      const dmg = Math.max(0, Math.min(200, msg.damage || 20));
       const kbX = (msg.knockback && msg.knockback.x) || 0;
       const kbZ = (msg.knockback && msg.knockback.z) || 0;
-
-      // Apply damage to local player
       let remaining = dmg;
       if (this.gameState.armor > 0) {
         const absorb = Math.min(this.gameState.armor, dmg * 0.65);
@@ -507,266 +532,184 @@
         remaining -= absorb;
       }
       this.gameState.health = Math.max(0, this.gameState.health - remaining);
-
-      // Trigger visual FX
       if (window.triggerDamageFlash) window.triggerDamageFlash();
       if (window.triggerScreenShake) window.triggerScreenShake(16);
       if (window.setFaceExpression) window.setFaceExpression('hurt', 0.65);
       if (window.updateHUDHealth) window.updateHUDHealth();
       if (window.audio && window.audio.playImpact) window.audio.playImpact(msg.attackType || 'punch');
-
-      // Knockback physics impulse
       if (this.localPlayer) {
         this.localPlayer.velocity.x += kbX;
         this.localPlayer.velocity.z += kbZ;
       }
-
-      // Check if fallen
       if (this.gameState.health <= 0) {
         this.gameState.health = 0;
-        this.send({
-          type: 'ko',
-          killerId: msg.attackerId,
-          killerName: msg.attackerName
-        });
+        this.send({ type: 'ko', killerId: msg.attackerId, killerName: msg.attackerName });
         if (window.playerDeath) window.playerDeath();
       }
     }
 
-    // Called on local attack swing to broadcast to network
     broadcastAttack(attackType) {
       if (!this.connected || !this.localPlayer) return;
-      const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.localPlayer.yaw);
-      this.send({
-        type: 'attack',
-        attackType: attackType,
-        x: this.localPlayer.pos.x,
-        y: this.localPlayer.pos.y,
-        z: this.localPlayer.pos.z,
-        fx: forward.x,
-        fz: forward.z
-      });
+      this.send({ type: 'attack', attackType });
     }
 
-    // Called during local player melee hit detection to test against remote players
-    checkMeleeHits(atk) {
-      if (!this.connected || !this.localPlayer || this.remotePlayers.size === 0) return false;
-
-      const pPos = this.localPlayer.pos;
-      const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.localPlayer.yaw);
-
-      // In Cooperative Mode, friendly fire is completely disabled: kids cannot hurt or knock each other out!
-      if (!this.friendlyFire) {
-        let fistBumped = false;
-        this.remotePlayers.forEach((rp) => {
-          if (!rp.rig) return;
-          const rPos = rp.currentPos;
-          const dist = pPos.distanceTo(rPos);
-
-          if (dist <= atk.range + 0.3) {
-            const toTarget = rPos.clone().sub(pPos).normalize();
-            if (toTarget.dot(forward) > 0.52) {
-              fistBumped = true;
-              if (window.showAnnouncement) {
-                window.showAnnouncement(`🤜🤛 SQUAD FIST-BUMP WITH ${rp.name}!`, 1200);
-              }
-              if (window.audio && window.audio.playPickup) {
-                window.audio.playPickup();
-              }
-              if (window.spawnDebris) {
-                window.spawnDebris(rPos.x, 1.2, rPos.z, 0x38bdf8, 14, 6);
-              }
-            }
-          }
-        });
-        return fistBumped;
-      }
-
-      // PvP Mode (when explicitly toggled to Brawl Duel)
-      let hitAny = false;
+    // Horizontal (feet-to-feet) geometry: the local player position is at eye height,
+    // remote rigs are at foot height, so 3D distance/direction was wrong up close.
+    _meleeTargets(atk) {
+      const out = [];
+      const p = this.localPlayer.pos;
+      const fx = -Math.sin(this.localPlayer.yaw), fz = -Math.cos(this.localPlayer.yaw);
       this.remotePlayers.forEach((rp, id) => {
         if (!rp.rig) return;
-        const rPos = rp.currentPos;
-        const dist = pPos.distanceTo(rPos);
-
-        if (dist <= atk.range + 0.3) {
-          const toTarget = rPos.clone().sub(pPos).normalize();
-          if (toTarget.dot(forward) > 0.52) {
-            // Landed hit on remote player!
-            hitAny = true;
-            const dmg = this.gameState && this.gameState.isBerserk ? atk.damage * 3 : atk.damage;
-            const kb = this.gameState && this.gameState.isBerserk ? atk.knockback * 2.2 : atk.knockback;
-
-            const kbVec = { x: toTarget.x * kb, z: toTarget.z * kb };
-            this.send({
-              type: 'hit',
-              targetId: id,
-              isPvP: true,
-              damage: dmg,
-              knockback: kbVec,
-              attackType: atk.type
-            });
-
-            // Flash remote player mesh
-            if (rp.rig && rp.rig.materials) {
-              rp.rig.materials.forEach(m => m.color.setHex(0xff2222));
-              setTimeout(() => {
-                if (rp.rig && rp.rig.materials && rp.rig.originalColors) {
-                  rp.rig.materials.forEach((m, idx) => m.color.setHex(rp.rig.originalColors[idx]));
-                }
-              }, 120);
-            }
-
-            if (window.spawnDebris) {
-              window.spawnDebris(rPos.x, 1.0, rPos.z, 0xffea00, 24, 8);
-            }
-          }
-        }
+        const dx = rp.currentPos.x - p.x, dz = rp.currentPos.z - p.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist > atk.range + 0.3) return;
+        if (Math.abs(rp.currentPos.y + 1.7 - p.y) > 2.5) return;   // different floor
+        const nx = dist > 0.05 ? dx / dist : fx, nz = dist > 0.05 ? dz / dist : fz;
+        if (dist > 0.6 && nx * fx + nz * fz < 0.5) return;           // point blank always connects
+        out.push({ rp, id, nx, nz });
       });
+      return out;
+    }
 
-      return hitAny;
+    checkMeleeHits(atk) {
+      if (!this.connected || !this.localPlayer || this.remotePlayers.size === 0) return false;
+      const targets = this._meleeTargets(atk);
+      if (!targets.length) return false;
+      if (!this.friendlyFire) {
+        const t = targets[0];
+        if (window.showAnnouncement) window.showAnnouncement(`🤜🤛 SQUAD FIST-BUMP WITH ${t.rp.name}!`, 1200);
+        if (window.audio && window.audio.playPickup) window.audio.playPickup();
+        if (window.spawnDebris) window.spawnDebris(t.rp.currentPos.x, 1.2, t.rp.currentPos.z, 0x38bdf8, 14, 6);
+        return true;
+      }
+      const berserk = this.gameState && this.gameState.isBerserk;
+      targets.forEach(({ rp, id, nx, nz }) => {
+        const dmg = berserk ? atk.damage * 3 : atk.damage;
+        const kb = berserk ? atk.knockback * 2.2 : atk.knockback;
+        this.send({ type: 'hit', targetId: id, damage: dmg, knockback: { x: nx * kb, z: nz * kb }, attackType: atk.type });
+        if (rp.rig && rp.rig.materials) {
+          rp.rig.materials.forEach(m => m.color.setHex(0xff2222));
+          setTimeout(() => {
+            if (rp.rig && rp.rig.originalColors) rp.rig.materials.forEach((m, i) => m.color.setHex(rp.rig.originalColors[i]));
+          }, 120);
+        }
+        if (window.spawnDebris) window.spawnDebris(rp.currentPos.x, 1.0, rp.currentPos.z, 0xffea00, 24, 8);
+      });
+      return true;
     }
 
     update(dt) {
-      // 1. Throttled transmission of local player state (~20 updates/sec)
       if (this.connected && this.localPlayer) {
+        // 1. Local player state at ~20 Hz
         this.sendTimer += dt;
         if (this.sendTimer >= 0.05) {
           this.sendTimer = 0;
+          const gs = this.gameState;
           this.send({
             type: 'state',
             x: Number(this.localPlayer.pos.x.toFixed(2)),
             y: Number((this.localPlayer.pos.y - 1.7).toFixed(2)),
             z: Number(this.localPlayer.pos.z.toFixed(2)),
             yaw: Number(this.localPlayer.yaw.toFixed(3)),
-            pitch: Number(this.localPlayer.pitch.toFixed(3)),
-            anim: (this.gameState && this.gameState.isAttacking) ? this.gameState.currentAnimType : 'idle',
-            isBerserk: !!(this.gameState && this.gameState.isBerserk),
-            health: this.gameState ? Math.round(this.gameState.health) : 100,
-            armor: this.gameState ? Math.round(this.gameState.armor) : 50,
-            score: this.gameState ? this.gameState.score : 0
+            anim: (gs && gs.isAttacking) ? gs.currentAnimType : 'idle',
+            isBerserk: !!(gs && gs.isBerserk),
+            health: gs ? (gs.isDead ? 0 : Math.round(gs.health)) : 100,
+            armor: gs ? Math.round(gs.armor) : 50,
+            score: gs ? gs.score : 0
           });
+        }
+        // 2. Host streams the NPC world at ~10 Hz
+        if (this.isHostWithPeers() && window.buildEnemySnapshot) {
+          this.worldTimer += dt;
+          if (this.worldTimer >= 0.1) {
+            this.worldTimer = 0;
+            this.send({ type: 'world', e: window.buildEnemySnapshot() });
+          }
         }
       }
 
-      // 2. Smooth Interpolation & Animations for all Remote Players
-      this.remotePlayers.forEach((rp, id) => {
+      // 3. Interpolate & animate remote players
+      this.remotePlayers.forEach((rp) => {
         if (!rp.rig) return;
-
-        // Smooth positional lerp
-        const lerpFactor = Math.min(1.0, dt * 14.0);
-        rp.currentPos.lerp(rp.targetPos, lerpFactor);
+        const before = rp.currentPos.distanceTo(rp.targetPos);
+        if (before > 15) rp.currentPos.copy(rp.targetPos);           // teleport / respawn
+        else rp.currentPos.lerp(rp.targetPos, Math.min(1.0, dt * 14.0));
+        rp.eyePos.set(rp.currentPos.x, rp.currentPos.y + 1.7, rp.currentPos.z);
         rp.rig.root.position.copy(rp.currentPos);
-
-        // Smooth yaw rotation
+        rp.rig.root.visible = rp.health > 0;
         let dYaw = rp.targetYaw - rp.currentYaw;
         dYaw = Math.atan2(Math.sin(dYaw), Math.cos(dYaw));
         rp.currentYaw += dYaw * Math.min(1.0, dt * 12.0);
         rp.rig.root.rotation.y = rp.currentYaw;
-
-        // Animate legs based on movement speed
-        const distMoved = rp.currentPos.distanceTo(rp.targetPos);
-        if (distMoved > 0.05) {
+        if (before > 0.05) {
           rp.walkPhase += dt * 9.0;
-          const legSwing = Math.sin(rp.walkPhase) * 0.6;
-          rp.rig.leftLeg.rotation.x = legSwing;
-          rp.rig.lCalfPivot.rotation.x = Math.max(0, -legSwing * 0.6);
-          rp.rig.rightLeg.rotation.x = -legSwing;
-          rp.rig.rCalfPivot.rotation.x = Math.max(0, legSwing * 0.6);
+          const s = Math.sin(rp.walkPhase) * 0.6;
+          rp.rig.leftLeg.rotation.x = s;
+          rp.rig.lCalfPivot.rotation.x = Math.max(0, -s * 0.6);
+          rp.rig.rightLeg.rotation.x = -s;
+          rp.rig.rCalfPivot.rotation.x = Math.max(0, s * 0.6);
         } else {
-          rp.rig.leftLeg.rotation.x = 0;
-          rp.rig.lCalfPivot.rotation.x = 0;
-          rp.rig.rightLeg.rotation.x = 0;
-          rp.rig.rCalfPivot.rotation.x = 0;
+          rp.rig.leftLeg.rotation.x = rp.rig.lCalfPivot.rotation.x = 0;
+          rp.rig.rightLeg.rotation.x = rp.rig.rCalfPivot.rotation.x = 0;
         }
-
-        // Animate attacks
         if (rp.isAttacking) {
           rp.attackProgress += dt * 4.2;
           const swing = Math.sin(Math.min(1.0, rp.attackProgress) * Math.PI);
-
           if (rp.attackType === 'kick') {
             rp.rig.rightLeg.rotation.set(-1.4 * swing, 0.2, 0);
           } else {
             rp.rig.rArmPivot.rotation.x = -1.2 - swing * 0.8;
             rp.rig.rForearm.rotation.x = -0.2 - swing * 0.9;
           }
-
           if (rp.attackProgress >= 1.0) {
             rp.isAttacking = false;
             rp.attackProgress = 0;
             rp.rig.rArmPivot.rotation.x = 0;
             rp.rig.rForearm.rotation.x = 0;
+            rp.rig.rightLeg.rotation.set(0, 0, 0);
           }
         }
       });
     }
 
+    // ---------------------------------------------------------------- UI
     initUI() {
-      // 1. Name input
       const nameInput = document.getElementById('mp-name-input');
+      const roomInput = document.getElementById('mp-room-input');
+      const serverInput = document.getElementById('mp-server-input');
       if (nameInput) {
         nameInput.value = this.localName;
-        nameInput.addEventListener('input', (e) => {
-          this.setPlayerName(e.target.value);
-        });
-        nameInput.addEventListener('change', (e) => {
-          this.setPlayerName(e.target.value);
-        });
+        nameInput.addEventListener('change', (e) => this.setPlayerName(e.target.value));
       }
+      if (roomInput) roomInput.value = this.room;
+      if (serverInput) serverInput.value = this.serverUrl;
 
-      // 2. Room input
-      const roomInput = document.getElementById('mp-room-input');
-      if (roomInput) {
-        roomInput.value = this.room;
-        roomInput.addEventListener('change', (e) => {
-          const r = (e.target.value || '6ix').trim().toLowerCase();
-          this.room = r;
-          localStorage.setItem('toronto_mp_room', r);
-        });
-      }
-
-      // 3. Server input
-      const serverInput = document.getElementById('mp-server-input');
-      if (serverInput) {
-        serverInput.value = this.serverUrl;
-        serverInput.addEventListener('change', (e) => {
-          const s = (e.target.value || '').trim();
-          if (s) {
-            this.serverUrl = s;
-            localStorage.setItem('toronto_mp_server', s);
-          }
-        });
-      }
-
-      // 4. Connect button
       const connectBtn = document.getElementById('mp-connect-btn');
       if (connectBtn) {
         connectBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           if (nameInput && nameInput.value) this.setPlayerName(nameInput.value);
-          if (roomInput && roomInput.value) {
-            this.room = roomInput.value.trim().toLowerCase() || '6ix';
+          if (roomInput) {
+            this.room = (roomInput.value || '6ix').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || '6ix';
+            roomInput.value = this.room;
             localStorage.setItem('toronto_mp_room', this.room);
           }
-          if (serverInput && serverInput.value) {
+          if (serverInput && serverInput.value.trim()) {
             this.serverUrl = serverInput.value.trim();
             localStorage.setItem('toronto_mp_server', this.serverUrl);
           }
           this.connect(this.serverUrl);
         });
       }
-
-      // 5. Co-op vs PvP Mode Toggle button
       const modeBtn = document.getElementById('mp-mode-btn');
       if (modeBtn) {
         modeBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          this.setFriendlyFire(!this.friendlyFire);
+          if (this.connected) this.send({ type: 'set_mode', pvp: !this.friendlyFire });
+          else this.applyMode(!this.friendlyFire, null);   // offline: local only, no effect
         });
       }
-
-      // 6. Header Badge opens Menu
       const badge = document.getElementById('mp-status-badge');
       if (badge) {
         badge.style.cursor = 'pointer';
@@ -777,20 +720,17 @@
       }
     }
 
-    setFriendlyFire(enabled) {
-      this.friendlyFire = !!enabled;
+    applyMode(pvp, byName) {
+      const changed = pvp !== this.friendlyFire;
+      this.friendlyFire = pvp;
       const btn = document.getElementById('mp-mode-btn');
       if (btn) {
-        if (this.friendlyFire) {
-          btn.className = 'mp-mode-toggle-btn pvp-active';
-          btn.innerText = '⚔️ ARENA BRAWL (PVP DUEL ON)';
-        } else {
-          btn.className = 'mp-mode-toggle-btn';
-          btn.innerText = '🤝 SQUAD CO-OP (NO FRIENDLY FIRE)';
-        }
+        btn.className = pvp ? 'mp-mode-toggle-btn pvp-active' : 'mp-mode-toggle-btn';
+        btn.innerText = pvp ? '⚔️ ARENA BRAWL (PVP DUEL ON)' : '🤝 SQUAD CO-OP (NO FRIENDLY FIRE)';
       }
-      if (window.showAnnouncement) {
-        window.showAnnouncement(this.friendlyFire ? '⚔️ BRAWL DUEL ACTIVE: FRIENDLY FIRE ON!' : '🤝 SQUAD CO-OP ACTIVE: FRIENDLY FIRE OFF!', 2500);
+      if (changed && byName !== null && window.showAnnouncement) {
+        const who = byName ? ` (${String(byName).toUpperCase()})` : '';
+        window.showAnnouncement(pvp ? `⚔️ BRAWL DUEL ON — FRIENDLY FIRE!${who}` : `🤝 SQUAD CO-OP — NO FRIENDLY FIRE${who}`, 2500);
       }
     }
 
@@ -798,58 +738,35 @@
       if (!name) return;
       this.localName = name.trim().slice(0, 20);
       localStorage.setItem('toronto_mp_name', this.localName);
-      if (this.connected) {
-        this.send({
-          type: 'join_info',
-          name: this.localName,
-          color: this.localColor
-        });
-      }
+      if (this.connected) this.send({ type: 'join_info', name: this.localName });
     }
 
     updateHUDStatus(status) {
       const badge = document.getElementById('mp-status-badge');
       const lobbyStatus = document.getElementById('mp-lobby-status');
-
       if (status === 'connected') {
         const count = this.remotePlayers.size + 1;
+        const roleTxt = this.role === 'guest' ? 'GUEST' : (count > 1 ? 'HOST' : 'SOLO');
         if (badge) {
           badge.className = 'tag tag-green';
-          badge.innerText = `🌐 ONLINE (${count} SQUAD)`;
-          badge.title = `Connected to relay: ${this.serverUrl} [Room: ${this.room}]`;
+          badge.innerText = `🌐 ${this.room.toUpperCase()} • ${count} • ${roleTxt}`;
+          badge.title = `Relay: ${this.serverUrl} [room ${this.room}]`;
         }
         if (lobbyStatus) {
-          lobbyStatus.innerText = `ONLINE IN ROOM: [${this.room.toUpperCase()}] • ${count} SQUAD MEMBERS`;
+          lobbyStatus.innerText = `ONLINE IN ROOM [${this.room.toUpperCase()}] • ${count} SQUAD • YOU ARE ${roleTxt}`;
           lobbyStatus.style.color = '#34d399';
         }
       } else if (status === 'connecting') {
-        if (badge) {
-          badge.className = 'tag tag-yellow';
-          badge.innerText = `🌐 CONNECTING...`;
-          badge.title = `Attempting connection to: ${this.serverUrl}`;
-        }
-        if (lobbyStatus) {
-          lobbyStatus.innerText = `CONNECTING TO RELAY (${this.serverUrl})...`;
-          lobbyStatus.style.color = '#fbbf24';
-        }
+        if (badge) { badge.className = 'tag tag-yellow'; badge.innerText = '🌐 CONNECTING...'; badge.title = `Connecting to ${this.serverUrl}`; }
+        if (lobbyStatus) { lobbyStatus.innerText = `CONNECTING TO RELAY (${this.serverUrl})...`; lobbyStatus.style.color = '#fbbf24'; }
       } else {
-        if (badge) {
-          badge.className = 'tag tag-dim';
-          badge.innerText = `🌐 SOLO / OFFLINE`;
-          badge.title = `Offline. Single-player mode active. Click to open lobby.`;
-        }
-        if (lobbyStatus) {
-          lobbyStatus.innerText = `OFFLINE / LOCAL SINGLE-PLAYER`;
-          lobbyStatus.style.color = '#94a3b8';
-        }
+        if (badge) { badge.className = 'tag tag-dim'; badge.innerText = '🌐 SOLO / OFFLINE'; badge.title = 'Offline. Click to open lobby.'; }
+        if (lobbyStatus) { lobbyStatus.innerText = 'OFFLINE / LOCAL SINGLE-PLAYER'; lobbyStatus.style.color = '#94a3b8'; }
       }
     }
   }
 
-  // Create global multiplayer singleton
   window.multiplayer = new MultiplayerClient();
-
-  // Expose global helper for player name changes
   window.setMultiplayerName = function (name) {
     if (window.multiplayer) window.multiplayer.setPlayerName(name);
   };
