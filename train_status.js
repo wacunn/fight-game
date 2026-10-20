@@ -1,886 +1,1057 @@
 window.LIVE_TRAIN_STATUS = {
-  "step": 648000,
+  "step": 5000000,
   "target_steps": 5000000,
-  "progress_pct": 12.96,
-  "elapsed_seconds": 1423.3,
-  "fps": 455.3,
-  "eta_hours": 2.66,
-  "mean_reward": 45.62,
-  "best_reward": 58.3,
-  "policy_loss": 0.000801,
-  "value_loss": 5.0434,
-  "entropy_loss": -1.6155,
-  "total_loss": 0.1428,
-  "approx_kl": 0.020766,
-  "explained_variance": 0.8283,
-  "timestamp": "2026-10-19 21:28:13",
+  "progress_pct": 100.0,
+  "elapsed_seconds": 7103.2,
+  "fps": 703.9,
+  "eta_hours": 0.0,
+  "mean_reward": 67.43,
+  "best_reward": 82.86,
+  "policy_loss": -0.014095,
+  "value_loss": 3.8889,
+  "entropy_loss": -2.1042,
+  "total_loss": 0.005,
+  "approx_kl": 0.016378,
+  "explained_variance": 0.8539,
+  "timestamp": "2026-10-19 23:02:53",
   "leaderboard": [
     {
-      "district": "Harbourfront South",
-      "episodes": 47,
-      "avg_reward": 64.58,
-      "win_rate": "42.6%",
-      "status": "Combat Trained",
+      "district": "Gooderham Flatiron",
+      "episodes": 382,
+      "avg_reward": 90.88,
+      "win_rate": "35.1%",
+      "status": "Patrolling",
       "rank": 1
     },
     {
-      "district": "Royal York Corridor",
-      "episodes": 43,
-      "avg_reward": 62.32,
-      "win_rate": "20.9%",
+      "district": "St. Lawrence Market",
+      "episodes": 386,
+      "avg_reward": 81.46,
+      "win_rate": "34.2%",
       "status": "Patrolling",
       "rank": 2
     },
     {
-      "district": "Union Station Front St",
-      "episodes": 46,
-      "avg_reward": 61.55,
-      "win_rate": "21.7%",
+      "district": "Financial District (Bay & King)",
+      "episodes": 372,
+      "avg_reward": 74.38,
+      "win_rate": "34.7%",
       "status": "Patrolling",
       "rank": 3
     },
     {
-      "district": "Gooderham Flatiron",
-      "episodes": 51,
-      "avg_reward": 52.65,
-      "win_rate": "23.5%",
+      "district": "Union Station Front St",
+      "episodes": 349,
+      "avg_reward": 73.19,
+      "win_rate": "33.8%",
       "status": "Patrolling",
       "rank": 4
     },
     {
-      "district": "St. Lawrence Market",
-      "episodes": 60,
-      "avg_reward": 51.45,
-      "win_rate": "21.7%",
+      "district": "Harbourfront South",
+      "episodes": 376,
+      "avg_reward": 71.6,
+      "win_rate": "38.6%",
       "status": "Patrolling",
       "rank": 5
     },
     {
-      "district": "Roy Thomson Hall",
-      "episodes": 44,
-      "avg_reward": 46.43,
-      "win_rate": "43.2%",
-      "status": "Combat Trained",
+      "district": "Royal York Corridor",
+      "episodes": 358,
+      "avg_reward": 71.28,
+      "win_rate": "31.6%",
+      "status": "Patrolling",
       "rank": 6
     },
     {
-      "district": "Lakeshore East",
-      "episodes": 53,
-      "avg_reward": 46.27,
-      "win_rate": "24.5%",
+      "district": "Downtown Grid Patrol",
+      "episodes": 1981,
+      "avg_reward": 68.44,
+      "win_rate": "32.1%",
       "status": "Patrolling",
       "rank": 7
     },
     {
-      "district": "Financial District (Bay & King)",
-      "episodes": 45,
-      "avg_reward": 43.71,
-      "win_rate": "22.2%",
-      "status": "Patrolling",
+      "district": "Roy Thomson Hall",
+      "episodes": 362,
+      "avg_reward": 67.44,
+      "win_rate": "51.1%",
+      "status": "Combat Trained",
       "rank": 8
     },
     {
-      "district": "Downtown Grid Patrol",
-      "episodes": 248,
-      "avg_reward": 42.63,
-      "win_rate": "19.0%",
+      "district": "Lakeshore East",
+      "episodes": 367,
+      "avg_reward": 63.88,
+      "win_rate": "32.7%",
       "status": "Patrolling",
       "rank": 9
     },
     {
       "district": "Ripley's Aquatics",
-      "episodes": 40,
-      "avg_reward": 42.22,
-      "win_rate": "22.5%",
-      "status": "Patrolling",
+      "episodes": 353,
+      "avg_reward": 57.22,
+      "win_rate": "40.5%",
+      "status": "Combat Trained",
       "rank": 10
     },
     {
       "district": "Spadina Overpass West",
-      "episodes": 37,
-      "avg_reward": 40.52,
-      "win_rate": "18.9%",
+      "episodes": 374,
+      "avg_reward": 55.63,
+      "win_rate": "22.5%",
       "status": "Patrolling",
       "rank": 11
     },
     {
-      "district": "CN Tower Plaza",
-      "episodes": 52,
-      "avg_reward": 36.54,
-      "win_rate": "21.2%",
-      "status": "Patrolling",
+      "district": "Pecaut Square Sanctuary",
+      "episodes": 362,
+      "avg_reward": 52.52,
+      "win_rate": "52.2%",
+      "status": "Combat Trained",
       "rank": 12
     },
     {
       "district": "Roundhouse Park",
-      "episodes": 56,
-      "avg_reward": 34.59,
-      "win_rate": "41.1%",
+      "episodes": 377,
+      "avg_reward": 52.26,
+      "win_rate": "43.5%",
       "status": "Combat Trained",
       "rank": 13
     },
     {
-      "district": "Pecaut Square Sanctuary",
-      "episodes": 50,
-      "avg_reward": 31.53,
-      "win_rate": "46.0%",
-      "status": "Combat Trained",
+      "district": "Simcoe Bridge Crossing",
+      "episodes": 352,
+      "avg_reward": 52.14,
+      "win_rate": "35.2%",
+      "status": "Patrolling",
       "rank": 14
     },
     {
-      "district": "Simcoe Bridge Crossing",
-      "episodes": 41,
-      "avg_reward": 29.26,
-      "win_rate": "31.7%",
+      "district": "CN Tower Plaza",
+      "episodes": 361,
+      "avg_reward": 51.1,
+      "win_rate": "38.5%",
       "status": "Patrolling",
       "rank": 15
     },
     {
       "district": "John Street Overpass",
-      "episodes": 38,
-      "avg_reward": 24.81,
-      "win_rate": "18.4%",
+      "episodes": 382,
+      "avg_reward": 44.85,
+      "win_rate": "23.8%",
       "status": "Patrolling",
       "rank": 16
     },
     {
       "district": "Rogers Centre North",
-      "episodes": 49,
-      "avg_reward": 18.99,
-      "win_rate": "8.2%",
+      "episodes": 399,
+      "avg_reward": 40.56,
+      "win_rate": "17.5%",
       "status": "Patrolling",
       "rank": 17
     }
   ],
   "history": [
     {
-      "step": 8000,
-      "reward": 1.21,
-      "policy_loss": 0.013497,
-      "value_loss": 2.1679,
-      "entropy_loss": -2.8311,
-      "fps": 846.7,
-      "time": 9.4
+      "step": 4208000,
+      "reward": 66.67,
+      "policy_loss": -0.004604,
+      "value_loss": 4.0856,
+      "entropy_loss": -1.692,
+      "fps": 693.2,
+      "time": 6070.2
     },
     {
-      "step": 16000,
-      "reward": 11.35,
-      "policy_loss": -0.004618,
-      "value_loss": 2.261,
-      "entropy_loss": -2.7825,
-      "fps": 704.0,
-      "time": 22.7
+      "step": 4216000,
+      "reward": 58.13,
+      "policy_loss": 0.00131,
+      "value_loss": 0.934,
+      "entropy_loss": -1.9286,
+      "fps": 693.3,
+      "time": 6081.1
     },
     {
-      "step": 24000,
-      "reward": 15.73,
-      "policy_loss": -0.003759,
-      "value_loss": 5.532,
-      "entropy_loss": -2.6075,
-      "fps": 658.7,
-      "time": 36.4
+      "step": 4224000,
+      "reward": 61.97,
+      "policy_loss": -0.005509,
+      "value_loss": 5.238,
+      "entropy_loss": -1.8494,
+      "fps": 693.4,
+      "time": 6091.6
     },
     {
-      "step": 32000,
-      "reward": 16.75,
-      "policy_loss": -0.006063,
-      "value_loss": 1.3771,
-      "entropy_loss": -2.5517,
-      "fps": 659.4,
-      "time": 48.5
+      "step": 4232000,
+      "reward": 65.58,
+      "policy_loss": -0.001997,
+      "value_loss": 1.914,
+      "entropy_loss": -1.7883,
+      "fps": 693.5,
+      "time": 6101.9
     },
     {
-      "step": 40000,
-      "reward": 18.95,
-      "policy_loss": -0.001399,
-      "value_loss": 3.3853,
-      "entropy_loss": -2.796,
-      "fps": 675.5,
-      "time": 59.2
+      "step": 4240000,
+      "reward": 66.1,
+      "policy_loss": 0.007981,
+      "value_loss": 11.3538,
+      "entropy_loss": -1.7564,
+      "fps": 693.6,
+      "time": 6112.7
     },
     {
-      "step": 48000,
-      "reward": 19.24,
-      "policy_loss": -0.007159,
-      "value_loss": 1.901,
-      "entropy_loss": -2.5435,
-      "fps": 685.3,
-      "time": 70.0
+      "step": 4248000,
+      "reward": 66.88,
+      "policy_loss": -0.010003,
+      "value_loss": 1.7712,
+      "entropy_loss": -2.2517,
+      "fps": 693.8,
+      "time": 6123.2
     },
     {
-      "step": 56000,
-      "reward": 18.57,
-      "policy_loss": -0.003607,
-      "value_loss": 2.4704,
-      "entropy_loss": -2.1277,
-      "fps": 694.2,
-      "time": 80.7
+      "step": 4256000,
+      "reward": 63.54,
+      "policy_loss": 0.001305,
+      "value_loss": 18.3585,
+      "entropy_loss": -1.9195,
+      "fps": 693.8,
+      "time": 6133.9
     },
     {
-      "step": 64000,
-      "reward": 21.61,
-      "policy_loss": -0.003551,
-      "value_loss": 1.752,
-      "entropy_loss": -2.4686,
-      "fps": 677.6,
-      "time": 94.4
+      "step": 4264000,
+      "reward": 64.66,
+      "policy_loss": -0.004206,
+      "value_loss": 0.3821,
+      "entropy_loss": -2.4034,
+      "fps": 694.0,
+      "time": 6144.5
     },
     {
-      "step": 72000,
-      "reward": 24.97,
-      "policy_loss": -0.000616,
-      "value_loss": 2.5365,
-      "entropy_loss": -2.8243,
-      "fps": 528.1,
-      "time": 136.3
+      "step": 4272000,
+      "reward": 59.93,
+      "policy_loss": -0.008227,
+      "value_loss": 1.4403,
+      "entropy_loss": -1.9715,
+      "fps": 694.3,
+      "time": 6153.0
     },
     {
-      "step": 80000,
-      "reward": 25.62,
-      "policy_loss": -0.00611,
-      "value_loss": 29.0486,
-      "entropy_loss": -2.591,
-      "fps": 419.3,
-      "time": 190.8
+      "step": 4280000,
+      "reward": 66.51,
+      "policy_loss": -0.005204,
+      "value_loss": 0.9338,
+      "entropy_loss": -1.6373,
+      "fps": 694.4,
+      "time": 6163.6
     },
     {
-      "step": 88000,
-      "reward": 28.35,
-      "policy_loss": -0.002822,
-      "value_loss": 6.3592,
-      "entropy_loss": -2.6406,
-      "fps": 377.3,
-      "time": 233.3
+      "step": 4288000,
+      "reward": 70.7,
+      "policy_loss": -0.001545,
+      "value_loss": 2.2592,
+      "entropy_loss": -1.9557,
+      "fps": 694.5,
+      "time": 6174.2
     },
     {
-      "step": 96000,
-      "reward": 31.12,
-      "policy_loss": -0.005626,
-      "value_loss": 4.7276,
-      "entropy_loss": -2.3643,
-      "fps": 341.9,
-      "time": 280.8
+      "step": 4296000,
+      "reward": 74.46,
+      "policy_loss": -0.001381,
+      "value_loss": 1.7711,
+      "entropy_loss": -1.6888,
+      "fps": 694.6,
+      "time": 6184.9
     },
     {
-      "step": 104000,
-      "reward": 31.82,
-      "policy_loss": 0.004748,
-      "value_loss": 3.7194,
-      "entropy_loss": -2.38,
-      "fps": 287.5,
-      "time": 361.8
+      "step": 4304000,
+      "reward": 73.64,
+      "policy_loss": -0.008006,
+      "value_loss": 2.6631,
+      "entropy_loss": -1.9023,
+      "fps": 694.7,
+      "time": 6195.4
     },
     {
-      "step": 112000,
-      "reward": 33.29,
-      "policy_loss": -0.001338,
-      "value_loss": 2.14,
-      "entropy_loss": -2.0249,
-      "fps": 271.4,
-      "time": 412.7
+      "step": 4312000,
+      "reward": 72.1,
+      "policy_loss": 0.006516,
+      "value_loss": 2.521,
+      "entropy_loss": -2.0647,
+      "fps": 694.8,
+      "time": 6206.0
     },
     {
-      "step": 120000,
-      "reward": 36.83,
-      "policy_loss": -0.000768,
-      "value_loss": 2.2371,
-      "entropy_loss": -2.4713,
-      "fps": 274.6,
-      "time": 437.0
-    },
-    {
-      "step": 128000,
-      "reward": 40.4,
-      "policy_loss": -0.006213,
-      "value_loss": 1.8024,
-      "entropy_loss": -2.528,
-      "fps": 279.7,
-      "time": 457.6
-    },
-    {
-      "step": 136000,
-      "reward": 38.05,
-      "policy_loss": 0.00492,
-      "value_loss": 41.5482,
-      "entropy_loss": -2.6552,
-      "fps": 284.2,
-      "time": 478.6
-    },
-    {
-      "step": 144000,
-      "reward": 37.1,
-      "policy_loss": 0.004993,
-      "value_loss": 7.1324,
-      "entropy_loss": -1.8966,
-      "fps": 286.9,
-      "time": 501.9
-    },
-    {
-      "step": 152000,
-      "reward": 36.49,
-      "policy_loss": 0.006154,
-      "value_loss": 5.2439,
-      "entropy_loss": -2.1068,
-      "fps": 289.9,
-      "time": 524.3
-    },
-    {
-      "step": 160000,
-      "reward": 37.93,
-      "policy_loss": -0.00587,
-      "value_loss": 3.5182,
-      "entropy_loss": -1.9169,
-      "fps": 293.3,
-      "time": 545.5
-    },
-    {
-      "step": 168000,
-      "reward": 42.95,
-      "policy_loss": 0.006003,
-      "value_loss": 5.9805,
-      "entropy_loss": -2.5372,
-      "fps": 296.6,
-      "time": 566.4
-    },
-    {
-      "step": 176000,
-      "reward": 42.24,
-      "policy_loss": 0.004351,
-      "value_loss": 5.7388,
-      "entropy_loss": -2.0483,
-      "fps": 301.1,
-      "time": 584.5
-    },
-    {
-      "step": 184000,
-      "reward": 42.5,
-      "policy_loss": -0.002161,
-      "value_loss": 2.4133,
-      "entropy_loss": -2.0171,
-      "fps": 302.1,
-      "time": 609.1
-    },
-    {
-      "step": 192000,
-      "reward": 45.26,
-      "policy_loss": 0.002391,
-      "value_loss": 1.4396,
-      "entropy_loss": -1.7556,
-      "fps": 302.9,
-      "time": 633.9
-    },
-    {
-      "step": 200000,
-      "reward": 47.49,
-      "policy_loss": -0.002465,
-      "value_loss": 2.8679,
-      "entropy_loss": -2.2153,
-      "fps": 305.3,
-      "time": 655.1
-    },
-    {
-      "step": 208000,
-      "reward": 48.72,
-      "policy_loss": 0.005308,
-      "value_loss": 1.9658,
-      "entropy_loss": -2.3846,
-      "fps": 307.7,
-      "time": 676.0
-    },
-    {
-      "step": 216000,
-      "reward": 54.33,
-      "policy_loss": -0.006804,
-      "value_loss": 2.1755,
-      "entropy_loss": -2.2575,
-      "fps": 309.9,
-      "time": 697.1
-    },
-    {
-      "step": 224000,
-      "reward": 55.95,
-      "policy_loss": -0.002303,
-      "value_loss": 1.838,
-      "entropy_loss": -2.0975,
-      "fps": 311.8,
-      "time": 718.4
-    },
-    {
-      "step": 232000,
-      "reward": 52.86,
-      "policy_loss": 0.002564,
-      "value_loss": 3.1323,
-      "entropy_loss": -1.9103,
-      "fps": 313.8,
-      "time": 739.4
-    },
-    {
-      "step": 240000,
-      "reward": 54.28,
-      "policy_loss": -0.003358,
-      "value_loss": 2.9555,
-      "entropy_loss": -2.2759,
-      "fps": 315.8,
-      "time": 760.1
-    },
-    {
-      "step": 248000,
-      "reward": 54.55,
-      "policy_loss": 0.017404,
-      "value_loss": 2.6632,
-      "entropy_loss": -2.4528,
-      "fps": 317.7,
-      "time": 780.5
-    },
-    {
-      "step": 256000,
-      "reward": 51.69,
-      "policy_loss": 0.000744,
-      "value_loss": 1.4884,
-      "entropy_loss": -2.1605,
-      "fps": 320.9,
-      "time": 797.8
-    },
-    {
-      "step": 264000,
-      "reward": 48.21,
-      "policy_loss": -0.001386,
-      "value_loss": 26.1582,
-      "entropy_loss": -2.1474,
-      "fps": 324.2,
-      "time": 814.4
-    },
-    {
-      "step": 272000,
-      "reward": 47.49,
-      "policy_loss": -0.006149,
-      "value_loss": 3.244,
-      "entropy_loss": -2.341,
-      "fps": 329.4,
-      "time": 825.8
-    },
-    {
-      "step": 280000,
-      "reward": 45.53,
-      "policy_loss": -0.002745,
-      "value_loss": 0.9664,
-      "entropy_loss": -2.4583,
-      "fps": 333.9,
-      "time": 838.6
-    },
-    {
-      "step": 288000,
-      "reward": 45.42,
-      "policy_loss": -0.007075,
-      "value_loss": 4.9405,
-      "entropy_loss": -2.0755,
-      "fps": 337.8,
-      "time": 852.7
-    },
-    {
-      "step": 296000,
-      "reward": 42.92,
-      "policy_loss": -0.008705,
-      "value_loss": 2.9387,
-      "entropy_loss": -2.1188,
-      "fps": 340.5,
-      "time": 869.3
-    },
-    {
-      "step": 304000,
-      "reward": 42.3,
-      "policy_loss": -0.002752,
-      "value_loss": 1.9452,
-      "entropy_loss": -1.6655,
-      "fps": 342.8,
-      "time": 886.8
-    },
-    {
-      "step": 312000,
-      "reward": 42.79,
-      "policy_loss": -9e-06,
-      "value_loss": 1.4369,
-      "entropy_loss": -1.855,
-      "fps": 347.5,
-      "time": 897.9
-    },
-    {
-      "step": 320000,
-      "reward": 46.55,
-      "policy_loss": -0.001993,
-      "value_loss": 3.2954,
-      "entropy_loss": -2.0023,
-      "fps": 352.0,
-      "time": 909.0
-    },
-    {
-      "step": 328000,
-      "reward": 47.36,
-      "policy_loss": -0.004577,
-      "value_loss": 3.3337,
-      "entropy_loss": -2.1247,
-      "fps": 356.6,
-      "time": 919.9
-    },
-    {
-      "step": 336000,
-      "reward": 46.67,
-      "policy_loss": -0.002937,
-      "value_loss": 28.1232,
-      "entropy_loss": -1.9604,
-      "fps": 361.0,
-      "time": 930.8
-    },
-    {
-      "step": 344000,
-      "reward": 45.76,
-      "policy_loss": -0.001594,
-      "value_loss": 51.6383,
-      "entropy_loss": -1.8042,
-      "fps": 366.1,
-      "time": 939.5
-    },
-    {
-      "step": 352000,
-      "reward": 41.48,
-      "policy_loss": 0.000143,
-      "value_loss": 6.9892,
-      "entropy_loss": -1.7055,
-      "fps": 370.4,
-      "time": 950.4
-    },
-    {
-      "step": 360000,
-      "reward": 42.86,
-      "policy_loss": 0.007701,
-      "value_loss": 2.2635,
-      "entropy_loss": -1.6597,
-      "fps": 374.6,
-      "time": 961.1
-    },
-    {
-      "step": 368000,
-      "reward": 41.5,
-      "policy_loss": -0.002442,
-      "value_loss": 4.3106,
-      "entropy_loss": -1.7324,
-      "fps": 378.7,
-      "time": 971.7
-    },
-    {
-      "step": 376000,
-      "reward": 39.86,
-      "policy_loss": 0.000205,
-      "value_loss": 2.8432,
-      "entropy_loss": -1.5937,
-      "fps": 382.7,
-      "time": 982.4
-    },
-    {
-      "step": 384000,
-      "reward": 38.31,
-      "policy_loss": -0.001848,
-      "value_loss": 3.2023,
-      "entropy_loss": -1.5622,
-      "fps": 386.5,
-      "time": 993.4
-    },
-    {
-      "step": 392000,
-      "reward": 38.54,
-      "policy_loss": -0.000833,
-      "value_loss": 2.8273,
-      "entropy_loss": -1.4786,
-      "fps": 390.4,
-      "time": 1004.2
-    },
-    {
-      "step": 400000,
-      "reward": 36.85,
-      "policy_loss": -0.004174,
-      "value_loss": 4.9035,
-      "entropy_loss": -2.0679,
-      "fps": 394.2,
-      "time": 1014.8
-    },
-    {
-      "step": 408000,
-      "reward": 40.46,
-      "policy_loss": -0.002188,
-      "value_loss": 3.2499,
-      "entropy_loss": -1.7187,
-      "fps": 397.1,
-      "time": 1027.4
-    },
-    {
-      "step": 416000,
-      "reward": 41.7,
+      "step": 4320000,
+      "reward": 74.45,
       "policy_loss": -0.006944,
-      "value_loss": 2.33,
-      "entropy_loss": -1.8557,
-      "fps": 399.6,
-      "time": 1040.9
+      "value_loss": 24.8362,
+      "entropy_loss": -1.717,
+      "fps": 694.9,
+      "time": 6216.9
     },
     {
-      "step": 424000,
-      "reward": 43.61,
-      "policy_loss": -0.00527,
-      "value_loss": 4.2394,
-      "entropy_loss": -1.6556,
-      "fps": 401.5,
-      "time": 1056.0
+      "step": 4328000,
+      "reward": 77.24,
+      "policy_loss": -0.011781,
+      "value_loss": 1.2375,
+      "entropy_loss": -1.7508,
+      "fps": 695.0,
+      "time": 6227.6
     },
     {
-      "step": 432000,
-      "reward": 40.28,
-      "policy_loss": -0.001201,
-      "value_loss": 9.3509,
-      "entropy_loss": -1.7162,
-      "fps": 403.9,
-      "time": 1069.6
+      "step": 4336000,
+      "reward": 82.82,
+      "policy_loss": -0.007088,
+      "value_loss": 22.0578,
+      "entropy_loss": -1.8768,
+      "fps": 695.1,
+      "time": 6238.2
     },
     {
-      "step": 440000,
-      "reward": 40.78,
-      "policy_loss": -0.004445,
-      "value_loss": 2.8885,
-      "entropy_loss": -2.0605,
-      "fps": 405.6,
-      "time": 1084.7
+      "step": 4344000,
+      "reward": 81.31,
+      "policy_loss": -0.00827,
+      "value_loss": 2.9348,
+      "entropy_loss": -1.8014,
+      "fps": 695.1,
+      "time": 6249.0
     },
     {
-      "step": 448000,
-      "reward": 40.29,
-      "policy_loss": -0.005053,
-      "value_loss": 3.2046,
-      "entropy_loss": -2.1438,
-      "fps": 407.2,
-      "time": 1100.1
+      "step": 4352000,
+      "reward": 77.89,
+      "policy_loss": 0.001622,
+      "value_loss": 6.9434,
+      "entropy_loss": -1.727,
+      "fps": 695.5,
+      "time": 6257.5
     },
     {
-      "step": 456000,
-      "reward": 41.23,
-      "policy_loss": 0.006618,
-      "value_loss": 24.6852,
-      "entropy_loss": -2.6608,
-      "fps": 408.7,
-      "time": 1115.8
+      "step": 4360000,
+      "reward": 70.61,
+      "policy_loss": -0.008586,
+      "value_loss": 16.7139,
+      "entropy_loss": -1.8877,
+      "fps": 695.6,
+      "time": 6268.1
     },
     {
-      "step": 464000,
-      "reward": 43.19,
-      "policy_loss": -0.005669,
-      "value_loss": 4.1401,
-      "entropy_loss": -1.7512,
-      "fps": 410.0,
-      "time": 1131.6
+      "step": 4368000,
+      "reward": 68.32,
+      "policy_loss": -0.001857,
+      "value_loss": 4.2297,
+      "entropy_loss": -1.7783,
+      "fps": 695.7,
+      "time": 6278.7
     },
     {
-      "step": 472000,
-      "reward": 43.38,
-      "policy_loss": 0.008286,
-      "value_loss": 4.4765,
-      "entropy_loss": -2.5221,
-      "fps": 410.9,
-      "time": 1148.6
+      "step": 4376000,
+      "reward": 67.42,
+      "policy_loss": -0.007981,
+      "value_loss": 2.4301,
+      "entropy_loss": -1.8606,
+      "fps": 695.8,
+      "time": 6289.3
     },
     {
-      "step": 480000,
-      "reward": 46.37,
-      "policy_loss": -0.003519,
-      "value_loss": 1.1318,
-      "entropy_loss": -2.1699,
-      "fps": 410.8,
-      "time": 1168.5
+      "step": 4384000,
+      "reward": 66.8,
+      "policy_loss": -0.00478,
+      "value_loss": 1.9193,
+      "entropy_loss": -1.7458,
+      "fps": 695.9,
+      "time": 6299.8
     },
     {
-      "step": 488000,
-      "reward": 48.24,
-      "policy_loss": -0.003282,
-      "value_loss": 2.7774,
-      "entropy_loss": -2.0033,
-      "fps": 402.6,
-      "time": 1212.2
+      "step": 4392000,
+      "reward": 65.84,
+      "policy_loss": -0.010526,
+      "value_loss": 2.738,
+      "entropy_loss": -2.0075,
+      "fps": 696.0,
+      "time": 6310.6
     },
     {
-      "step": 496000,
-      "reward": 53.64,
-      "policy_loss": 0.01208,
-      "value_loss": 2.264,
-      "entropy_loss": -2.2722,
-      "fps": 405.5,
-      "time": 1223.3
+      "step": 4400000,
+      "reward": 56.86,
+      "policy_loss": 0.007692,
+      "value_loss": 16.6526,
+      "entropy_loss": -1.5968,
+      "fps": 696.1,
+      "time": 6321.3
     },
     {
-      "step": 504000,
-      "reward": 50.71,
-      "policy_loss": -0.002704,
-      "value_loss": 19.179,
-      "entropy_loss": -2.1874,
-      "fps": 408.3,
-      "time": 1234.3
+      "step": 4408000,
+      "reward": 53.85,
+      "policy_loss": -0.007485,
+      "value_loss": 28.2147,
+      "entropy_loss": -1.8245,
+      "fps": 696.1,
+      "time": 6332.1
     },
     {
-      "step": 512000,
-      "reward": 53.81,
-      "policy_loss": -0.005143,
-      "value_loss": 2.2338,
-      "entropy_loss": -2.3601,
-      "fps": 411.9,
-      "time": 1243.1
+      "step": 4416000,
+      "reward": 56.18,
+      "policy_loss": -0.005507,
+      "value_loss": 2.5164,
+      "entropy_loss": -1.8554,
+      "fps": 696.2,
+      "time": 6342.6
     },
     {
-      "step": 520000,
-      "reward": 51.47,
-      "policy_loss": -0.000164,
-      "value_loss": 12.9326,
-      "entropy_loss": -1.8891,
-      "fps": 414.7,
-      "time": 1253.9
+      "step": 4424000,
+      "reward": 63.27,
+      "policy_loss": -0.005026,
+      "value_loss": 4.4226,
+      "entropy_loss": -1.929,
+      "fps": 696.3,
+      "time": 6353.4
     },
     {
-      "step": 528000,
-      "reward": 52.64,
-      "policy_loss": 0.009452,
-      "value_loss": 2.2831,
+      "step": 4432000,
+      "reward": 63.62,
+      "policy_loss": -0.006587,
+      "value_loss": 41.1673,
+      "entropy_loss": -1.8271,
+      "fps": 696.4,
+      "time": 6364.2
+    },
+    {
+      "step": 4440000,
+      "reward": 66.57,
+      "policy_loss": -0.002243,
+      "value_loss": 5.1694,
+      "entropy_loss": -1.9117,
+      "fps": 696.7,
+      "time": 6372.7
+    },
+    {
+      "step": 4448000,
+      "reward": 62.34,
+      "policy_loss": -0.0099,
+      "value_loss": 25.518,
+      "entropy_loss": -1.9039,
+      "fps": 696.8,
+      "time": 6383.3
+    },
+    {
+      "step": 4456000,
+      "reward": 67.91,
+      "policy_loss": -0.004859,
+      "value_loss": 3.1688,
+      "entropy_loss": -1.8285,
+      "fps": 696.9,
+      "time": 6393.7
+    },
+    {
+      "step": 4464000,
+      "reward": 67.95,
+      "policy_loss": -0.00285,
+      "value_loss": 7.6696,
+      "entropy_loss": -1.7123,
+      "fps": 697.0,
+      "time": 6404.3
+    },
+    {
+      "step": 4472000,
+      "reward": 75.18,
+      "policy_loss": 0.000314,
+      "value_loss": 1.8852,
+      "entropy_loss": -2.0492,
+      "fps": 697.1,
+      "time": 6415.0
+    },
+    {
+      "step": 4480000,
+      "reward": 69.38,
+      "policy_loss": 0.001348,
+      "value_loss": 1.6026,
+      "entropy_loss": -1.6626,
+      "fps": 697.2,
+      "time": 6425.5
+    },
+    {
+      "step": 4488000,
+      "reward": 67.1,
+      "policy_loss": -0.008787,
+      "value_loss": 28.1326,
+      "entropy_loss": -2.0164,
+      "fps": 697.3,
+      "time": 6436.4
+    },
+    {
+      "step": 4496000,
+      "reward": 68.9,
+      "policy_loss": -0.005831,
+      "value_loss": 1.2705,
+      "entropy_loss": -1.796,
+      "fps": 697.4,
+      "time": 6446.9
+    },
+    {
+      "step": 4504000,
+      "reward": 64.51,
+      "policy_loss": -0.010543,
+      "value_loss": 13.1131,
+      "entropy_loss": -1.8061,
+      "fps": 697.5,
+      "time": 6457.3
+    },
+    {
+      "step": 4512000,
+      "reward": 70.6,
+      "policy_loss": -0.004824,
+      "value_loss": 2.1767,
+      "entropy_loss": -1.876,
+      "fps": 697.6,
+      "time": 6467.9
+    },
+    {
+      "step": 4520000,
+      "reward": 69.13,
+      "policy_loss": -0.004709,
+      "value_loss": 1.632,
+      "entropy_loss": -1.7087,
+      "fps": 697.7,
+      "time": 6478.4
+    },
+    {
+      "step": 4528000,
+      "reward": 73.18,
+      "policy_loss": -0.003412,
+      "value_loss": 3.0036,
+      "entropy_loss": -1.808,
+      "fps": 698.0,
+      "time": 6486.8
+    },
+    {
+      "step": 4536000,
+      "reward": 73.3,
+      "policy_loss": 0.003827,
+      "value_loss": 2.2042,
+      "entropy_loss": -1.8266,
+      "fps": 698.1,
+      "time": 6497.3
+    },
+    {
+      "step": 4544000,
+      "reward": 70.23,
+      "policy_loss": -0.005233,
+      "value_loss": 5.6112,
+      "entropy_loss": -1.8491,
+      "fps": 698.2,
+      "time": 6507.9
+    },
+    {
+      "step": 4552000,
+      "reward": 71.04,
+      "policy_loss": -0.011843,
+      "value_loss": 1.1026,
+      "entropy_loss": -1.7765,
+      "fps": 698.3,
+      "time": 6518.5
+    },
+    {
+      "step": 4560000,
+      "reward": 69.01,
+      "policy_loss": -0.008278,
+      "value_loss": 1.8262,
+      "entropy_loss": -1.5137,
+      "fps": 698.4,
+      "time": 6529.3
+    },
+    {
+      "step": 4568000,
+      "reward": 70.56,
+      "policy_loss": -0.002925,
+      "value_loss": 3.7867,
+      "entropy_loss": -1.7933,
+      "fps": 698.5,
+      "time": 6539.8
+    },
+    {
+      "step": 4576000,
+      "reward": 75.45,
+      "policy_loss": -0.002678,
+      "value_loss": 2.5955,
+      "entropy_loss": -1.9684,
+      "fps": 698.6,
+      "time": 6550.2
+    },
+    {
+      "step": 4584000,
+      "reward": 76.48,
+      "policy_loss": -0.009534,
+      "value_loss": 3.0682,
+      "entropy_loss": -2.0632,
+      "fps": 698.7,
+      "time": 6560.9
+    },
+    {
+      "step": 4592000,
+      "reward": 67.59,
+      "policy_loss": -0.006327,
+      "value_loss": 2.9405,
+      "entropy_loss": -1.8238,
+      "fps": 698.8,
+      "time": 6571.5
+    },
+    {
+      "step": 4600000,
+      "reward": 67.07,
+      "policy_loss": -0.00709,
+      "value_loss": 4.8677,
+      "entropy_loss": -2.0355,
+      "fps": 698.9,
+      "time": 6582.0
+    },
+    {
+      "step": 4608000,
+      "reward": 70.14,
+      "policy_loss": -0.004701,
+      "value_loss": 1.9383,
+      "entropy_loss": -1.9193,
+      "fps": 699.2,
+      "time": 6590.5
+    },
+    {
+      "step": 4616000,
+      "reward": 70.73,
+      "policy_loss": -0.005598,
+      "value_loss": 1.9378,
+      "entropy_loss": -1.6722,
+      "fps": 699.3,
+      "time": 6601.3
+    },
+    {
+      "step": 4624000,
+      "reward": 64.92,
+      "policy_loss": -0.002532,
+      "value_loss": 8.1702,
+      "entropy_loss": -1.8676,
+      "fps": 699.3,
+      "time": 6611.9
+    },
+    {
+      "step": 4632000,
+      "reward": 63.99,
+      "policy_loss": -0.007781,
+      "value_loss": 0.9257,
+      "entropy_loss": -1.7379,
+      "fps": 699.4,
+      "time": 6622.5
+    },
+    {
+      "step": 4640000,
+      "reward": 65.73,
+      "policy_loss": -0.007361,
+      "value_loss": 2.231,
+      "entropy_loss": -2.005,
+      "fps": 699.5,
+      "time": 6633.3
+    },
+    {
+      "step": 4648000,
+      "reward": 69.0,
+      "policy_loss": -0.005479,
+      "value_loss": 2.152,
+      "entropy_loss": -1.9496,
+      "fps": 699.6,
+      "time": 6644.1
+    },
+    {
+      "step": 4656000,
+      "reward": 76.68,
+      "policy_loss": -0.007173,
+      "value_loss": 2.14,
+      "entropy_loss": -2.0125,
+      "fps": 699.6,
+      "time": 6654.9
+    },
+    {
+      "step": 4664000,
+      "reward": 75.56,
+      "policy_loss": 0.000153,
+      "value_loss": 1.5991,
+      "entropy_loss": -1.8299,
+      "fps": 699.7,
+      "time": 6665.4
+    },
+    {
+      "step": 4672000,
+      "reward": 76.09,
+      "policy_loss": -0.004,
+      "value_loss": 9.5826,
+      "entropy_loss": -1.671,
+      "fps": 699.8,
+      "time": 6675.9
+    },
+    {
+      "step": 4680000,
+      "reward": 76.11,
+      "policy_loss": -0.006536,
+      "value_loss": 4.6447,
+      "entropy_loss": -1.9654,
+      "fps": 699.9,
+      "time": 6686.4
+    },
+    {
+      "step": 4688000,
+      "reward": 80.2,
+      "policy_loss": -0.00756,
+      "value_loss": 2.7603,
       "entropy_loss": -2.1863,
-      "fps": 417.5,
-      "time": 1264.8
+      "fps": 700.0,
+      "time": 6697.3
     },
     {
-      "step": 536000,
-      "reward": 58.3,
-      "policy_loss": 0.000758,
-      "value_loss": 15.0789,
-      "entropy_loss": -1.8866,
-      "fps": 420.2,
-      "time": 1275.5
+      "step": 4696000,
+      "reward": 80.57,
+      "policy_loss": -0.002697,
+      "value_loss": 2.2771,
+      "entropy_loss": -2.0963,
+      "fps": 700.3,
+      "time": 6705.8
     },
     {
-      "step": 544000,
-      "reward": 53.71,
-      "policy_loss": -0.002781,
-      "value_loss": 43.9993,
-      "entropy_loss": -1.5587,
-      "fps": 423.0,
-      "time": 1286.0
+      "step": 4704000,
+      "reward": 76.17,
+      "policy_loss": -0.009483,
+      "value_loss": 5.6193,
+      "entropy_loss": -1.8479,
+      "fps": 700.4,
+      "time": 6716.5
     },
     {
-      "step": 552000,
-      "reward": 53.08,
-      "policy_loss": -0.004493,
-      "value_loss": 23.19,
-      "entropy_loss": -1.6439,
-      "fps": 425.6,
-      "time": 1297.0
+      "step": 4712000,
+      "reward": 72.95,
+      "policy_loss": -0.009816,
+      "value_loss": 3.4307,
+      "entropy_loss": -1.9262,
+      "fps": 700.5,
+      "time": 6727.1
     },
     {
-      "step": 560000,
-      "reward": 48.89,
-      "policy_loss": -0.002524,
-      "value_loss": 1.7987,
-      "entropy_loss": -1.9088,
-      "fps": 428.1,
-      "time": 1308.0
+      "step": 4720000,
+      "reward": 69.34,
+      "policy_loss": -0.009482,
+      "value_loss": 22.8463,
+      "entropy_loss": -1.9054,
+      "fps": 700.5,
+      "time": 6737.7
     },
     {
-      "step": 568000,
-      "reward": 52.31,
-      "policy_loss": 0.001884,
-      "value_loss": 1.9441,
-      "entropy_loss": -1.6198,
-      "fps": 430.8,
-      "time": 1318.5
+      "step": 4728000,
+      "reward": 68.96,
+      "policy_loss": -0.005654,
+      "value_loss": 3.3688,
+      "entropy_loss": -1.9845,
+      "fps": 700.6,
+      "time": 6748.3
     },
     {
-      "step": 576000,
-      "reward": 49.93,
-      "policy_loss": -0.003042,
-      "value_loss": 6.6386,
-      "entropy_loss": -1.3452,
-      "fps": 433.3,
-      "time": 1329.2
+      "step": 4736000,
+      "reward": 69.27,
+      "policy_loss": -0.003044,
+      "value_loss": 4.9296,
+      "entropy_loss": -1.8389,
+      "fps": 700.7,
+      "time": 6758.9
     },
     {
-      "step": 584000,
-      "reward": 49.44,
-      "policy_loss": -0.004557,
-      "value_loss": 16.2106,
-      "entropy_loss": -1.8393,
-      "fps": 435.9,
-      "time": 1339.8
+      "step": 4744000,
+      "reward": 67.68,
+      "policy_loss": -0.005264,
+      "value_loss": 9.2878,
+      "entropy_loss": -1.9175,
+      "fps": 700.8,
+      "time": 6769.6
     },
     {
-      "step": 592000,
-      "reward": 47.0,
-      "policy_loss": -0.004027,
-      "value_loss": 18.7208,
-      "entropy_loss": -1.7446,
-      "fps": 438.4,
-      "time": 1350.4
+      "step": 4752000,
+      "reward": 65.86,
+      "policy_loss": -0.012333,
+      "value_loss": 1.2376,
+      "entropy_loss": -1.8222,
+      "fps": 700.8,
+      "time": 6780.3
     },
     {
-      "step": 600000,
-      "reward": 44.79,
-      "policy_loss": -0.002091,
-      "value_loss": 3.0645,
-      "entropy_loss": -1.8306,
-      "fps": 441.5,
-      "time": 1358.9
+      "step": 4760000,
+      "reward": 72.39,
+      "policy_loss": -0.004352,
+      "value_loss": 1.384,
+      "entropy_loss": -1.6425,
+      "fps": 700.9,
+      "time": 6791.1
     },
     {
-      "step": 608000,
-      "reward": 44.19,
-      "policy_loss": -0.004862,
-      "value_loss": 3.9048,
-      "entropy_loss": -2.2103,
-      "fps": 443.9,
-      "time": 1369.6
+      "step": 4768000,
+      "reward": 73.34,
+      "policy_loss": -0.010869,
+      "value_loss": 11.202,
+      "entropy_loss": -1.8555,
+      "fps": 701.0,
+      "time": 6801.8
     },
     {
-      "step": 616000,
-      "reward": 44.49,
-      "policy_loss": -0.003231,
-      "value_loss": 2.9411,
+      "step": 4776000,
+      "reward": 72.04,
+      "policy_loss": -0.008478,
+      "value_loss": 1.4487,
+      "entropy_loss": -1.9615,
+      "fps": 701.1,
+      "time": 6812.1
+    },
+    {
+      "step": 4784000,
+      "reward": 73.81,
+      "policy_loss": -0.002576,
+      "value_loss": 11.3918,
+      "entropy_loss": -1.7002,
+      "fps": 701.4,
+      "time": 6820.7
+    },
+    {
+      "step": 4792000,
+      "reward": 77.73,
+      "policy_loss": -0.006174,
+      "value_loss": 2.1126,
+      "entropy_loss": -1.7579,
+      "fps": 701.5,
+      "time": 6831.3
+    },
+    {
+      "step": 4800000,
+      "reward": 82.86,
+      "policy_loss": -0.004776,
+      "value_loss": 2.6239,
+      "entropy_loss": -2.1305,
+      "fps": 701.6,
+      "time": 6841.9
+    },
+    {
+      "step": 4808000,
+      "reward": 79.56,
+      "policy_loss": -0.006283,
+      "value_loss": 2.2553,
+      "entropy_loss": -1.9007,
+      "fps": 701.6,
+      "time": 6852.5
+    },
+    {
+      "step": 4816000,
+      "reward": 79.54,
+      "policy_loss": -0.004907,
+      "value_loss": 2.0791,
+      "entropy_loss": -1.7993,
+      "fps": 701.7,
+      "time": 6863.1
+    },
+    {
+      "step": 4824000,
+      "reward": 71.45,
+      "policy_loss": -0.007825,
+      "value_loss": 1.5229,
+      "entropy_loss": -1.6803,
+      "fps": 701.8,
+      "time": 6873.7
+    },
+    {
+      "step": 4832000,
+      "reward": 68.16,
+      "policy_loss": 0.004512,
+      "value_loss": 11.2261,
       "entropy_loss": -1.7497,
-      "fps": 446.2,
-      "time": 1380.4
+      "fps": 701.9,
+      "time": 6884.4
     },
     {
-      "step": 624000,
-      "reward": 44.1,
-      "policy_loss": -0.002518,
-      "value_loss": 2.8897,
-      "entropy_loss": -2.0667,
-      "fps": 448.5,
-      "time": 1391.3
+      "step": 4840000,
+      "reward": 67.55,
+      "policy_loss": -0.011312,
+      "value_loss": 1.0886,
+      "entropy_loss": -1.8389,
+      "fps": 701.9,
+      "time": 6895.2
     },
     {
-      "step": 632000,
-      "reward": 44.05,
-      "policy_loss": -0.003464,
-      "value_loss": 9.3177,
-      "entropy_loss": -1.7215,
-      "fps": 450.8,
-      "time": 1401.8
+      "step": 4848000,
+      "reward": 61.41,
+      "policy_loss": -0.012021,
+      "value_loss": 13.1528,
+      "entropy_loss": -1.8247,
+      "fps": 702.0,
+      "time": 6905.8
     },
     {
-      "step": 640000,
-      "reward": 44.28,
-      "policy_loss": 0.002296,
-      "value_loss": 8.9385,
-      "entropy_loss": -1.8548,
-      "fps": 453.0,
-      "time": 1412.7
+      "step": 4856000,
+      "reward": 57.53,
+      "policy_loss": -0.006626,
+      "value_loss": 14.6402,
+      "entropy_loss": -1.7466,
+      "fps": 702.1,
+      "time": 6916.7
     },
     {
-      "step": 648000,
-      "reward": 45.62,
-      "policy_loss": 0.000801,
-      "value_loss": 5.0434,
-      "entropy_loss": -1.6155,
-      "fps": 455.3,
-      "time": 1423.3
+      "step": 4864000,
+      "reward": 58.3,
+      "policy_loss": -0.003451,
+      "value_loss": 1.4113,
+      "entropy_loss": -1.6482,
+      "fps": 702.4,
+      "time": 6925.1
+    },
+    {
+      "step": 4872000,
+      "reward": 61.77,
+      "policy_loss": -0.010274,
+      "value_loss": 3.0185,
+      "entropy_loss": -1.8503,
+      "fps": 702.5,
+      "time": 6935.5
+    },
+    {
+      "step": 4880000,
+      "reward": 64.26,
+      "policy_loss": -0.0085,
+      "value_loss": 2.9869,
+      "entropy_loss": -1.7566,
+      "fps": 702.5,
+      "time": 6946.2
+    },
+    {
+      "step": 4888000,
+      "reward": 68.17,
+      "policy_loss": -0.009082,
+      "value_loss": 1.3029,
+      "entropy_loss": -1.7539,
+      "fps": 702.6,
+      "time": 6956.8
+    },
+    {
+      "step": 4896000,
+      "reward": 67.56,
+      "policy_loss": -0.00561,
+      "value_loss": 3.9167,
+      "entropy_loss": -1.6797,
+      "fps": 702.7,
+      "time": 6967.6
+    },
+    {
+      "step": 4904000,
+      "reward": 65.37,
+      "policy_loss": -0.002297,
+      "value_loss": 0.9364,
+      "entropy_loss": -1.8075,
+      "fps": 702.8,
+      "time": 6978.2
+    },
+    {
+      "step": 4912000,
+      "reward": 69.22,
+      "policy_loss": -0.011274,
+      "value_loss": 1.8845,
+      "entropy_loss": -2.0393,
+      "fps": 702.8,
+      "time": 6988.9
+    },
+    {
+      "step": 4920000,
+      "reward": 66.63,
+      "policy_loss": -0.00549,
+      "value_loss": 10.3262,
+      "entropy_loss": -1.6638,
+      "fps": 702.9,
+      "time": 6999.3
+    },
+    {
+      "step": 4928000,
+      "reward": 63.65,
+      "policy_loss": 0.005006,
+      "value_loss": 0.9029,
+      "entropy_loss": -1.3759,
+      "fps": 703.0,
+      "time": 7009.9
+    },
+    {
+      "step": 4936000,
+      "reward": 68.1,
+      "policy_loss": -0.003009,
+      "value_loss": 3.5698,
+      "entropy_loss": -1.897,
+      "fps": 703.1,
+      "time": 7020.6
+    },
+    {
+      "step": 4944000,
+      "reward": 68.74,
+      "policy_loss": -0.0085,
+      "value_loss": 9.2996,
+      "entropy_loss": -1.8335,
+      "fps": 703.2,
+      "time": 7031.1
+    },
+    {
+      "step": 4952000,
+      "reward": 68.43,
+      "policy_loss": -0.0046,
+      "value_loss": 2.9611,
+      "entropy_loss": -1.6538,
+      "fps": 703.4,
+      "time": 7039.6
+    },
+    {
+      "step": 4960000,
+      "reward": 73.16,
+      "policy_loss": 0.006292,
+      "value_loss": 31.4847,
+      "entropy_loss": -1.3762,
+      "fps": 703.5,
+      "time": 7050.1
+    },
+    {
+      "step": 4968000,
+      "reward": 73.36,
+      "policy_loss": -0.00596,
+      "value_loss": 2.5958,
+      "entropy_loss": -1.6129,
+      "fps": 703.6,
+      "time": 7060.8
+    },
+    {
+      "step": 4976000,
+      "reward": 75.76,
+      "policy_loss": -0.008095,
+      "value_loss": 2.3882,
+      "entropy_loss": -1.698,
+      "fps": 703.6,
+      "time": 7071.7
+    },
+    {
+      "step": 4984000,
+      "reward": 78.51,
+      "policy_loss": -0.003537,
+      "value_loss": 3.2736,
+      "entropy_loss": -1.5866,
+      "fps": 703.7,
+      "time": 7082.4
+    },
+    {
+      "step": 4992000,
+      "reward": 70.23,
+      "policy_loss": 0.00269,
+      "value_loss": 4.2002,
+      "entropy_loss": -1.5792,
+      "fps": 703.8,
+      "time": 7092.6
+    },
+    {
+      "step": 5000000,
+      "reward": 67.43,
+      "policy_loss": -0.014095,
+      "value_loss": 3.8889,
+      "entropy_loss": -2.1042,
+      "fps": 703.9,
+      "time": 7103.2
     }
   ]
 };

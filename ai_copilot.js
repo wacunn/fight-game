@@ -7,6 +7,7 @@
 class AICopilot {
   constructor() {
     this.isActive = false;
+    this.mode = 'hybrid'; // 'hybrid' (RL + Navigation), 'pure_rl' (Raw Tensor Model), 'expert' (Tactical)
     this.modelData = null;
     this.isModelLoaded = false;
     this.decisionTimer = 0;
@@ -26,6 +27,31 @@ class AICopilot {
     this.intentEl = null;
 
     this.init();
+  }
+
+  cycleMode() {
+    const modes = ['hybrid', 'pure_rl', 'expert'];
+    const idx = (modes.indexOf(this.mode) + 1) % modes.length;
+    this.mode = modes[idx];
+    this.updateModePill();
+  }
+
+  updateModePill() {
+    const pill = document.getElementById('ai-mode-pill');
+    if (!pill) return;
+    if (this.mode === 'hybrid') {
+      pill.innerHTML = '🤖 MODE: HYBRID (RL + NAV) <span style="opacity:0.7">[CLICK / B]</span>';
+      pill.style.borderColor = '#3b82f6';
+      pill.style.color = '#93c5fd';
+    } else if (this.mode === 'pure_rl') {
+      pill.innerHTML = '🧠 MODE: PURE NEURAL RL <span style="opacity:0.7">[CLICK / B]</span>';
+      pill.style.borderColor = '#10b981';
+      pill.style.color = '#6ee7b7';
+    } else {
+      pill.innerHTML = '⚡ MODE: TACTICAL EXPERT <span style="opacity:0.7">[CLICK / B]</span>';
+      pill.style.borderColor = '#f59e0b';
+      pill.style.color = '#fcd34d';
+    }
   }
 
   init() {
@@ -99,6 +125,7 @@ class AICopilot {
       <div class="ai-pilot-indicator">
         <span class="ai-pulse-dot"></span>
         <span class="ai-title">NEURAL AI COPILOT ACTIVE</span>
+        <span id="ai-mode-pill" class="ai-mode-pill" style="cursor: pointer; background: rgba(0,0,0,0.5); border: 1px solid #3b82f6; color: #93c5fd; padding: 3px 8px; border-radius: 4px; margin-left: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase;">🤖 MODE: HYBRID (RL + NAV) <span style="opacity:0.7">[CLICK / B]</span></span>
         <span class="ai-cancel-prompt">[PRESS V TO TAKE OVER]</span>
       </div>
       <div id="ai-intent-status" class="ai-intent-sub">INITIALIZING TELEMETRY...</div>
@@ -106,14 +133,18 @@ class AICopilot {
     document.body.appendChild(banner);
     this.bannerEl = banner;
     this.intentEl = document.getElementById('ai-intent-status');
+    const pill = document.getElementById('ai-mode-pill');
+    if (pill) pill.onclick = () => this.cycleMode();
   }
 
   bindEvents() {
     window.addEventListener('keydown', (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
       if (e.code === 'KeyV' && !e.repeat && !e.ctrlKey && !e.metaKey) {
-        // Ignore if typing in text inputs
-        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
         this.toggle();
+      }
+      if (e.code === 'KeyB' && !e.repeat && !e.ctrlKey && !e.metaKey) {
+        this.cycleMode();
       }
     });
   }
@@ -248,18 +279,36 @@ class AICopilot {
 
     goalDist = Math.hypot(gx - px, gz - pz);
 
-    // Forward pass through Neural Network if weights are loaded
-    if (this.isModelLoaded && this.modelData && this.modelData.weights) {
+    // Mode Dispatch: Pure RL vs Expert Tactical vs Hybrid (RL + Navigation)
+    if (this.mode === 'pure_rl' && this.isModelLoaded && this.modelData && this.modelData.weights) {
       const obs = this.buildObservation(player, state, city, enemies, traffic, gx, gz, goalType);
       const action = this.forwardPass(obs);
       this.executeAction(action, player, state, gx, gz);
-      // If neural network selected idle but target is far away, smoothly drive via tactical guidance
-      if (this.moveDir.lengthSq() < 0.01 && goalDist > 2.0) {
+      this.aiIntentText = `🧠 [PURE RL] Move: ${action.move} | Combat: ${action.combat} | Target: ${Math.round(goalDist)}m`;
+    } else if (this.mode === 'expert') {
+      this.executeTacticalHeuristic(player, state, city, enemies, traffic, gx, gz, goalType, goalDist);
+    } else {
+      // Default: Intelligent Hybrid Mode (Neural Policy + Tactical Obstacle Avoidance)
+      let rlActionUsable = false;
+      if (this.isModelLoaded && this.modelData && this.modelData.weights) {
+        const obs = this.buildObservation(player, state, city, enemies, traffic, gx, gz, goalType);
+        const action = this.forwardPass(obs);
+        this.executeAction(action, player, state, gx, gz);
+
+        // Check if RL movement direction is walkable and active
+        if (this.moveDir.lengthSq() > 0.01) {
+          const testX = px + this.moveDir.x * 2.0;
+          const testZ = pz + this.moveDir.z * 2.0;
+          if (!city || city.canMoveTo(testX, testZ, 0.6, py)) {
+            rlActionUsable = true;
+          }
+        }
+      }
+
+      // If RL chose Idle while goal is distant, or RL path is blocked by a wall:
+      if (!rlActionUsable && goalDist > 1.2) {
         this.executeTacticalHeuristic(player, state, city, enemies, traffic, gx, gz, goalType, goalDist);
       }
-    } else {
-      // High-performance tactical heuristic autopilot
-      this.executeTacticalHeuristic(player, state, city, enemies, traffic, gx, gz, goalType, goalDist);
     }
   }
 
@@ -285,22 +334,29 @@ class AICopilot {
 
   buildObservation(player, state, city, enemies, traffic, gx, gz, goalType) {
     const obs = new Float32Array(56);
-    const px = player.pos.x, pz = player.pos.z, yaw = player.yaw;
+    const px = player.pos.x, pz = player.pos.z;
 
-    // 1. Ego (8)
+    // Convert Three.js player.yaw (0 = North/-Z) to 2D Cartesian heading (0 = East/+X)
+    // Three.js forward = (-sin(yaw), -cos(yaw))
+    // 2D Cartesian angle = atan2(forwardZ, forwardX)
+    const forwardX = -Math.sin(player.yaw);
+    const forwardZ = -Math.cos(player.yaw);
+    const heading = Math.atan2(forwardZ, forwardX);
+
+    // 1. Ego State (8)
     obs[0] = px / 1000.0;
     obs[1] = pz / 1000.0;
-    obs[2] = Math.sin(yaw);
-    obs[3] = Math.cos(yaw);
+    obs[2] = Math.sin(heading);
+    obs[3] = Math.cos(heading);
     obs[4] = (player.velocity ? player.velocity.x : 0) / 10.0;
     obs[5] = (player.velocity ? player.velocity.z : 0) / 10.0;
     obs[6] = state.health / 100.0;
-    obs[7] = state.berserk / 100.0;
+    obs[7] = (state.rage || 0) / 100.0;
 
-    // 2. Goal (8)
+    // 2. Active Goal (8)
     const dx = gx - px, dz = gz - pz;
     const dist = Math.hypot(dx, dz);
-    const relAng = Math.atan2(dz, dx) - yaw;
+    const relAng = Math.atan2(dz, dx) - heading;
     obs[8] = Math.max(-1.0, Math.min(1.0, dx / 500.0));
     obs[9] = Math.max(-1.0, Math.min(1.0, dz / 500.0));
     obs[10] = Math.tanh(dist / 50.0);
@@ -310,9 +366,9 @@ class AICopilot {
     obs[14] = goalType === 1 ? 1.0 : 0.0;
     obs[15] = goalType === 2 ? 1.0 : 0.0;
 
-    // 3. 16-ray LiDAR distances (16)
+    // 3. 16-ray LiDAR distance probes (16)
     for (let i = 0; i < 16; i++) {
-      const ang = yaw + (i / 16.0) * Math.PI * 2.0;
+      const ang = heading + (i / 16.0) * Math.PI * 2.0;
       let d = 20.0;
       for (let r = 2.0; r <= 20.0; r += 2.0) {
         const rx = px + Math.cos(ang) * r;
@@ -325,7 +381,80 @@ class AICopilot {
       obs[16 + i] = d / 20.0;
     }
 
-    // Fill remaining threats & vehicles
+    // 4. Top 3 Nearest Threats (12)
+    const activeEnemies = [];
+    if (enemies && enemies.length > 0) {
+      for (let i = 0; i < enemies.length; i++) {
+        const e = enemies[i];
+        if (e.isDead || e.isKnockedOut || !e.rig) continue;
+        const ePos = e.rig.root.position;
+        const ed = Math.hypot(ePos.x - px, ePos.z - pz);
+        activeEnemies.push({ x: ePos.x, z: ePos.z, dist: ed, hp: e.health || 100, maxHp: e.maxHealth || 100 });
+      }
+      activeEnemies.sort((a, b) => a.dist - b.dist);
+    }
+    for (let i = 0; i < 3; i++) {
+      const baseIdx = 32 + i * 4;
+      if (i < activeEnemies.length) {
+        const e = activeEnemies[i];
+        obs[baseIdx] = Math.max(-1.0, Math.min(1.0, (e.x - px) / 40.0));
+        obs[baseIdx + 1] = Math.max(-1.0, Math.min(1.0, (e.z - pz) / 40.0));
+        obs[baseIdx + 2] = Math.max(-1.0, Math.min(1.0, e.dist / 40.0));
+        obs[baseIdx + 3] = e.hp / e.maxHp;
+      }
+    }
+
+    // 5. Nearest Innocent / Pedestrian (4)
+    let nearestCiv = null, minCivDist = 999.0;
+    if (traffic && traffic.pedestrians) {
+      for (let i = 0; i < traffic.pedestrians.length; i++) {
+        const p = traffic.pedestrians[i];
+        if (!p || !p.mesh) continue;
+        const pPos = p.mesh.position;
+        const cd = Math.hypot(pPos.x - px, pPos.z - pz);
+        if (cd < minCivDist) {
+          minCivDist = cd;
+          nearestCiv = { x: pPos.x, z: pPos.z, dist: cd, isSnatched: !!p.isSnatched };
+        }
+      }
+    }
+    if (nearestCiv) {
+      obs[44] = Math.max(-1.0, Math.min(1.0, (nearestCiv.x - px) / 40.0));
+      obs[45] = Math.max(-1.0, Math.min(1.0, (nearestCiv.z - pz) / 40.0));
+      obs[46] = Math.max(-1.0, Math.min(1.0, nearestCiv.dist / 40.0));
+      obs[47] = nearestCiv.isSnatched ? 1.0 : 0.0;
+    }
+
+    // 6. Nearest Traffic Hazard (Car) (6)
+    let nearestCar = null, minCarDist = 999.0;
+    if (traffic && traffic.cars) {
+      for (let i = 0; i < traffic.cars.length; i++) {
+        const c = traffic.cars[i];
+        if (!c || !c.mesh) continue;
+        const cPos = c.mesh.position;
+        const cd = Math.hypot(cPos.x - px, cPos.z - pz);
+        if (cd < minCarDist) {
+          minCarDist = cd;
+          nearestCar = { x: cPos.x, z: cPos.z, dist: cd, vx: c.speed || 0, vz: 0 };
+        }
+      }
+    }
+    if (nearestCar) {
+      obs[48] = Math.max(-1.0, Math.min(1.0, (nearestCar.x - px) / 40.0));
+      obs[49] = Math.max(-1.0, Math.min(1.0, (nearestCar.z - pz) / 40.0));
+      obs[50] = Math.max(-1.0, Math.min(1.0, nearestCar.vx / 15.0));
+      obs[51] = Math.max(-1.0, Math.min(1.0, nearestCar.vz / 15.0));
+      obs[52] = Math.max(-1.0, Math.min(1.0, nearestCar.dist / 40.0));
+      obs[53] = 1.0 / (1.0 + nearestCar.dist / 10.0);
+    }
+
+    // 7. Nearest Peace Sanctuary (2)
+    const sanc = this.findNearestSanctuary(px, pz, city);
+    if (sanc) {
+      obs[54] = Math.max(-1.0, Math.min(1.0, (sanc.x - px) / 500.0));
+      obs[55] = Math.max(-1.0, Math.min(1.0, (sanc.z - pz) / 500.0));
+    }
+
     return obs;
   }
 
@@ -417,23 +546,24 @@ class AICopilot {
   }
 
   executeAction(action, player, state, gx, gz) {
-    // Movement angles (0=Idle, 1=N, 2=NE, 3=E, 4=SE, 5=S, 6=SW, 7=W, 8=NW)
-    const moveAngles = [
+    // Exact move directions matching toronto_env.py MOVE_DIRS:
+    // 0: Idle, 1: N (-Z), 2: NE, 3: E (+X), 4: SE, 5: S (+Z), 6: SW, 7: W (-X), 8: NW
+    const moveVectors = [
       null,
-      -Math.PI * 0.5,   // N (-Z)
-      -Math.PI * 0.25,  // NE
-      0.0,              // E (+X)
-      Math.PI * 0.25,   // SE
-      Math.PI * 0.5,    // S (+Z)
-      Math.PI * 0.75,   // SW
-      Math.PI,          // W (-X)
-      -Math.PI * 0.75   // NW
+      { x: 0.0, z: -1.0 },       // 1: North (-Z)
+      { x: 0.7071, z: -0.7071 }, // 2: NE
+      { x: 1.0, z: 0.0 },        // 3: East (+X)
+      { x: 0.7071, z: 0.7071 },  // 4: SE
+      { x: 0.0, z: 1.0 },        // 5: South (+Z)
+      { x: -0.7071, z: 0.7071 }, // 6: SW
+      { x: -1.0, z: 0.0 },       // 7: West (-X)
+      { x: -0.7071, z: -0.7071 } // 8: NW
     ];
 
-    if (action.move > 0 && moveAngles[action.move] !== null) {
-      const ang = moveAngles[action.move];
-      this.moveDir.set(Math.cos(ang), 0, Math.sin(ang));
-      this.targetYaw = Math.atan2(-this.moveDir.x, -this.moveDir.z);
+    if (action.move > 0 && moveVectors[action.move]) {
+      const v = moveVectors[action.move];
+      this.moveDir.set(v.x, 0, v.z);
+      this.targetYaw = Math.atan2(-v.x, -v.z);
     } else {
       this.moveDir.set(0, 0, 0);
     }
