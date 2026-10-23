@@ -136,6 +136,7 @@ def build_fns(cfg):
         _, last_v = A.heads(params, h, carry["priv"])
         return carry, traj, last_v, hc0, resetf0
 
+    @jax.jit
     def gae(r, v, done, last_v):
         def f(c, x):
             adv, nv = c
@@ -167,8 +168,9 @@ def build_fns(cfg):
 
         # Imitation / behavioral cloning loss against expert
         bc_loss = -jnp.mean(A.log_prob(logits, mb["exp_acts"]))
+        w_bc = mb.get("w_bc", jnp.float32(cfg.w_bc))
 
-        total = pi_loss + cfg.vf * vf_loss - cfg.ent * ent + cfg.w_bc * bc_loss
+        total = pi_loss + cfg.vf * vf_loss - cfg.ent * ent + w_bc * bc_loss
         return total, dict(pi=pi_loss, vf=vf_loss, ent=ent, bc=bc_loss, total=total)
 
     tx = optax.chain(optax.clip_by_global_norm(0.5), optax.adam(cfg.lr))
@@ -249,6 +251,7 @@ def train():
         adv = (adv - jnp.mean(adv)) / (jnp.std(adv) + 1e-6)
 
         # 2. PPO Mini-batch updates
+        cur_w_bc = cfg.w_bc * max(0.01, teacher_eps / max(1e-4, cfg.teacher_eps))
         mb_base = dict(
             patch=traj["patch"], vec=traj["vec"], priv=traj["priv"],
             resetf=traj["resetf"], acts=traj["acts"], exp_acts=traj["exp_acts"],
@@ -261,6 +264,7 @@ def train():
                 idx = perm[mb_i * mbsz:(mb_i + 1) * mbsz]
                 mb = {k: v[:, idx] for k, v in mb_base.items()}
                 mb["hc0"] = (hc0[0][idx], hc0[1][idx])
+                mb["w_bc"] = jnp.float32(cur_w_bc)
                 params, opt_state, stats = fns["update_step"](params, opt_state, mb)
                 stats_list.append(stats)
 

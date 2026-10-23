@@ -215,8 +215,10 @@ def step(st: ArenaState, action, key):
     # Player cooldown & rage
     atk_cd = jnp.where(do_glory, E.GLORY_CD, jnp.where(jab, JAB["cooldown"], jnp.where(kick, KICK["cooldown"], st.atk_cd)))
     atk_cd = jnp.maximum(0.0, atk_cd - DT)
-    rage = jnp.minimum(100.0, st.rage + jnp.where(hit, 15.0, 0.0) + jnp.where(e_newly_dead, 35.0, 0.0))
-    berserk_t = jnp.where((rage >= 100.0) & (st.berserk_t <= 0), 16.0, jnp.maximum(0.0, st.enemy_stag_t - DT))
+    raw_rage = jnp.minimum(100.0, st.rage + jnp.where(hit, 15.0, 0.0) + jnp.where(e_newly_dead, 35.0, 0.0))
+    trigger_berserk = (raw_rage >= 100.0) & (st.berserk_t <= 0)
+    berserk_t = jnp.where(trigger_berserk, 16.0, jnp.maximum(0.0, st.berserk_t - DT))
+    rage = jnp.where(trigger_berserk, 0.0, raw_rage)
     
     # 3. Enemy AI (chase & punch)
     edx, edz = px - ex, pz - ez
