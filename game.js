@@ -4167,6 +4167,20 @@ window.addEventListener('keydown', (e) => {
       return;
     }
   }
+  if (e.code === 'KeyN') {
+    if (window.aiCopilot && window.aiCopilot.cyclePersona) {
+      e.preventDefault();
+      window.aiCopilot.cyclePersona();
+      return;
+    }
+  }
+  if (e.code === 'KeyB') {
+    if (window.aiCopilot && window.aiCopilot.cycleMode) {
+      e.preventDefault();
+      window.aiCopilot.cycleMode();
+      return;
+    }
+  }
   if (e.code === 'KeyM') {
     e.preventDefault();
     if (audio) audio.toggleMute();
@@ -4470,7 +4484,13 @@ function checkMeleeHits(atk) {
       const dirToCrate = crate.mesh.position.clone().sub(camera.position).normalize();
       const forward = new THREE.Vector3();
       camera.getWorldDirection(forward);
-      if (dirToCrate.dot(forward) > 0.6) {
+      const dot3D = dirToCrate.dot(forward);
+      // Horizontal cone check so low crates on the sidewalk are never missed by camera pitch
+      const dx = crate.mesh.position.x - camera.position.x, dz = crate.mesh.position.z - camera.position.z;
+      const dH = Math.hypot(dx, dz);
+      const dotH = dH > 0.01 ? (dx * forward.x + dz * forward.z) / dH : 1.0;
+      const isFacing = dot3D > 0.45 || (dotH > 0.58 && Math.abs(crate.mesh.position.y - camera.position.y) < 2.5);
+      if (isFacing) {
         damageCrate(crate, state.isBerserk ? atk.damage * 3 : atk.damage);
         hitSomething = true;
       }
@@ -4486,7 +4506,13 @@ function checkMeleeHits(atk) {
       const dirToEnemy = pos.clone().sub(camera.position).normalize();
       const forward = new THREE.Vector3();
       camera.getWorldDirection(forward);
-      if (dirToEnemy.dot(forward) > 0.55) {
+      const dot3D = dirToEnemy.dot(forward);
+      // Horizontal cone check so punches connect cleanly to enemy torso/head even with pitch differences
+      const dx = pos.x - camera.position.x, dz = pos.z - camera.position.z;
+      const dH = Math.hypot(dx, dz);
+      const dotH = dH > 0.01 ? (dx * forward.x + dz * forward.z) / dH : 1.0;
+      const isFacing = dot3D > 0.45 || (dotH > 0.55 && Math.abs(pos.y - camera.position.y) < 2.5);
+      if (isFacing) {
         const dmg = state.isBerserk ? atk.damage * 3 : atk.damage;
         const kb = state.isBerserk ? atk.knockback * 2.2 : atk.knockback;
         hitEnemy(enemy, dmg, kb, atk.type);
@@ -5743,7 +5769,7 @@ function updatePlayer(dt) {
   }
 
   const isSprinting = keys['ShiftLeft'] || keys['ShiftRight'] || state.isBerserk ||
-    (window.aiCopilot && window.aiCopilot.isActive && state.health < 40);
+    (window.aiCopilot && window.aiCopilot.isActive && window.aiCopilot.sprint);
   const curSpeed = isSprinting ? player.sprintSpeed : player.speed;
 
   // Jump
@@ -6646,6 +6672,8 @@ window.gameState = state;
 window.gamePlayer = player;
 window.audio = audio;
 window.completeMission = completeMission;
+window.gameCity = city;                         // used by tools/export_ai_grid.js
+window.MISSION_LANDMARKS_EXPORT = MISSION_LANDMARKS;
 
 if (window.multiplayer && window.multiplayer.init) {
   window.multiplayer.init(scene, player, state);

@@ -65,6 +65,13 @@ canvas {
   pointer-events: auto;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
 .glow-btn {
   font-family: 'Chakra Petch', sans-serif;
   font-weight: 700;

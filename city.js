@@ -2512,7 +2512,7 @@
       color: 0x50d4ff, roughness: 0.05, metalness: 0.82,
       transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false
     });
-    const deckFloor1Mat = new THREE.MeshStandardMaterial({ color: 0x1e242c, roughness: 0.6, metalness: 0.25 }); // slate / granite
+    const deckFloor1Mat = new THREE.MeshStandardMaterial({ color: 0x1e242c, roughness: 0.6, metalness: 0.25, side: THREE.DoubleSide }); // slate / granite
     const deckFloor2Mat = new THREE.MeshStandardMaterial({ color: 0xd6d1c4, roughness: 0.25, metalness: 0.15 }); // polished warm terrazzo
     const concreteCoreMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.72, metalness: 0.12 }); // solid reinforced concrete core
     const stainlessMat = new THREE.MeshStandardMaterial({ color: 0xcfd8dc, roughness: 0.2, metalness: 0.85 });

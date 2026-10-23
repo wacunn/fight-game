@@ -1,720 +1,636 @@
 /**
- * AI Copilot & Watch AI Mode for Toronto Defender Brawl
- * Evaluates the trained Recurrent PPO neural network weights in real-time,
- * allowing the autonomous AI to seamlessly take over player movement and combat.
+ * Neural AI Copilot ("Watch AI") for Fists of Doom: Toronto.
+ *
+ * NEURAL mode runs the policy trained by rl/train.py (ego CNN + LSTM). It sees exactly what the
+ * agent saw in training (rl/env.py observe(); spec in rl/OBS_SPEC.md):
+ *   - a 16x16 egocentric occupancy patch (2 m cells) read from ai_grid.js, the same grid the env uses
+ *   - health / armor / rage / berserk / cooldown / sanctuary flags
+ *   - range + bearing to the mission crate and to the peace sanctuary (no absolute position!)
+ *   - the 6 nearest people within 40 m (disguised snatchers look like civilians until exposed)
+ * and acts like a player would: move (fwd/back/strafe/sprint), turn, punch / kick.
+ *
+ * EXPERT mode is a hand-written fallback (used automatically if no compatible model is loaded).
+ * Toggle with V (handled in game.js) or the WATCH AI button; B / the pill switches mode.
  */
+(function () {
+  'use strict';
 
-class AICopilot {
-  constructor() {
-    this.isActive = false;
-    this.mode = 'hybrid'; // 'hybrid' (RL + Navigation), 'pure_rl' (Raw Tensor Model), 'expert' (Tactical)
-    this.modelData = null;
-    this.isModelLoaded = false;
-    this.decisionTimer = 0;
-    this.decisionInterval = 1.0 / 20.0; // 20 Hz decision loop
-
-    // 128-unit Recurrent LSTM states
-    this.h = new Float32Array(128);
-    this.c = new Float32Array(128);
-
-    // Current output intents
-    this.moveDir = new THREE.Vector3();
-    this.targetYaw = 0;
-    this.aiIntentText = 'IDLE';
-
-    // Telemetry HUD elements
-    this.badgeEl = null;
-    this.intentEl = null;
-
-    this.init();
+  // ------------------------------------------------------------------ shared grid (ai_grid.js)
+  let GRID = null;
+  function grid() {
+    if (GRID || !window.AI_GRID) return GRID;
+    const g = window.AI_GRID;
+    const bin = atob(g.bits);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    GRID = { x0: g.x0, z0: g.z0, w: g.w, h: g.h, bytes, peace: g.peaceZone };
+    return GRID;
+  }
+  function blocked(G, x, z) {
+    const i = Math.floor(z - G.z0), j = Math.floor(x - G.x0);
+    if (i < 0 || i >= G.h || j < 0 || j >= G.w) return true;
+    const k = i * G.w + j;
+    return (G.bytes[k >> 3] >> (k & 7)) & 1;
   }
 
-  cycleMode() {
-    const modes = ['hybrid', 'pure_rl', 'expert'];
-    const idx = (modes.indexOf(this.mode) + 1) % modes.length;
-    this.mode = modes[idx];
-    this.updateModePill();
+  // ------------------------------------------------------------------ float16 tensors
+  function f16ToF32(h) {
+    const s = (h & 0x8000) ? -1 : 1, e = (h >> 10) & 0x1f, f = h & 0x3ff;
+    if (e === 0) return s * Math.pow(2, -14) * (f / 1024);
+    if (e === 31) return f ? NaN : s * Infinity;
+    return s * Math.pow(2, e - 15) * (1 + f / 1024);
+  }
+  function decodeTensor(t) {
+    const bin = atob(t.data);
+    const n = bin.length >> 1;
+    const out = new Float32Array(n);
+    for (let i = 0; i < n; i++) out[i] = f16ToF32(bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8));
+    return { shape: t.shape, data: out };
   }
 
-  updateModePill() {
-    const pill = document.getElementById('ai-mode-pill');
-    if (!pill) return;
-    if (this.mode === 'hybrid') {
-      pill.innerHTML = '🤖 MODE: HYBRID (RL + NAV) <span style="opacity:0.7">[CLICK / B]</span>';
-      pill.style.borderColor = '#3b82f6';
-      pill.style.color = '#93c5fd';
-    } else if (this.mode === 'pure_rl') {
-      pill.innerHTML = '🧠 MODE: PURE NEURAL RL <span style="opacity:0.7">[CLICK / B]</span>';
-      pill.style.borderColor = '#10b981';
-      pill.style.color = '#6ee7b7';
-    } else {
-      pill.innerHTML = '⚡ MODE: TACTICAL EXPERT <span style="opacity:0.7">[CLICK / B]</span>';
-      pill.style.borderColor = '#f59e0b';
-      pill.style.color = '#fcd34d';
-    }
-  }
-
-  init() {
-    this.loadWeights();
-    this.createHUD();
-    this.bindEvents();
-  }
-
-  async loadWeights() {
-    if (window.AI_MODEL_WEIGHTS) {
-      this.modelData = window.AI_MODEL_WEIGHTS;
-      this.isModelLoaded = true;
-      console.log('🤖 AI Copilot: Inlined Recurrent PPO neural network weights loaded!');
-      return;
-    }
-    try {
-      const resp = await fetch('ai_model.json');
-      if (resp.ok) {
-        this.modelData = await resp.json();
-        this.isModelLoaded = true;
-        console.log('🤖 AI Copilot: Recurrent PPO neural network weights loaded successfully!');
-      } else {
-        console.log('🤖 AI Copilot: ai_model.json not found yet, operating in hybrid tactical heuristic mode.');
-      }
-    } catch (e) {
-      console.log('🤖 AI Copilot: Local heuristic mode active (model weights pending):', e.message);
-    }
-  }
-
-  createHUD() {
-    // 1. Top HUD Quick-Toggle Button
-    const topBar = document.querySelector('.header-left') || document.body;
-    const btn = document.createElement('button');
-    btn.id = 'ai-watch-btn';
-    btn.className = 'ai-toggle-btn';
-    btn.innerHTML = '🤖 WATCH AI <span class="ai-key-hint">[V]</span>';
-    btn.title = 'Toggle Autonomous Neural AI Copilot (Hotkey: V)';
-    btn.onclick = () => this.toggle();
-    topBar.appendChild(btn);
-    this.btnEl = btn;
-
-    const muteBtn = document.createElement('button');
-    muteBtn.id = 'audio-mute-btn';
-    muteBtn.className = 'ai-toggle-btn';
-    const isMuted = (window.audio && window.audio.isMuted) || (new URLSearchParams(window.location.search).get('muted') === '1');
-    muteBtn.innerHTML = isMuted ? '🔇 MUTED <span class="ai-key-hint">[M]</span>' : '🔊 SOUND <span class="ai-key-hint">[M]</span>';
-    if (isMuted) muteBtn.classList.add('active');
-    muteBtn.title = 'Toggle Audio Sound / Mute (Hotkey: M)';
-    muteBtn.onclick = () => {
-      if (window.audio && window.audio.toggleMute) {
-        window.audio.toggleMute();
-      }
-    };
-    topBar.appendChild(muteBtn);
-
-    const boardBtn = document.createElement('a');
-    boardBtn.id = 'ai-leaderboard-btn';
-    boardBtn.className = 'ai-toggle-btn';
-    boardBtn.innerHTML = '📊 RL LEADERBOARD';
-    boardBtn.href = 'dashboard.html';
-    boardBtn.target = '_blank';
-    boardBtn.title = 'Open Live Real-Time Training Telemetry & District Leaderboard';
-    boardBtn.style.textDecoration = 'none';
-    topBar.appendChild(boardBtn);
-
-    // 2. Holographic HUD overlay for AI telemetry
-    const banner = document.createElement('div');
-    banner.id = 'ai-pilot-hud';
-    banner.className = 'ai-pilot-banner hidden';
-    banner.innerHTML = `
-      <div class="ai-pilot-indicator">
-        <span class="ai-pulse-dot"></span>
-        <span class="ai-title">NEURAL AI COPILOT ACTIVE</span>
-        <span id="ai-mode-pill" class="ai-mode-pill" style="cursor: pointer; pointer-events: auto; background: rgba(0,0,0,0.5); border: 1px solid #3b82f6; color: #93c5fd; padding: 3px 8px; border-radius: 4px; margin-left: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase;">🤖 MODE: HYBRID (RL + NAV) <span style="opacity:0.7">[CLICK / B]</span></span>
-        <span class="ai-cancel-prompt">[PRESS V TO TAKE OVER]</span>
-      </div>
-      <div id="ai-intent-status" class="ai-intent-sub">INITIALIZING TELEMETRY...</div>
-    `;
-    document.body.appendChild(banner);
-    this.bannerEl = banner;
-    this.intentEl = document.getElementById('ai-intent-status');
-    const pill = document.getElementById('ai-mode-pill');
-    if (pill) pill.onclick = () => this.cycleMode();
-  }
-
-  bindEvents() {
-    window.addEventListener('keydown', (e) => {
-      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
-      if (e.code === 'KeyB' && !e.repeat && !e.ctrlKey && !e.metaKey) {
-        this.cycleMode();
-      }
-    });
-  }
-
-  toggle(forceState) {
-    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-    if (forceState === undefined && this._lastToggleTime && (now - this._lastToggleTime < 250)) {
-      console.warn('🤖 AI Copilot: toggle debounced');
-      return;
-    }
-    this._lastToggleTime = now;
-
-    this.isActive = (forceState !== undefined) ? forceState : !this.isActive;
-
-    if (this.isActive) {
-      // If game has not started yet or is paused, start/resume it immediately
-      if (window.gameState && (!window.gameState.inGame || window.gameState.isPaused)) {
-        if (window.audio && !window.audio.isMuted && window.audio.init) window.audio.init();
-        if (window.gameState.isDead && window.resetGame) window.resetGame();
-        if (window.resumeGame) window.resumeGame(false); // Free mouse look mode for spectator
-      }
-      const overlay = document.getElementById('menu-overlay');
-      if (overlay && !overlay.classList.contains('hidden')) {
-        overlay.classList.add('hidden');
-      }
-      if (window.gameState) {
-        window.gameState.inGame = true;
-        window.gameState.isPaused = false;
-        window.gameState.freeMouseMode = true;
-      }
-    }
-
-    if (this.btnEl) {
-      if (this.isActive) {
-        this.btnEl.classList.add('active');
-        this.btnEl.innerHTML = '🤖 AI ACTIVE <span class="ai-key-hint">[V]</span>';
-      } else {
-        this.btnEl.classList.remove('active');
-        this.btnEl.innerHTML = '🤖 WATCH AI <span class="ai-key-hint">[V]</span>';
-      }
-    }
-
-    if (this.bannerEl) {
-      if (this.isActive) {
-        this.bannerEl.classList.remove('hidden');
-        if (window.audio && !window.audio.isMuted && window.audio.playPunch) {
-          window.audio.playPunch(0.9, false);
+  // ------------------------------------------------------------------ network
+  function conv3x3(inp, H, W, Cin, w, b, Cout, stride) {
+    // NHWC input (single image), HWIO kernel, symmetric padding 1, ReLU
+    const Ho = Math.floor((H + 2 - 3) / stride) + 1, Wo = Math.floor((W + 2 - 3) / stride) + 1;
+    const out = new Float32Array(Ho * Wo * Cout);
+    for (let oy = 0; oy < Ho; oy++) for (let ox = 0; ox < Wo; ox++) {
+      const ob = (oy * Wo + ox) * Cout;
+      for (let co = 0; co < Cout; co++) out[ob + co] = b[co];
+      for (let ky = 0; ky < 3; ky++) {
+        const iy = oy * stride + ky - 1;
+        if (iy < 0 || iy >= H) continue;
+        for (let kx = 0; kx < 3; kx++) {
+          const ix = ox * stride + kx - 1;
+          if (ix < 0 || ix >= W) continue;
+          const ib = (iy * W + ix) * Cin, kb = (ky * 3 + kx) * Cin * Cout;
+          for (let ci = 0; ci < Cin; ci++) {
+            const v = inp[ib + ci];
+            if (v === 0) continue;
+            const kr = kb + ci * Cout;
+            for (let co = 0; co < Cout; co++) out[ob + co] += v * w[kr + co];
+          }
         }
+      }
+      for (let co = 0; co < Cout; co++) if (out[ob + co] < 0) out[ob + co] = 0;
+    }
+    return { out, H: Ho, W: Wo };
+  }
+  function dense(x, W, b, nin, nout, relu) {
+    const y = new Float32Array(nout);
+    for (let o = 0; o < nout; o++) y[o] = b[o];
+    for (let i = 0; i < nin; i++) {
+      const v = x[i];
+      if (v === 0) continue;
+      const r = i * nout;
+      for (let o = 0; o < nout; o++) y[o] += v * W[r + o];
+    }
+    if (relu) for (let o = 0; o < nout; o++) if (y[o] < 0) y[o] = 0;
+    return y;
+  }
+  const sig = x => 1 / (1 + Math.exp(-x));
+
+  class Policy {
+    constructor(doc) {
+      this.spec = doc.spec;
+      this.t = {}; this.shape = {};
+      for (const k in doc.tensors) { const d = decodeTensor(doc.tensors[k]); this.t[k] = d.data; this.shape[k] = d.shape; }
+      // layer sizes come from the tensors themselves, so any --hidden / --channels training run loads
+      this.C = ['c1', 'c2', 'c3'].map(k => this.shape[k + '.w'][3]);
+      this.enc = this.shape['pd.w'][1];
+      this.fdOut = this.shape['fd.w'][1];
+      this.Hd = this.shape['lstm.wh'][0];
+      this.pi1 = this.shape['pi1.w'][1];
+      this.nAct = this.shape['pi2.w'][1];
+      this.reset();
+    }
+    reset() { this.h = new Float32Array(this.Hd); this.c = new Float32Array(this.Hd); }
+    step(patch, vec) {
+      const t = this.t, Hd = this.Hd;
+      const C = this.C, P = this.spec.patch;
+      let a = conv3x3(patch, P, P, 1, t['c1.w'], t['c1.b'], C[0], 1);
+      a = conv3x3(a.out, a.H, a.W, C[0], t['c2.w'], t['c2.b'], C[1], 2);
+      a = conv3x3(a.out, a.H, a.W, C[1], t['c3.w'], t['c3.b'], C[2], 2);
+      const pe = dense(a.out, t['pd.w'], t['pd.b'], a.out.length, this.enc, true);
+      const ve = dense(vec, t['vd.w'], t['vd.b'], vec.length, this.enc, true);
+      const cat = new Float32Array(2 * this.enc); cat.set(pe, 0); cat.set(ve, this.enc);
+      const x = dense(cat, t['fd.w'], t['fd.b'], 2 * this.enc, this.fdOut, true);
+      const z = dense(x, t['lstm.wx'], t['lstm.b'], this.fdOut, 4 * Hd, false);
+      const zh = dense(this.h, t['lstm.wh'], new Float32Array(4 * Hd), Hd, 4 * Hd, false);
+      for (let i = 0; i < 4 * Hd; i++) z[i] += zh[i];
+      for (let i = 0; i < Hd; i++) {
+        this.c[i] = sig(z[Hd + i]) * this.c[i] + sig(z[i]) * Math.tanh(z[2 * Hd + i]);
+        this.h[i] = sig(z[3 * Hd + i]) * Math.tanh(this.c[i]);
+      }
+      const p1 = dense(this.h, t['pi1.w'], t['pi1.b'], Hd, this.pi1, true);
+      return dense(p1, t['pi2.w'], t['pi2.b'], this.pi1, this.nAct, false);
+    }
+  }
+
+  // ------------------------------------------------------------------ observation (mirrors rl/env.py)
+  const DIFF_IDX = { easy: 0, medium: 1, hard: 2, impossible: 3 };
+  function fwdRight(yaw) { const s = Math.sin(yaw), c = Math.cos(yaw); return [[-s, -c], [c, -s]]; }
+  function rangeBearing(px, pz, yaw, tx, tz) {
+    const [f, r] = fwdRight(yaw);
+    const dx = tx - px, dz = tz - pz;
+    const a = dx * f[0] + dz * f[1], b = dx * r[0] + dz * r[1];
+    const ang = Math.atan2(b, a);
+    return [Math.sin(ang), Math.cos(ang), Math.hypot(a, b)];
+  }
+
+  function buildObservation(ctx) {
+    const { G, spec, px, pz, yaw, st, goal, peace, people, prevAct } = ctx;
+    const P = spec.patch, cell = spec.patch_cell, row0 = spec.patch_row0;
+    const [f, r] = fwdRight(yaw);
+    const patch = new Float32Array(P * P);
+    for (let i = 0; i < P; i++) {
+      const ahead = (row0 - i) * cell;
+      for (let j = 0; j < P; j++) {
+        const right = (j - (P - 1) / 2) * cell;
+        patch[i * P + j] = blocked(G, px + ahead * f[0] + right * r[0], pz + ahead * f[1] + right * r[1]) ? 1 : 0;
+      }
+    }
+    const v = [];
+    const inPeace = (px - peace.x) ** 2 + (pz - peace.z) ** 2 <= peace.radius ** 2;
+    v.push(st.health / 100, st.armor / 50, st.rage / 100, st.isBerserk ? 1 : 0, Math.max(0, st.berserkTimer || 0) / 16,
+      Math.max(0, st.attackTimer || 0) / spec.kick_cooldown, inPeace ? 1 : 0, 1);
+    let [s, c, d] = rangeBearing(px, pz, yaw, goal.x, goal.z);
+    v.push(s, c, Math.log1p(d) / 7.5, Math.min(d, 10) / 10);
+    [s, c, d] = rangeBearing(px, pz, yaw, peace.x, peace.z);
+    v.push(s, c, Math.log1p(d) / 7.5);
+    const di = DIFF_IDX[st.difficulty || 'medium'] ?? 1;
+    for (let k = 0; k < 4; k++) v.push(k === di ? 1 : 0);
+    const dims = spec.act_dims;
+    for (let a = 0; a < 3; a++) for (let k = 0; k < dims[a]; k++) v.push(prevAct[a] === k ? 1 : 0);
+    // nearest people within 40 m
+    const R = spec.npc_range, cand = [];
+    for (const p of people) {
+      const dx = p.x - px, dz = p.z - pz, dist = Math.hypot(dx, dz);
+      if (dist < R) cand.push({ p, dist, ahead: dx * f[0] + dz * f[1], right: dx * r[0] + dz * r[1] });
+    }
+    cand.sort((a, b) => a.dist - b.dist);
+    const nFeats = (spec.npc_feats === 13 || spec.vec_dim === 111) ? 13 : 10;
+    for (let k = 0; k < spec.k_obs; k++) {
+      const q = cand[k];
+      if (!q) { for (let m = 0; m < nFeats; m++) v.push(0); continue; }
+      const p = q.p;
+      const looksCiv = p.kind === 'civilian' || (p.kind === 'snatcher' && !p.unmasked);
+      v.push(1, q.ahead / R, q.right / R, q.dist / R, looksCiv ? 1 : 0, p.kind === 'robot' ? 1 : 0,
+        (p.kind === 'snatcher' && p.unmasked) ? 1 : 0, p.hp / p.maxHp, p.staggered ? 1 : 0, p.punching ? 1 : 0);
+      if (nFeats === 13) {
+        const cosN = q.ahead / Math.max(q.dist, 1e-4);
+        const isFacing = cosN > 0.50;
+        const jabRange = spec.jab_range || 3.5;
+        const kickRange = spec.kick_range || 4.2;
+        v.push(
+          Math.min(q.dist, 6.0) / 6.0,
+          isFacing && q.dist <= jabRange ? 1 : 0,
+          isFacing && q.dist <= kickRange ? 1 : 0
+        );
+      }
+    }
+    return { patch, vec: Float32Array.from(v) };
+  }
+
+  function argmax(a, lo, hi) { let b = lo; for (let i = lo + 1; i < hi; i++) if (a[i] > a[b]) b = i; return b - lo; }
+  function sampleSoftmax(a, lo, hi, temp) {
+    let m = -Infinity; for (let i = lo; i < hi; i++) m = Math.max(m, a[i]);
+    let z = 0; const p = []; for (let i = lo; i < hi; i++) { const e = Math.exp((a[i] - m) / temp); p.push(e); z += e; }
+    let u = Math.random() * z; for (let i = 0; i < p.length; i++) { u -= p[i]; if (u <= 0) return i; }
+    return p.length - 1;
+  }
+
+  const MOVE_NAMES = ['HOLD', 'FWD', 'BACK', 'LEFT', 'RIGHT', 'SPRINT'];
+  const ATK_NAMES = ['', ' • PUNCH', ' • KICK'];
+
+  // ------------------------------------------------------------------ copilot
+  class AICopilot {
+    constructor() {
+      this.isActive = false;
+      this.mode = 'neural';
+      this.persona = 'runner';                // 'runner' (Crate Hunter) or 'fighter' (Street Brawler)
+      this.policies = { runner: null, fighter: null };
+      this.policy = null;
+      this.modelInfo = '';
+      this.decisionTimer = 0;
+      this.decisionInterval = 0.1;            // 10 Hz, as in training
+      this.moveDir = new THREE.Vector3();
+      this.moveLocal = [0, 0];                // (ahead, right) unit move in the player's frame
+      this.turnRate = 0;
+      this.sprint = false;
+      this.prevAct = [0, 2, 0];
+      this.lastGoalKey = '';
+      this.sampleTemp = 0.0;                  // 0 = greedy argmax; avoids drunken random turns
+      this.aiIntentText = 'IDLE';
+      this.init();
+    }
+
+    init() {
+      this.loadWeights();
+      this.createHUD();
+      window.addEventListener('keydown', (e) => {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+        // B toggles Neural vs Expert; N toggles Crate Hunter vs Brawler
+        if (e.code === 'KeyB' && !e.repeat && !e.ctrlKey && !e.metaKey) this.cycleMode();
+        if (e.code === 'KeyN' && !e.repeat && !e.ctrlKey && !e.metaKey) this.cyclePersona();
+      });
+    }
+
+    acceptModel(doc, source, persona = 'runner') {
+      if (!doc || doc.version !== 2 || !doc.spec || (doc.spec.obs_version !== 1 && doc.spec.obs_version !== 2)) {
+        console.warn(`🤖 AI Copilot: ${persona} model is not a valid egocentric policy (obs_version 1 or 2); using EXPERT mode.`);
+        this.mode = 'expert';
+        this.updateModePill();
+        return;
+      }
+      const pol = new Policy(doc);
+      this.policies[persona] = pol;
+      if (this.persona === persona || !this.policy) {
+        this.policy = pol;
+        this.persona = persona;
+      }
+      const m = doc.meta || {};
+      this.modelInfo = `step ${(m.step || 0).toLocaleString()} • ${persona.toUpperCase()}`;
+      console.log(`🤖 AI Copilot: ${persona.toUpperCase()} neural policy loaded from ${source}`);
+      this.updateModePill();
+    }
+
+    async loadWeights() {
+      // 1. Inlined weights from standalone bundle
+      if (window.AI_MODEL_WEIGHTS_RUNNER) this.acceptModel(window.AI_MODEL_WEIGHTS_RUNNER, 'bundle runner', 'runner');
+      if (window.AI_MODEL_WEIGHTS_FIGHTER) this.acceptModel(window.AI_MODEL_WEIGHTS_FIGHTER, 'bundle fighter', 'fighter');
+      if (window.AI_MODEL_WEIGHTS && !this.policies.runner) this.acceptModel(window.AI_MODEL_WEIGHTS, 'bundle default', 'runner');
+
+      // 2. Fetch external files if available
+      try {
+        const respRunner = await fetch('ai_model_runner.json');
+        if (respRunner.ok) this.acceptModel(await respRunner.json(), 'ai_model_runner.json', 'runner');
+        else {
+          const respDef = await fetch('ai_model.json');
+          if (respDef.ok) this.acceptModel(await respDef.json(), 'ai_model.json', 'runner');
+        }
+      } catch (e) { /* offline / file:// */ }
+
+      try {
+        const respFighter = await fetch('ai_model_fighter.json');
+        if (respFighter.ok) this.acceptModel(await respFighter.json(), 'ai_model_fighter.json', 'fighter');
+      } catch (e) { /* offline / file:// */ }
+
+      if (!this.policy) {
+        console.log('🤖 AI Copilot: no neural model; EXPERT mode only.');
+        this.mode = 'expert';
       } else {
-        this.bannerEl.classList.add('hidden');
-        this.moveDir.set(0, 0, 0);
+        this.mode = 'neural';
+      }
+      if (this.policies.fighter) {
+        this.setPersona('fighter');
+      }
+      this.updateModePill();
+    }
+
+    cycleMode() {
+      if (this.mode === 'expert' && this.policy && grid()) this.mode = 'neural';
+      else this.mode = 'expert';
+      this.resetMemory();
+      this.updateModePill();
+    }
+
+    cyclePersona() {
+      const next = this.persona === 'runner' ? 'fighter' : 'runner';
+      this.setPersona(next);
+    }
+
+    setPersona(persona) {
+      if (this.policies[persona]) {
+        this.persona = persona;
+        this.policy = this.policies[persona];
+        this.resetMemory();
+        this.updateModePill();
+        console.log(`🤖 AI Copilot: switched persona to ${persona.toUpperCase()}`);
+      } else {
+        console.log(`🤖 AI Copilot: persona ${persona} not loaded yet.`);
       }
     }
 
-    // Reset recurrent state on toggle
-    this.h.fill(0);
-    this.c.fill(0);
-    console.log(`🤖 AI Copilot toggled: ${this.isActive ? 'ENABLED' : 'DISABLED'}`);
-  }
+    resetMemory() { if (this.policy) this.policy.reset(); this.prevAct = [0, 2, 0]; }
 
-  update(dt, player, state, city, enemies, traffic, missionState) {
-    if (!this.isActive || !player || state.isDead || state.isPaused) return;
-
-    this.decisionTimer += dt;
-    if (this.decisionTimer >= this.decisionInterval) {
-      this.decisionTimer = 0;
-      this.evaluatePolicy(player, state, city, enemies, traffic, missionState);
+    updateModePill() {
+      const pill = document.getElementById('ai-mode-pill');
+      const personaPill = document.getElementById('ai-persona-pill');
+      if (pill) {
+        if (this.mode === 'neural') {
+          pill.innerHTML = `🧠 NEURAL RL <span style="opacity:0.7">[B]</span>`;
+          pill.style.borderColor = '#10b981'; pill.style.color = '#6ee7b7';
+        } else {
+          pill.innerHTML = '⚡ TACTICAL EXPERT <span style="opacity:0.7">[B]</span>';
+          pill.style.borderColor = '#f59e0b'; pill.style.color = '#fcd34d';
+        }
+      }
+      if (personaPill) {
+        if (this.persona === 'fighter') {
+          personaPill.innerHTML = `🥊 BRAWLER MODE <span style="opacity:0.7">[N]</span>`;
+          personaPill.style.borderColor = '#ef4444'; personaPill.style.color = '#fca5a5';
+        } else {
+          personaPill.innerHTML = `📦 CRATE HUNTER <span style="opacity:0.7">[N]</span>`;
+          personaPill.style.borderColor = '#38bdf8'; personaPill.style.color = '#7dd3fc';
+        }
+      }
+      if (this.personaBtnEl) {
+        if (this.persona === 'fighter') {
+          this.personaBtnEl.innerHTML = `AI: 🥊 BRAWLER <span class="ai-key-hint">[N]</span>`;
+          this.personaBtnEl.style.borderColor = '#ef4444';
+          this.personaBtnEl.style.color = '#fca5a5';
+        } else {
+          this.personaBtnEl.innerHTML = `AI: 📦 CRATE <span class="ai-key-hint">[N]</span>`;
+          this.personaBtnEl.style.borderColor = '#38bdf8';
+          this.personaBtnEl.style.color = '#7dd3fc';
+        }
+      }
     }
 
-    // Smoothly turn player and camera towards AI target heading (shortest angle interpolation)
-    if (this.moveDir.lengthSq() > 0.01) {
-      let diff = this.targetYaw - player.yaw;
-      while (diff < -Math.PI) diff += Math.PI * 2;
-      while (diff > Math.PI) diff -= Math.PI * 2;
-      player.yaw += diff * Math.min(1.0, dt * 10.0);
+    createHUD() {
+      let topBar = document.querySelector('.header-left');
+      if (!topBar) topBar = document.getElementById('top-bar');
+      if (!topBar) topBar = document.body;
+      const btn = document.createElement('button');
+      btn.id = 'ai-watch-btn'; btn.className = 'ai-toggle-btn';
+      btn.innerHTML = '🤖 WATCH AI <span class="ai-key-hint">[V]</span>';
+      btn.title = 'Let the trained AI play (V)';
+      btn.onclick = () => this.toggle();
+      topBar.appendChild(btn); this.btnEl = btn;
+
+      const personaBtn = document.createElement('button');
+      personaBtn.id = 'ai-persona-top-btn'; personaBtn.className = 'ai-toggle-btn';
+      personaBtn.innerHTML = 'AI: 📦 CRATE <span class="ai-key-hint">[N]</span>';
+      personaBtn.title = 'Switch AI Persona: Crate Hunter vs Brawler (N)';
+      personaBtn.onclick = () => this.cyclePersona();
+      topBar.appendChild(personaBtn); this.personaBtnEl = personaBtn;
+
+      const muteBtn = document.createElement('button');
+      muteBtn.id = 'audio-mute-btn'; muteBtn.className = 'ai-toggle-btn';
+      const isMuted = (window.audio && window.audio.isMuted) || (new URLSearchParams(window.location.search).get('muted') === '1');
+      muteBtn.innerHTML = isMuted ? '🔇 MUTED <span class="ai-key-hint">[M]</span>' : '🔊 SOUND <span class="ai-key-hint">[M]</span>';
+      if (isMuted) muteBtn.classList.add('active');
+      muteBtn.onclick = () => { if (window.audio && window.audio.toggleMute) window.audio.toggleMute(); };
+      topBar.appendChild(muteBtn);
+
+      const boardBtn = document.createElement('a');
+      boardBtn.id = 'ai-leaderboard-btn'; boardBtn.className = 'ai-toggle-btn';
+      boardBtn.innerHTML = '📊 RL TRAINING'; boardBtn.href = 'dashboard.html'; boardBtn.target = '_blank';
+      boardBtn.style.textDecoration = 'none';
+      topBar.appendChild(boardBtn);
+
+      const banner = document.createElement('div');
+      banner.id = 'ai-pilot-hud'; banner.className = 'ai-pilot-banner hidden';
+      banner.innerHTML = `
+        <div class="ai-pilot-indicator">
+          <span class="ai-pulse-dot"></span>
+          <span class="ai-title">AI COPILOT ACTIVE</span>
+          <span id="ai-persona-pill" class="ai-mode-pill" style="cursor:pointer;background:rgba(0,0,0,0.5);border:1px solid #38bdf8;color:#7dd3fc;padding:3px 8px;border-radius:4px;margin-left:8px;font-size:11px;font-weight:700;text-transform:uppercase;"></span>
+          <span id="ai-mode-pill" class="ai-mode-pill" style="cursor:pointer;background:rgba(0,0,0,0.5);border:1px solid #10b981;color:#6ee7b7;padding:3px 8px;border-radius:4px;margin-left:8px;font-size:11px;font-weight:700;text-transform:uppercase;"></span>
+          <span class="ai-cancel-prompt">[PRESS V TO TAKE OVER]</span>
+        </div>
+        <div id="ai-intent-status" class="ai-intent-sub">INITIALIZING...</div>`;
+      document.body.appendChild(banner);
+      this.bannerEl = banner;
+      this.intentEl = document.getElementById('ai-intent-status');
+      const pill = document.getElementById('ai-mode-pill');
+      if (pill) pill.onclick = () => this.cycleMode();
+      const pPill = document.getElementById('ai-persona-pill');
+      if (pPill) pPill.onclick = () => this.cyclePersona();
+      this.updateModePill();
+    }
+
+    toggle(forceState) {
+      this.isActive = (forceState !== undefined) ? forceState : !this.isActive;
+      if (this.isActive) {
+        if (window.gameState && (!window.gameState.inGame || window.gameState.isPaused)) {
+          if (window.audio && !window.audio.isMuted && window.audio.init) window.audio.init();
+          if (window.gameState.isDead && window.resetGame) window.resetGame();
+          if (window.resumeGame) window.resumeGame(false);
+        }
+        const overlay = document.getElementById('menu-overlay');
+        if (overlay && !overlay.classList.contains('hidden')) overlay.classList.add('hidden');
+        if (window.gameState) { window.gameState.inGame = true; window.gameState.isPaused = false; window.gameState.freeMouseMode = true; }
+      }
+      if (this.btnEl) {
+        this.btnEl.classList.toggle('active', this.isActive);
+        this.btnEl.innerHTML = this.isActive ? '🤖 AI ACTIVE <span class="ai-key-hint">[V]</span>' : '🤖 WATCH AI <span class="ai-key-hint">[V]</span>';
+      }
+      if (this.bannerEl) this.bannerEl.classList.toggle('hidden', !this.isActive);
+      this.moveDir.set(0, 0, 0); this.moveLocal = [0, 0]; this.turnRate = 0; this.sprint = false;
+      this.resetMemory();
+    }
+
+    // Called every frame from updatePlayer()
+    update(dt, player, state, city, enemies, traffic, missionState) {
+      if (!this.isActive || !player || state.isDead || state.isPaused) { this.sprint = false; return; }
+      if (state.isDead !== this._wasDead) { this._wasDead = state.isDead; this.resetMemory(); }
+
+      this.decisionTimer += dt;
+      if (this.decisionTimer >= this.decisionInterval) {
+        this.decisionTimer = 0;
+        const useNeural = this.mode === 'neural' && this.policy && grid() && player.pos.y < 50;
+        if (useNeural) this.neuralDecision(player, state, city, enemies, missionState);
+        else this.expertDecision(player, state, city, enemies, traffic, missionState);
+      }
+      // spread the chosen turn over the decision interval; keep the move relative to the current heading
+      if (this.turnRate) player.yaw += this.turnRate * dt;
+      const [f, r] = fwdRight(player.yaw);
+      const [a, b] = this.moveLocal;
+      this.moveDir.set(a * f[0] + b * r[0], 0, a * f[1] + b * r[1]);
+
+      // --- AUTONOMOUS MOUSE LOOK & PITCH AIMING ---
+      // Dynamically simulates mouse vertical aiming so punches hit chests and crates instead of swinging high
+      let desiredPitch = -0.05; // slight natural downward gaze (-3 deg) while walking
+      let bestDist = 6.0;
+
+      // 1. Target mission crate or nearby crates if close
+      if (missionState && missionState.active && missionState.state === 'active' && missionState.pos) {
+        const dBox = Math.hypot(missionState.pos.x - player.pos.x, missionState.pos.z - player.pos.z);
+        if (dBox < bestDist) {
+          const dy = (missionState.pos.y !== undefined ? missionState.pos.y + 0.5 : 0.5) - (player.pos.y + 1.7);
+          desiredPitch = Math.atan2(dy, dBox);
+          bestDist = dBox;
+        }
+      }
+      // 2. Target hostile enemies within combat range (aim for torso/chest ~1.1m)
+      if (enemies && enemies.length) {
+        for (const e of enemies) {
+          if (!e || e.isDead || e.isKnockedOut || !e.rig) continue;
+          if (e.isCivilian || e.kind === 'civilian') continue; // only aim at hostiles
+          const p = e.rig.root.position;
+          const de = Math.hypot(p.x - player.pos.x, p.z - player.pos.z);
+          if (de < bestDist) {
+            // Check if roughly in front of player (within 90 deg forward cone)
+            const toEx = (p.x - player.pos.x) / de;
+            const toEz = (p.z - player.pos.z) / de;
+            const dot = toEx * f[0] + toEz * f[1];
+            if (dot > 0.3) {
+              const dy = (p.y + 1.1) - (player.pos.y + 1.7);
+              desiredPitch = Math.atan2(dy, de);
+              bestDist = de;
+            }
+          }
+        }
+      }
+
+      // Clamp desired pitch within natural first-person head-height gaze [-7 deg, +3 deg]
+      // Never force looking down at the sidewalk during close combat
+      desiredPitch = Math.max(-0.12, Math.min(0.04, desiredPitch));
+      if (player.pitch === undefined) player.pitch = 0;
+      player.pitch += (desiredPitch - player.pitch) * Math.min(1.0, 8.0 * dt);
+
       if (typeof camera !== 'undefined' && camera) {
         camera.rotation.order = 'YXZ';
         camera.rotation.y = player.yaw;
+        camera.rotation.x = player.pitch;
       }
+      if (this.intentEl) this.intentEl.innerText = this.aiIntentText;
     }
 
-    // Update HUD intent
-    if (this.intentEl) {
-      this.intentEl.innerText = this.aiIntentText;
+    goalOf(missionState, peace) {
+      if (missionState && missionState.active && missionState.state === 'active' && missionState.pos)
+        return { x: missionState.pos.x, z: missionState.pos.z, mission: true };
+      return { x: peace.x, z: peace.z, mission: false };
     }
-  }
 
-  /**
-   * Constructs the 56-dimensional observation vector and runs forward inference
-   */
-  evaluatePolicy(player, state, city, enemies, traffic, missionState) {
-    const px = player.pos.x;
-    const pz = player.pos.z;
-    const py = player.pos.y;
-    const pYaw = player.yaw;
-
-    // Determine Active Goal
-    let gx = px, gz = pz, goalType = 0; // 0=waypoint, 1=threat, 2=sanctuary
-    let goalDist = 999.0;
-
-    // High Priority 1: Retreat to Peace Sanctuary when HP is critically low (< 35)
-    const nearestSanctuary = this.findNearestSanctuary(px, pz, city);
-    if (state.health < 35 && nearestSanctuary) {
-      gx = nearestSanctuary.x;
-      gz = nearestSanctuary.z;
-      goalType = 2;
-      this.aiIntentText = '🕊️ LOW HP: RETREATING TO PEACE SANCTUARY TO REGENERATE';
-    }
-    // High Priority 2: Engage nearest active hostile threat
-    else {
-      let nearestHostile = null;
-      let minEnemyDist = 999.0;
-      if (enemies && enemies.length > 0) {
-        for (let i = 0; i < enemies.length; i++) {
-          const e = enemies[i];
-          if (e.isDead || e.isKnockedOut || !e.rig) continue;
-          const ed = Math.hypot(e.rig.root.position.x - px, e.rig.root.position.z - pz);
-          if (ed < minEnemyDist) {
-            minEnemyDist = ed;
-            nearestHostile = e;
-          }
-        }
+    collectPeople(enemies, playerY) {
+      const out = [];
+      for (const e of enemies || []) {
+        if (!e || e.isDead || e.isKnockedOut || !e.rig) continue;
+        if (!!e.isDeckEnemy !== (playerY > 50)) continue;
+        const p = e.rig.root.position;
+        out.push({ x: p.x, z: p.z, kind: e.kind, unmasked: !!e.unmasked, hp: e.hp, maxHp: e.maxHp || 1,
+          staggered: !!e.isStaggered, punching: !!e.isPunching, ref: e });
       }
-
-      if (nearestHostile && minEnemyDist < 30.0) {
-        gx = nearestHostile.rig.root.position.x;
-        gz = nearestHostile.rig.root.position.z;
-        goalType = 1;
-        this.aiIntentText = `⚔️ ENGAGING HOSTILE ROBOT (${Math.round(minEnemyDist)}m)`;
-      } else if (missionState && missionState.active && missionState.pos) {
-        gx = missionState.pos.x;
-        gz = missionState.pos.z;
-        goalType = 0;
-        this.aiIntentText = '🎯 NAVIGATING TO ACTIVE MISSION DISTRESS BEACON';
-      } else if (nearestSanctuary) {
-        gx = nearestSanctuary.x;
-        gz = nearestSanctuary.z;
-        goalType = 2;
-        this.aiIntentText = '🏙️ PATROLLING TORONTO SECTOR';
-      }
+      return out;
     }
 
-    goalDist = Math.hypot(gx - px, gz - pz);
-
-    // Mode Dispatch: Pure RL vs Expert Tactical vs Hybrid (RL + Navigation)
-    if (this.mode === 'pure_rl' && this.isModelLoaded && this.modelData && this.modelData.weights) {
-      const obs = this.buildObservation(player, state, city, enemies, traffic, gx, gz, goalType);
-      const action = this.forwardPass(obs);
-      this.executeAction(action, player, state, gx, gz);
-      this.aiIntentText = `🧠 [PURE RL] Move: ${action.move} | Combat: ${action.combat} | Target: ${Math.round(goalDist)}m`;
-    } else if (this.mode === 'expert') {
-      this.executeTacticalHeuristic(player, state, city, enemies, traffic, gx, gz, goalType, goalDist);
-    } else {
-      // Default: Intelligent Hybrid Mode (Neural Policy + Tactical Obstacle Avoidance)
-      let rlActionUsable = false;
-      let neuralAction = null;
-      if (this.isModelLoaded && this.modelData && this.modelData.weights) {
-        const obs = this.buildObservation(player, state, city, enemies, traffic, gx, gz, goalType);
-        const action = this.forwardPass(obs);
-        neuralAction = action;
-        this.executeAction(action, player, state, gx, gz);
-
-        // Check if RL movement direction is walkable and active
-        if (this.moveDir.lengthSq() > 0.01) {
-          const testX = px + this.moveDir.x * 2.0;
-          const testZ = pz + this.moveDir.z * 2.0;
-          if (!city || city.canMoveTo(testX, testZ, 0.6, py)) {
-            rlActionUsable = true;
-          }
-        }
-      }
-
-      // If RL chose Idle while goal is distant, or RL path is blocked by a wall:
-      if (!rlActionUsable && goalDist > 1.2) {
-        this.executeTacticalHeuristic(player, state, city, enemies, traffic, gx, gz, goalType, goalDist);
-        this.aiIntentText = `🧭 [HYBRID NAV] Steered around obstacle toward target (${Math.round(goalDist)}m)`;
-      } else if (rlActionUsable && neuralAction) {
-        this.aiIntentText = `🤖 [HYBRID RL] Neural Move: ${neuralAction.move} | Combat: ${neuralAction.combat} | Target: ${Math.round(goalDist)}m`;
-      }
-    }
-  }
-
-  findNearestSanctuary(px, pz, city) {
-    const sanctuaries = [
-      { x: -286.5, z: 159.4, name: 'CN Tower Peace Sanctuary' },
-      { x: -245.0, z: -240.0, name: 'Pecaut Square' },
-      { x: -203.9, z: 349.5, name: 'Roundhouse Park' },
-      { x: 956.7, z: -534.9, name: 'St. Lawrence Market' },
-      { x: 265.4, z: -128.9, name: 'Union Station' }
-    ];
-    let best = sanctuaries[0];
-    let bestDist = Math.hypot(sanctuaries[0].x - px, sanctuaries[0].z - pz);
-    for (let i = 1; i < sanctuaries.length; i++) {
-      const d = Math.hypot(sanctuaries[i].x - px, sanctuaries[i].z - pz);
-      if (d < bestDist) {
-        bestDist = d;
-        best = sanctuaries[i];
-      }
-    }
-    return best;
-  }
-
-  buildObservation(player, state, city, enemies, traffic, gx, gz, goalType) {
-    const obs = new Float32Array(56);
-    const px = player.pos.x, pz = player.pos.z;
-
-    // Convert Three.js player.yaw (0 = North/-Z) to 2D Cartesian heading (0 = East/+X)
-    // Three.js forward = (-sin(yaw), -cos(yaw))
-    // 2D Cartesian angle = atan2(forwardZ, forwardX)
-    const forwardX = -Math.sin(player.yaw);
-    const forwardZ = -Math.cos(player.yaw);
-    const heading = Math.atan2(forwardZ, forwardX);
-
-    // 1. Ego State (8)
-    obs[0] = px / 1000.0;
-    obs[1] = pz / 1000.0;
-    obs[2] = Math.sin(heading);
-    obs[3] = Math.cos(heading);
-    obs[4] = (player.velocity ? player.velocity.x : 0) / 10.0;
-    obs[5] = (player.velocity ? player.velocity.z : 0) / 10.0;
-    obs[6] = state.health / 100.0;
-    obs[7] = (state.rage || 0) / 100.0;
-
-    // 2. Active Goal (8)
-    const dx = gx - px, dz = gz - pz;
-    const dist = Math.hypot(dx, dz);
-    const relAng = Math.atan2(dz, dx) - heading;
-    obs[8] = Math.max(-1.0, Math.min(1.0, dx / 500.0));
-    obs[9] = Math.max(-1.0, Math.min(1.0, dz / 500.0));
-    obs[10] = Math.tanh(dist / 50.0);
-    obs[11] = Math.sin(relAng);
-    obs[12] = Math.cos(relAng);
-    obs[13] = goalType === 0 ? 1.0 : 0.0;
-    obs[14] = goalType === 1 ? 1.0 : 0.0;
-    obs[15] = goalType === 2 ? 1.0 : 0.0;
-
-    // 3. 16-ray LiDAR distance probes (16)
-    for (let i = 0; i < 16; i++) {
-      const ang = heading + (i / 16.0) * Math.PI * 2.0;
-      let d = 20.0;
-      for (let r = 2.0; r <= 20.0; r += 2.0) {
-        const rx = px + Math.cos(ang) * r;
-        const rz = pz + Math.sin(ang) * r;
-        if (city && !city.canMoveTo(rx, rz, 0.5, player.pos.y)) {
-          d = r;
-          break;
-        }
-      }
-      obs[16 + i] = d / 20.0;
-    }
-
-    // 4. Top 3 Nearest Threats (12)
-    const activeEnemies = [];
-    if (enemies && enemies.length > 0) {
-      for (let i = 0; i < enemies.length; i++) {
-        const e = enemies[i];
-        if (e.isDead || e.isKnockedOut || !e.rig) continue;
-        const ePos = e.rig.root.position;
-        const ed = Math.hypot(ePos.x - px, ePos.z - pz);
-        activeEnemies.push({ x: ePos.x, z: ePos.z, dist: ed, hp: e.health || 100, maxHp: e.maxHealth || 100 });
-      }
-      activeEnemies.sort((a, b) => a.dist - b.dist);
-    }
-    for (let i = 0; i < 3; i++) {
-      const baseIdx = 32 + i * 4;
-      if (i < activeEnemies.length) {
-        const e = activeEnemies[i];
-        obs[baseIdx] = Math.max(-1.0, Math.min(1.0, (e.x - px) / 40.0));
-        obs[baseIdx + 1] = Math.max(-1.0, Math.min(1.0, (e.z - pz) / 40.0));
-        obs[baseIdx + 2] = Math.max(-1.0, Math.min(1.0, e.dist / 40.0));
-        obs[baseIdx + 3] = e.hp / e.maxHp;
-      }
-    }
-
-    // 5. Nearest Innocent / Pedestrian (4)
-    let nearestCiv = null, minCivDist = 999.0;
-    if (traffic && traffic.pedestrians) {
-      for (let i = 0; i < traffic.pedestrians.length; i++) {
-        const p = traffic.pedestrians[i];
-        if (!p || !p.mesh) continue;
-        const pPos = p.mesh.position;
-        const cd = Math.hypot(pPos.x - px, pPos.z - pz);
-        if (cd < minCivDist) {
-          minCivDist = cd;
-          nearestCiv = { x: pPos.x, z: pPos.z, dist: cd, isSnatched: !!p.isSnatched };
-        }
-      }
-    }
-    if (nearestCiv) {
-      obs[44] = Math.max(-1.0, Math.min(1.0, (nearestCiv.x - px) / 40.0));
-      obs[45] = Math.max(-1.0, Math.min(1.0, (nearestCiv.z - pz) / 40.0));
-      obs[46] = Math.max(-1.0, Math.min(1.0, nearestCiv.dist / 40.0));
-      obs[47] = nearestCiv.isSnatched ? 1.0 : 0.0;
-    }
-
-    // 6. Nearest Traffic Hazard (Car) (6)
-    let nearestCar = null, minCarDist = 999.0;
-    if (traffic && traffic.cars) {
-      for (let i = 0; i < traffic.cars.length; i++) {
-        const c = traffic.cars[i];
-        if (!c || !c.mesh) continue;
-        const cPos = c.mesh.position;
-        const cd = Math.hypot(cPos.x - px, cPos.z - pz);
-        if (cd < minCarDist) {
-          minCarDist = cd;
-          nearestCar = { x: cPos.x, z: cPos.z, dist: cd, vx: c.speed || 0, vz: 0 };
-        }
-      }
-    }
-    if (nearestCar) {
-      obs[48] = Math.max(-1.0, Math.min(1.0, (nearestCar.x - px) / 40.0));
-      obs[49] = Math.max(-1.0, Math.min(1.0, (nearestCar.z - pz) / 40.0));
-      obs[50] = Math.max(-1.0, Math.min(1.0, nearestCar.vx / 15.0));
-      obs[51] = Math.max(-1.0, Math.min(1.0, nearestCar.vz / 15.0));
-      obs[52] = Math.max(-1.0, Math.min(1.0, nearestCar.dist / 40.0));
-      obs[53] = 1.0 / (1.0 + nearestCar.dist / 10.0);
-    }
-
-    // 7. Nearest Peace Sanctuary (2)
-    const sanc = this.findNearestSanctuary(px, pz, city);
-    if (sanc) {
-      obs[54] = Math.max(-1.0, Math.min(1.0, (sanc.x - px) / 500.0));
-      obs[55] = Math.max(-1.0, Math.min(1.0, (sanc.z - pz) / 500.0));
-    }
-
-    return obs;
-  }
-
-  /**
-   * Vanilla JS Forward Pass for LSTM(56, 128) + MLP(128 -> 64 -> 64 -> 15)
-   */
-  forwardPass(obs) {
-    const w = this.modelData.weights;
-    const hiddenDim = 128;
-
-    // 1. LSTM Cell step
-    // gates = W_ih * obs + W_hh * h + bias (size: 512 = 4 * 128 for i, f, g, o)
-    const gates = new Float32Array(512);
-    for (let i = 0; i < 512; i++) {
-      let sum = w.lstm_bias[i];
-      const row_ih = w.lstm_w_ih[i];
-      for (let j = 0; j < 56; j++) {
-        sum += row_ih[j] * obs[j];
-      }
-      const row_hh = w.lstm_w_hh[i];
-      for (let j = 0; j < hiddenDim; j++) {
-        sum += row_hh[j] * this.h[j];
-      }
-      gates[i] = sum;
-    }
-
-    // Activation of gates (PyTorch order: input, forget, cell/candidate, output)
-    for (let i = 0; i < hiddenDim; i++) {
-      const inGate = 1.0 / (1.0 + Math.exp(-gates[i]));
-      const forgetGate = 1.0 / (1.0 + Math.exp(-gates[hiddenDim + i]));
-      const cellCandidate = Math.tanh(gates[hiddenDim * 2 + i]);
-      const outGate = 1.0 / (1.0 + Math.exp(-gates[hiddenDim * 3 + i]));
-
-      this.c[i] = forgetGate * this.c[i] + inGate * cellCandidate;
-      this.h[i] = outGate * Math.tanh(this.c[i]);
-    }
-
-    // 2. MLP Policy Layer 0 (128 -> 64) + Tanh
-    const l0 = new Float32Array(64);
-    for (let i = 0; i < 64; i++) {
-      let sum = w.p0_b[i];
-      const row = w.p0_w[i];
-      for (let j = 0; j < hiddenDim; j++) {
-        sum += row[j] * this.h[j];
-      }
-      l0[i] = Math.tanh(sum);
-    }
-
-    // 3. MLP Policy Layer 2 (64 -> 64) + Tanh
-    const l2 = new Float32Array(64);
-    for (let i = 0; i < 64; i++) {
-      let sum = w.p2_b[i];
-      const row = w.p2_w[i];
-      for (let j = 0; j < 64; j++) {
-        sum += row[j] * l0[j];
-      }
-      l2[i] = Math.tanh(sum);
-    }
-
-    // 4. Action Head (64 -> 15 logits)
-    const logits = new Float32Array(15);
-    for (let i = 0; i < 15; i++) {
-      let sum = w.act_b[i];
-      const row = w.act_w[i];
-      for (let j = 0; j < 64; j++) {
-        sum += row[j] * l2[j];
-      }
-      logits[i] = sum;
-    }
-
-    // MultiDiscrete: logits[0..8] for move, logits[9..14] for combat action
-    let bestMove = 0, maxMoveLogit = -1e9;
-    for (let i = 0; i < 9; i++) {
-      if (logits[i] > maxMoveLogit) {
-        maxMoveLogit = logits[i];
-        bestMove = i;
-      }
-    }
-
-    let bestCombat = 0, maxCombatLogit = -1e9;
-    for (let i = 9; i < 15; i++) {
-      if (logits[i] > maxCombatLogit) {
-        maxCombatLogit = logits[i];
-        bestCombat = i - 9;
-      }
-    }
-
-    return { move: bestMove, combat: bestCombat };
-  }
-
-  executeAction(action, player, state, gx, gz) {
-    // Exact move directions matching toronto_env.py MOVE_DIRS:
-    // 0: Idle, 1: N (-Z), 2: NE, 3: E (+X), 4: SE, 5: S (+Z), 6: SW, 7: W (-X), 8: NW
-    const moveVectors = [
-      null,
-      { x: 0.0, z: -1.0 },       // 1: North (-Z)
-      { x: 0.7071, z: -0.7071 }, // 2: NE
-      { x: 1.0, z: 0.0 },        // 3: East (+X)
-      { x: 0.7071, z: 0.7071 },  // 4: SE
-      { x: 0.0, z: 1.0 },        // 5: South (+Z)
-      { x: -0.7071, z: 0.7071 }, // 6: SW
-      { x: -1.0, z: 0.0 },       // 7: West (-X)
-      { x: -0.7071, z: -0.7071 } // 8: NW
-    ];
-
-    if (action.move > 0 && moveVectors[action.move]) {
-      const v = moveVectors[action.move];
-      this.moveDir.set(v.x, 0, v.z);
-      this.targetYaw = Math.atan2(-v.x, -v.z);
-    } else {
-      this.moveDir.set(0, 0, 0);
-    }
-
-    // Combat triggers
-    if (action.combat === 1) {
-      if (window.triggerAttack) window.triggerAttack();
-    } else if (action.combat === 2) {
-      if (window.triggerQuickKick) window.triggerQuickKick();
-    } else if (action.combat === 3) {
-      if (window.executeMeteorSlam) window.executeMeteorSlam();
-    } else if (action.combat === 4) {
-      if (window.triggerDodgeRoll) window.triggerDodgeRoll();
-    }
-  }
-
-  /**
-   * Tactical Heuristic Copilot: Navigates sidewalks, overpasses, evades cars,
-   * strikes hostiles, executes glory kills, and heals at sanctuaries.
-   */
-  executeTacticalHeuristic(player, state, city, enemies, traffic, gx, gz, goalType, goalDist) {
-    const px = player.pos.x, pz = player.pos.z, py = player.pos.y;
-
-    // 1. Vehicle Collision Avoidance (Highest priority)
-    let carHazard = null;
-    if (traffic && traffic.cars) {
-      for (let i = 0; i < traffic.cars.length; i++) {
-        const car = traffic.cars[i];
-        if (!car || !car.mesh) continue;
-        const cPos = car.mesh.position;
-        const d = Math.hypot(cPos.x - px, cPos.z - pz);
-        if (d < 10.0) {
-          carHazard = car;
-          break;
-        }
-      }
-    }
-
-    if (carHazard) {
-      this.aiIntentText = '⚠️ EVADING ONCOMING VEHICLE!';
-      const cPos = carHazard.mesh.position;
-      // Perpendicular escape vector
-      const awayX = px - cPos.x;
-      const awayZ = pz - cPos.z;
-      const len = Math.hypot(awayX, awayZ) || 1.0;
-      this.moveDir.set(awayX / len, 0, awayZ / len);
-      this.targetYaw = Math.atan2(-this.moveDir.x, -this.moveDir.z);
-      return;
-    }
-
-    // 2. Combat Execution when close to hostile
-    let nearestHostile = null;
-    let minEnemyDist = 999.0;
-    if (enemies && enemies.length > 0) {
-      for (let i = 0; i < enemies.length; i++) {
-        const e = enemies[i];
-        if (e.isDead || e.isKnockedOut || !e.rig) continue;
-        const ed = Math.hypot(e.rig.root.position.x - px, e.rig.root.position.z - pz);
-        if (ed < minEnemyDist) {
-          minEnemyDist = ed;
-          nearestHostile = e;
-        }
-      }
-    }
-
-    // Glory Kill stagger check
-    if (state.gloryTarget && window.executeGloryKill) {
-      this.aiIntentText = '💀 EXECUTING GLORY FINISHER!';
-      window.executeGloryKill(state.gloryTarget);
-      return;
-    }
-
-    // Melee attack triggers
-    if (nearestHostile && minEnemyDist <= 3.2 && state.health > 25) {
-      // Rotate to face enemy in Three.js coordinates
-      const ex = nearestHostile.rig.root.position.x;
-      const ez = nearestHostile.rig.root.position.z;
-      this.targetYaw = Math.atan2(-(ex - px), -(ez - pz));
-
-      // Perform meteor slam if surrounded or kick/punch
-      if (minEnemyDist <= 2.2) {
-        if (window.triggerAttack && state.attackTimer <= 0) {
-          window.triggerAttack();
-        }
+    neuralDecision(player, state, city, enemies, missionState) {
+      const G = grid();
+      const peace = (city && city.peaceZone) || G.peace;
+      const goal = this.goalOf(missionState, peace);
+      const gk = `${goal.mission}:${Math.round(goal.x)}:${Math.round(goal.z)}`;
+      if (gk !== this.lastGoalKey) { this.lastGoalKey = gk; this.resetMemory(); }   // new mission = new episode
+      const obs = buildObservation({ G, spec: this.policy.spec, px: player.pos.x, pz: player.pos.z, yaw: player.yaw,
+        st: state, goal, peace, people: this.collectPeople(enemies, player.pos.y), prevAct: this.prevAct });
+      const logits = this.policy.step(obs.patch, obs.vec);
+      const d = this.policy.spec.act_dims;
+      const pick = (lo, hi) => this.sampleTemp > 0 ? sampleSoftmax(logits, lo, hi, this.sampleTemp) : argmax(logits, lo, hi);
+      const mv = pick(0, d[0]), tn = pick(d[0], d[0] + d[1]), at = pick(d[0] + d[1], d[0] + d[1] + d[2]);
+      this.applyAction(mv, tn, at);
+      const dist = Math.hypot(goal.x - player.pos.x, goal.z - player.pos.z);
+      if (this.persona === 'fighter') {
+        this.aiIntentText = `🥊 BRAWLER • ${MOVE_NAMES[mv]}${ATK_NAMES[at]}`;
       } else {
-        if (window.triggerQuickKick && state.attackTimer <= 0) {
-          window.triggerQuickKick();
+        this.aiIntentText = `📦 CRATE HUNTER • ${MOVE_NAMES[mv]}${ATK_NAMES[at]} • ${goal.mission ? 'MISSION' : 'SANCTUARY'} ${Math.round(dist)} m`;
+      }
+      if (this.personaBtnEl) {
+        this.personaBtnEl.innerHTML = this.persona === 'fighter' ? 'AI: 🥊 BRAWLER <span class="ai-key-hint">[N]</span>' : 'AI: 📦 CRATE <span class="ai-key-hint">[N]</span>';
+      }
+    }
+
+    applyAction(mv, tn, at) {
+      const turn = this.policy ? this.policy.spec.turns[tn] : 0;
+      this.turnRate = -turn / this.decisionInterval;         // positive turn = right = yaw decreases
+      this.moveLocal = [[0, 0], [1, 0], [-1, 0], [0, -1], [0, 1], [1, 0]][mv];
+      this.sprint = mv === 5;
+      // Combat footwork downshift: avoid 11.5 m/s sprint overshoot when within 3.0 m of an active enemy
+      if (this.sprint && window.enemies && window.player) {
+        for (const e of window.enemies) {
+          if (!e || e.isDead || e.isKnockedOut || !e.rig) continue;
+          if (e.kind !== 'robot' && !(e.kind === 'snatcher' && e.unmasked)) continue;
+          const pos = e.rig.root.position;
+          const d = Math.hypot(pos.x - window.player.pos.x, pos.z - window.player.pos.z);
+          if (d < 3.0) {
+            this.sprint = false;
+            break;
+          }
         }
       }
+      if (at > 0) {
+        // Strict civilian safeguard: suppress attack if facing an innocent pedestrian
+        let facingCivilian = false;
+        if (window.enemies && window.player) {
+          const [f] = fwdRight(window.player.yaw);
+          for (const e of window.enemies) {
+            if (!e || e.isDead || e.isKnockedOut || !e.rig) continue;
+            if (e.kind !== 'civilian' && !(e.kind === 'snatcher' && !e.unmasked)) continue;
+            const pos = e.rig.root.position;
+            const dx = pos.x - window.player.pos.x, dz = pos.z - window.player.pos.z;
+            const d = Math.hypot(dx, dz);
+            if (d < 3.0) {
+              const dot = (dx * f[0] + dz * f[1]) / d;
+              if (dot > 0.5) { facingCivilian = true; break; }
+            }
+          }
+        }
+        if (!facingCivilian) {
+          if (at === 1 && window.triggerAttack) window.triggerAttack();
+          else if (at === 2 && window.triggerQuickKick) window.triggerQuickKick();
+        }
+      }
+      this.prevAct = [mv, tn, at];
     }
 
-    // 3. Navigation towards Goal with Obstacle Avoidance
-    const directDx = gx - px;
-    const directDz = gz - pz;
-    const dGoal = Math.hypot(directDx, directDz) || 1.0;
-
-    let bestDir = null;
-    let bestScore = -9999.0;
-
-    // Probe 16 candidate headings
-    for (let i = 0; i < 16; i++) {
-      const ang = (i / 16.0) * Math.PI * 2.0;
-      const candX = Math.cos(ang);
-      const candZ = Math.sin(ang);
-
-      // Alignment score with goal
-      const dot = (candX * directDx + candZ * directDz) / dGoal;
-      let score = dot * 2.0;
-
-      // Check walkability 2.5m ahead
-      const testX = px + candX * 2.5;
-      const testZ = pz + candZ * 2.5;
-
-      let walkable = true;
-      if (city && !city.canMoveTo(testX, testZ, 0.6, py)) {
-        walkable = false;
-        score -= 10.0;
+    // ---------------------------------------------------------------- hand-written fallback
+    expertDecision(player, state, city, enemies, traffic, missionState) {
+      const px = player.pos.x, pz = player.pos.z, py = player.pos.y;
+      const peace = (city && city.peaceZone) || (grid() && grid().peace) || { x: 0, z: 0, radius: 1 };
+      this.turnRate = 0; this.sprint = state.health < 40;
+      const setWorldMove = (wx, wz) => {
+        const L = Math.hypot(wx, wz) || 1;
+        player.yaw = Math.atan2(-wx / L, -wz / L);          // face the way we walk
+        this.moveLocal = [1, 0];
+      };
+      // 1. low health -> sanctuary
+      let goal = this.goalOf(missionState, peace);
+      if (state.health < 35) goal = { x: peace.x, z: peace.z, mission: false };
+      // 2. cars (positions are c.vx / c.vz in traffic.js)
+      if (traffic && traffic.cars) {
+        for (const c of traffic.cars) {
+          if (c.vx === undefined) continue;
+          const dx = px - c.vx, dz = pz - c.vz;
+          if (Math.hypot(dx, dz) < 7) { setWorldMove(dx, dz); this.aiIntentText = '⚠️ DODGING TRAFFIC'; return; }
+        }
       }
-
-      if (walkable && score > bestScore) {
-        bestScore = score;
-        bestDir = { x: candX, z: candZ };
+      // 3. fight real threats only (never civilians or still-disguised snatchers)
+      let best = null, bd = 1e9;
+      for (const p of this.collectPeople(enemies, py)) {
+        const threat = p.kind === 'robot' || (p.kind === 'snatcher' && p.unmasked);
+        if (!threat) continue;
+        const d = Math.hypot(p.x - px, p.z - pz);
+        if (d < bd) { bd = d; best = p; }
       }
-    }
-
-    if (bestDir && dGoal > 1.2) {
-      this.moveDir.set(bestDir.x, 0, bestDir.z);
-      this.targetYaw = Math.atan2(-this.moveDir.x, -this.moveDir.z);
-    } else if (dGoal > 1.2) {
-      // Direct vector fallback so hero never gets stuck
-      const directX = directDx / dGoal;
-      const directZ = directDz / dGoal;
-      this.moveDir.set(directX, 0, directZ);
-      this.targetYaw = Math.atan2(-directX, -directZ);
-    } else {
-      this.moveDir.set(0, 0, 0);
+      if (best && bd < 3.0 && state.health > 25) {
+        player.yaw = Math.atan2(-(best.x - px), -(best.z - pz));
+        this.moveLocal = [0, 0];
+        if (best.staggered && window.triggerAttack) window.triggerAttack();          // glory kill
+        else if (bd > 2.6 && window.triggerQuickKick) window.triggerQuickKick();
+        else if (window.triggerAttack) window.triggerAttack();
+        this.aiIntentText = `⚔️ FIGHTING ${best.kind.toUpperCase()} (${Math.round(bd)} m)`;
+        return;
+      }
+      if (best && bd < 18 && state.health > 35 && !goal.mission) goal = { x: best.x, z: best.z, mission: false };
+      // 4. walk toward the goal, probing 16 headings for a free path
+      const gx = goal.x - px, gz = goal.z - pz, gd = Math.hypot(gx, gz) || 1;
+      if (goal.mission && gd < 5.5) {
+        player.yaw = Math.atan2(-gx / gd, -gz / gd); this.moveLocal = [0, 0];
+        if (window.triggerAttack) window.triggerAttack();
+        this.aiIntentText = '📦 SMASHING MISSION CRATE'; return;
+      }
+      let bestDir = null, bs = -1e9;
+      for (let i = 0; i < 16; i++) {
+        const a = i / 16 * Math.PI * 2, cx = Math.cos(a), cz = Math.sin(a);
+        if (city && !city.canMoveTo(px + cx * 2.5, pz + cz * 2.5, 0.6, py)) continue;
+        const s = (cx * gx + cz * gz) / gd;
+        if (s > bs) { bs = s; bestDir = [cx, cz]; }
+      }
+      if (bestDir && gd > 1.2) setWorldMove(bestDir[0], bestDir[1]); else this.moveLocal = [0, 0];
+      this.aiIntentText = goal.mission ? `🎯 TO MISSION (${Math.round(gd)} m)` : `🏙️ PATROLLING (${Math.round(gd)} m)`;
     }
   }
-}
 
-// Global singleton instance
-window.aiCopilot = new AICopilot();
+  window.aiCopilot = new AICopilot();
+  window.__aiTest = { buildObservation, Policy, grid, blocked, decodeTensor };   // used by rl/tests
+})();

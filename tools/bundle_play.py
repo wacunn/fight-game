@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Bundle index.html, styles.css, toronto_map.js, city.js, traffic.js, and game.js
+Bundle index.html, styles.css, toronto_map.js, city.js, traffic.js, multiplayer.js, ai_grid.js,
+ai_copilot.js (+ ai_model.json) and game.js
 into a single standalone play.html file for offline play.
 """
 from pathlib import Path
@@ -33,12 +34,24 @@ def bundle():
     ai_tag = '<script src="ai_copilot.js"></script>'
     game_tag = '<script src="game.js"></script>'
 
-    ai_model_file = BASE_DIR / 'ai_model.json'
-    if ai_model_file.exists():
-        ai_model_json = ai_model_file.read_text(encoding='utf-8')
-        ai_inline = f'<script>\nwindow.AI_MODEL_WEIGHTS = {ai_model_json};\n</script>\n<script>\n{ai_copilot_js}\n</script>'
-    else:
-        ai_inline = f'<script>\n{ai_copilot_js}\n</script>'
+    grid_file = BASE_DIR / 'ai_grid.js'
+    grid_js = grid_file.read_text(encoding='utf-8') if grid_file.exists() else ''
+    out = out.replace('<script src="ai_grid.js"></script>', f'<script>\n{grid_js}\n</script>' if grid_js else '')
+
+    ai_runner_file = BASE_DIR / 'ai_model_runner.json'
+    if not ai_runner_file.exists():
+        ai_runner_file = BASE_DIR / 'ai_model.json'
+    ai_fighter_file = BASE_DIR / 'ai_model_fighter.json'
+
+    scripts = []
+    if ai_runner_file.exists():
+        scripts.append(f'window.AI_MODEL_WEIGHTS_RUNNER = {ai_runner_file.read_text(encoding="utf-8")};')
+        scripts.append('window.AI_MODEL_WEIGHTS = window.AI_MODEL_WEIGHTS_RUNNER;')
+    if ai_fighter_file.exists():
+        scripts.append(f'window.AI_MODEL_WEIGHTS_FIGHTER = {ai_fighter_file.read_text(encoding="utf-8")};')
+
+    inlined_weights = "\n".join(scripts)
+    ai_inline = f'<script>\n{inlined_weights}\n</script>\n<script>\n{ai_copilot_js}\n</script>'
 
     out = out.replace(map_tag, f'<script>\n{toronto_map}\n</script>')
     out = out.replace(city_tag, f'<script>\n{city_js}\n</script>')

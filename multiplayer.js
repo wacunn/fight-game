@@ -6,27 +6,32 @@
 (function () {
   'use strict';
 
-  // Configurable Cloud Server (Render.com free tier or custom)
-  const CLOUD_SERVER_URL = 'wss://toronto-defender.onrender.com';
-  
+  // Local relay server URL default (served by server_multiplayer.py)
+  const LOCAL_DEFAULT_URL = 'ws://localhost:8080/ws';
+
   function getAutoServerUrl() {
-    // 1. Check URL query parameters: e.g. ?server=wss://...
+    // 1. Check URL query parameters: e.g. ?server=ws://...
     const urlParams = new URLSearchParams(window.location.search);
     const queryServer = urlParams.get('server');
     if (queryServer) return queryServer;
 
-    // 2. Check localStorage saved server
-    const savedServer = localStorage.getItem('toronto_mp_server');
+    // 2. Check localStorage saved server (discard broken/dead onrender.com URLs)
+    let savedServer = localStorage.getItem('toronto_mp_server');
+    if (savedServer && savedServer.includes('onrender.com')) {
+      savedServer = null;
+      localStorage.removeItem('toronto_mp_server');
+    }
     if (savedServer) return savedServer;
 
-    // 3. Served by the relay itself (localhost, LAN IP, my-mac.local, Render...): same origin.
-    //    Only static hosts that can't run the relay (GitHub Pages, file://) use the cloud default.
+    // 3. If hosted on a web server with a host (localhost, LAN, domain), use same-origin /ws
     const host = window.location.host;
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    if (window.location.protocol === 'file:' || !host || host.endsWith('github.io')) {
-      return CLOUD_SERVER_URL;
+    if (host && !host.endsWith('github.io')) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${protocol}//${host}/ws`;
     }
-    return `${protocol}//${host}/ws`;
+
+    // 4. Default for file:// or static hosts: connect to local relay server
+    return LOCAL_DEFAULT_URL;
   }
 
   function getAutoRoom() {
@@ -265,6 +270,23 @@
       }
     }
 
+    disconnect() {
+      if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+      this.reconnectAttempts = 0;
+      if (this.ws) {
+        const old = this.ws;
+        old.onopen = old.onmessage = old.onerror = old.onclose = null;
+        try { old.close(); } catch (e) {}
+        this.ws = null;
+      }
+      this.connected = false;
+      this.connecting = false;
+      this.removeAllRemotePlayers();
+      this.setRole('solo');
+      this.updateHUDStatus('offline');
+      if (window.showAnnouncement) window.showAnnouncement('🌐 DISCONNECTED FROM ONLINE LOBBY', 2000);
+    }
+
     connect(overrideUrl) {
       if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
       if (this.ws) {
@@ -287,7 +309,7 @@
         ws = new WebSocket(url);
       } catch (err) {
         console.warn('[Multiplayer] Failed to create WebSocket:', err);
-        this.onConnectionFailed();
+        this.onConnectionFailed(err && err.message);
         return;
       }
       this.ws = ws;
@@ -296,6 +318,7 @@
         this.connected = true;
         this.connecting = false;
         this.reconnectAttempts = 0;
+        this.updateHUDStatus('connected');
       };
       ws.onmessage = (event) => {
         if (this.ws !== ws) return;
@@ -303,7 +326,12 @@
         try { msg = JSON.parse(event.data); } catch (e) { return; }
         try { this.handleMessage(msg); } catch (e) { console.warn('[Multiplayer] handler error', msg && msg.type, e); }
       };
-      ws.onerror = (err) => { if (this.ws === ws) console.warn('[Multiplayer] WebSocket error'); };
+      ws.onerror = (err) => {
+        if (this.ws === ws) {
+          console.warn('[Multiplayer] WebSocket connection error:', err);
+          this.onConnectionFailed('Connection refused or timed out');
+        }
+      };
       ws.onclose = (ev) => {
         if (this.ws !== ws) return;
         console.log(`[Multiplayer] socket closed (code ${ev && ev.code}); will retry`);
@@ -327,10 +355,10 @@
       }, delay);
     }
 
-    onConnectionFailed() {
+    onConnectionFailed(reason) {
       this.connected = false;
       this.connecting = false;
-      this.updateHUDStatus('offline');
+      this.updateHUDStatus('failed', reason);
       this.scheduleReconnect();
     }
 
@@ -689,6 +717,10 @@
       if (connectBtn) {
         connectBtn.addEventListener('click', (e) => {
           e.stopPropagation();
+          if (this.connected) {
+            this.disconnect();
+            return;
+          }
           if (nameInput && nameInput.value) this.setPlayerName(nameInput.value);
           if (roomInput) {
             this.room = (roomInput.value || '6ix').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || '6ix';
@@ -741,9 +773,11 @@
       if (this.connected) this.send({ type: 'join_info', name: this.localName });
     }
 
-    updateHUDStatus(status) {
+    updateHUDStatus(status, detail) {
       const badge = document.getElementById('mp-status-badge');
       const lobbyStatus = document.getElementById('mp-lobby-status');
+      const connectBtn = document.getElementById('mp-connect-btn');
+
       if (status === 'connected') {
         const count = this.remotePlayers.size + 1;
         const roleTxt = this.role === 'guest' ? 'GUEST' : (count > 1 ? 'HOST' : 'SOLO');
@@ -756,12 +790,60 @@
           lobbyStatus.innerText = `ONLINE IN ROOM [${this.room.toUpperCase()}] • ${count} SQUAD • YOU ARE ${roleTxt}`;
           lobbyStatus.style.color = '#34d399';
         }
+        if (connectBtn) {
+          connectBtn.innerText = 'DISCONNECT';
+          connectBtn.disabled = false;
+          connectBtn.style.background = '#10b981';
+          connectBtn.style.color = '#ffffff';
+        }
       } else if (status === 'connecting') {
-        if (badge) { badge.className = 'tag tag-yellow'; badge.innerText = '🌐 CONNECTING...'; badge.title = `Connecting to ${this.serverUrl}`; }
-        if (lobbyStatus) { lobbyStatus.innerText = `CONNECTING TO RELAY (${this.serverUrl})...`; lobbyStatus.style.color = '#fbbf24'; }
+        if (badge) {
+          badge.className = 'tag tag-yellow';
+          badge.innerText = '🌐 CONNECTING...';
+          badge.title = `Connecting to ${this.serverUrl}`;
+        }
+        if (lobbyStatus) {
+          lobbyStatus.innerText = `CONNECTING TO RELAY (${this.serverUrl})...`;
+          lobbyStatus.style.color = '#fbbf24';
+        }
+        if (connectBtn) {
+          connectBtn.innerText = '⏳ CONNECTING...';
+          connectBtn.disabled = true;
+          connectBtn.style.background = '#d97706';
+          connectBtn.style.color = '#ffffff';
+        }
+      } else if (status === 'failed') {
+        if (badge) {
+          badge.className = 'tag tag-red';
+          badge.innerText = '⚠️ CONNECTION FAILED';
+          badge.title = `Failed connecting to ${this.serverUrl}`;
+        }
+        if (lobbyStatus) {
+          lobbyStatus.innerText = detail ? `FAILED: ${detail} (${this.serverUrl})` : `CONNECTION FAILED (${this.serverUrl}). Is server_multiplayer.py running?`;
+          lobbyStatus.style.color = '#ef4444';
+        }
+        if (connectBtn) {
+          connectBtn.innerText = '⚠️ RETRY CONNECT';
+          connectBtn.disabled = false;
+          connectBtn.style.background = '#dc2626';
+          connectBtn.style.color = '#ffffff';
+        }
       } else {
-        if (badge) { badge.className = 'tag tag-dim'; badge.innerText = '🌐 SOLO / OFFLINE'; badge.title = 'Offline. Click to open lobby.'; }
-        if (lobbyStatus) { lobbyStatus.innerText = 'OFFLINE / LOCAL SINGLE-PLAYER'; lobbyStatus.style.color = '#94a3b8'; }
+        if (badge) {
+          badge.className = 'tag tag-dim';
+          badge.innerText = '🌐 SOLO / OFFLINE';
+          badge.title = 'Offline. Click to open lobby.';
+        }
+        if (lobbyStatus) {
+          lobbyStatus.innerText = 'OFFLINE / LOCAL SINGLE-PLAYER';
+          lobbyStatus.style.color = '#94a3b8';
+        }
+        if (connectBtn) {
+          connectBtn.innerText = 'CONNECT / RECONNECT';
+          connectBtn.disabled = false;
+          connectBtn.style.background = '';
+          connectBtn.style.color = '';
+        }
       }
     }
   }

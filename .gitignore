@@ -5,4 +5,6 @@ scratch/
 logs/
 checkpoints/*.zip
 train_status.json
+rl/cache/
 
+rl/checkpoints/

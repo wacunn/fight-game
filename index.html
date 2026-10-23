@@ -20,9 +20,11 @@
   <div id="game-container">
     <!-- Top Bar with Instant Mouse Release & Status -->
     <header id="top-bar">
-      <button id="esc-unlock-btn" class="glow-btn" title="Click or press ESC to release mouse">
-        <span class="icon">🔓</span> <span class="btn-text">ESC: RELEASE MOUSE / PAUSE</span>
-      </button>
+      <div class="header-left">
+        <button id="esc-unlock-btn" class="glow-btn" title="Click or press ESC to release mouse">
+          <span class="icon">🔓</span> <span class="btn-text">ESC: RELEASE MOUSE / PAUSE</span>
+        </button>
+      </div>
       <div id="status-badges">
         <div class="diff-control-group" title="Difficulty level: controls ratio of baddies vs good people (use [ and ] keys)">
           <button id="diff-prev-btn" class="diff-step-btn" type="button" title="Decrease difficulty [ [ key ]">◀</button>
@@ -323,6 +325,8 @@
               <li><kbd>SHIFT</kbd> &mdash; Rush / Sprint</li>
               <li><kbd>SPACE</kbd> + <kbd>ATTACK</kbd> &mdash; <b>💥 METEOR JUMP SLAM</b></li>
               <li><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> &mdash; Switch Attacks</li>
+              <li><kbd>V</kbd> &mdash; <b>🤖 WATCH TRAINED AI (Toggle AI Copilot)</b></li>
+              <li><kbd>N</kbd> &mdash; <b>AI Persona (🥊 Brawler vs 📦 Crate Hunter)</b></li>
               <li><kbd>ESC</kbd> or <kbd>P</kbd> &mdash; <b>Instant Release Mouse / Pause</b></li>
             </ul>
           </div>
@@ -389,7 +393,7 @@
             </div>
             <div class="mp-input-group mp-server-group">
               <label for="mp-server-input">RELAY SERVER (WSS / WS)</label>
-              <input type="text" id="mp-server-input" placeholder="wss://toronto-defender.onrender.com">
+              <input type="text" id="mp-server-input" placeholder="ws://localhost:8080/ws">
             </div>
             <div class="mp-btn-group">
               <button id="mp-mode-btn" class="mp-mode-toggle-btn" type="button" title="Toggle Co-op vs PvP">🤝 SQUAD CO-OP (NO FRIENDLY FIRE)</button>
@@ -418,6 +422,7 @@
   <script src="city.js"></script>
   <script src="traffic.js"></script>
   <script src="multiplayer.js"></script>
+  <script src="ai_grid.js"></script>
   <script src="ai_copilot.js"></script>
   <script src="game.js"></script>
 </body>
