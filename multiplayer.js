@@ -7,6 +7,7 @@
   'use strict';
 
   // Local relay server URL default (served by server_multiplayer.py)
+  // Local relay server URL default (served by server_multiplayer.py)
   const LOCAL_DEFAULT_URL = 'ws://localhost:8080/ws';
 
   function getAutoServerUrl() {
@@ -15,23 +16,32 @@
     const queryServer = urlParams.get('server');
     if (queryServer) return queryServer;
 
-    // 2. Check localStorage saved server (discard broken/dead onrender.com URLs)
+    // 2. Check localStorage saved server (discard broken/dead onrender.com URLs or stale :8000)
     let savedServer = localStorage.getItem('toronto_mp_server');
-    if (savedServer && savedServer.includes('onrender.com')) {
+    if (savedServer && (savedServer.includes('onrender.com') || savedServer.includes(':8000/'))) {
       savedServer = null;
       localStorage.removeItem('toronto_mp_server');
     }
     if (savedServer) return savedServer;
 
-    // 3. If hosted on a web server with a host (localhost, LAN, domain), use same-origin /ws
+    const hostname = window.location.hostname || 'localhost';
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' ||
+                    hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.endsWith('.local');
+
+    // 3. Local machine / LAN Wi-Fi: python3 server_multiplayer.py runs on port 8080
+    if (isLocal) {
+      return `ws://${hostname}:8080/ws`;
+    }
+
+    // 4. If hosted on a custom web server with a host (not github.io), use same-origin /ws
     const host = window.location.host;
     if (host && !host.endsWith('github.io')) {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       return `${protocol}//${host}/ws`;
     }
 
-    // 4. Default for file:// or static hosts: connect to local relay server
-    return LOCAL_DEFAULT_URL;
+    // 5. Default for file:// or static hosts: connect to local relay server
+    return window.location.protocol === 'https:' ? 'wss://localhost:8080/ws' : LOCAL_DEFAULT_URL;
   }
 
   function getAutoRoom() {

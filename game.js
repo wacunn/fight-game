@@ -5768,8 +5768,8 @@ function updatePlayer(dt) {
     return;
   }
 
-  const isSprinting = keys['ShiftLeft'] || keys['ShiftRight'] || state.isBerserk ||
-    (window.aiCopilot && window.aiCopilot.isActive && window.aiCopilot.sprint);
+  const aiActive = window.aiCopilot && window.aiCopilot.isActive;
+  const isSprinting = aiActive ? window.aiCopilot.sprint : (keys['ShiftLeft'] || keys['ShiftRight'] || state.isBerserk);
   const curSpeed = isSprinting ? player.sprintSpeed : player.speed;
 
   // Jump

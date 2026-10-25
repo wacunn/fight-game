@@ -227,12 +227,6 @@
     init() {
       this.loadWeights();
       this.createHUD();
-      window.addEventListener('keydown', (e) => {
-        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
-        // B toggles Neural vs Expert; N toggles Crate Hunter vs Brawler
-        if (e.code === 'KeyB' && !e.repeat && !e.ctrlKey && !e.metaKey) this.cycleMode();
-        if (e.code === 'KeyN' && !e.repeat && !e.ctrlKey && !e.metaKey) this.cyclePersona();
-      });
     }
 
     acceptModel(doc, source, persona = 'runner') {
@@ -290,8 +284,12 @@
     cycleMode() {
       if (this.mode === 'expert' && this.policy && grid()) this.mode = 'neural';
       else this.mode = 'expert';
+      this.lockedTarget = null;
+      this.lastGoalKey = '';
       this.resetMemory();
       this.updateModePill();
+      const label = this.mode === 'neural' ? '🧠 NEURAL RL' : '⚡ TACTICAL EXPERT';
+      if (window.showAnnouncement) window.showAnnouncement(`AI MODE: ${label}`, 2000);
     }
 
     cyclePersona() {
@@ -303,8 +301,12 @@
       if (this.policies[persona]) {
         this.persona = persona;
         this.policy = this.policies[persona];
+        this.lockedTarget = null;
+        this.lastGoalKey = '';
         this.resetMemory();
         this.updateModePill();
+        const label = persona === 'fighter' ? '🥊 BRAWLER MODE' : '📦 CRATE HUNTER';
+        if (window.showAnnouncement) window.showAnnouncement(`AI PERSONA: ${label}`, 2000);
         console.log(`🤖 AI Copilot: switched persona to ${persona.toUpperCase()}`);
       } else {
         console.log(`🤖 AI Copilot: persona ${persona} not loaded yet.`);
@@ -509,16 +511,50 @@
     neuralDecision(player, state, city, enemies, missionState) {
       const G = grid();
       const peace = (city && city.peaceZone) || G.peace;
-      const goal = this.goalOf(missionState, peace);
-      const gk = `${goal.mission}:${Math.round(goal.x)}:${Math.round(goal.z)}`;
-      if (gk !== this.lastGoalKey) { this.lastGoalKey = gk; this.resetMemory(); }   // new mission = new episode
+      const people = this.collectPeople(enemies, player.pos.y);
+      let goal;
+      if (this.persona === 'fighter') {
+        let best = null, bd = 1e9;
+        // Target hysteresis: stick with current hostile target while alive and within range
+        if (this.lockedTarget && this.lockedTarget.ref && !this.lockedTarget.ref.isDead && !this.lockedTarget.ref.isKnockedOut) {
+          const lp = this.lockedTarget.ref.rig ? this.lockedTarget.ref.rig.root.position : null;
+          if (lp) {
+            const d = Math.hypot(lp.x - player.pos.x, lp.z - player.pos.z);
+            if (d < 35.0) {
+              best = { x: lp.x, z: lp.z, kind: this.lockedTarget.kind, ref: this.lockedTarget.ref };
+              bd = d;
+            }
+          }
+        }
+        if (!best) {
+          for (const p of people) {
+            if (p.kind === 'robot' || (p.kind === 'snatcher' && p.unmasked)) {
+              const d = Math.hypot(p.x - player.pos.x, p.z - player.pos.z);
+              if (d < bd) { bd = d; best = p; }
+            }
+          }
+          this.lockedTarget = best;
+        }
+        if (best && bd < 50.0) {
+          goal = { x: best.x, z: best.z, mission: false, targetRef: best.ref };
+        } else {
+          this.lockedTarget = null;
+          goal = this.goalOf(missionState, peace);
+        }
+      } else {
+        this.lockedTarget = null;
+        goal = this.goalOf(missionState, peace);
+      }
+      // Only reset LSTM hidden state on major goal category change (never on continuous target motion!)
+      const gk = goal.mission ? `m:${Math.round(goal.x / 10)}:${Math.round(goal.z / 10)}` : (goal.targetRef ? 'enemy' : 'peace');
+      if (gk !== this.lastGoalKey) { this.lastGoalKey = gk; this.resetMemory(); }
       const obs = buildObservation({ G, spec: this.policy.spec, px: player.pos.x, pz: player.pos.z, yaw: player.yaw,
-        st: state, goal, peace, people: this.collectPeople(enemies, player.pos.y), prevAct: this.prevAct });
+        st: state, goal, peace, people, prevAct: this.prevAct });
       const logits = this.policy.step(obs.patch, obs.vec);
       const d = this.policy.spec.act_dims;
       const pick = (lo, hi) => this.sampleTemp > 0 ? sampleSoftmax(logits, lo, hi, this.sampleTemp) : argmax(logits, lo, hi);
       const mv = pick(0, d[0]), tn = pick(d[0], d[0] + d[1]), at = pick(d[0] + d[1], d[0] + d[1] + d[2]);
-      this.applyAction(mv, tn, at);
+      this.applyAction(mv, tn, at, player, enemies);
       const dist = Math.hypot(goal.x - player.pos.x, goal.z - player.pos.z);
       if (this.persona === 'fighter') {
         this.aiIntentText = `🥊 BRAWLER • ${MOVE_NAMES[mv]}${ATK_NAMES[at]}`;
@@ -530,18 +566,18 @@
       }
     }
 
-    applyAction(mv, tn, at) {
+    applyAction(mv, tn, at, player, enemies) {
       const turn = this.policy ? this.policy.spec.turns[tn] : 0;
       this.turnRate = -turn / this.decisionInterval;         // positive turn = right = yaw decreases
       this.moveLocal = [[0, 0], [1, 0], [-1, 0], [0, -1], [0, 1], [1, 0]][mv];
       this.sprint = mv === 5;
       // Combat footwork downshift: avoid 11.5 m/s sprint overshoot when within 3.0 m of an active enemy
-      if (this.sprint && window.enemies && window.player) {
-        for (const e of window.enemies) {
+      if (this.sprint && enemies && player) {
+        for (const e of enemies) {
           if (!e || e.isDead || e.isKnockedOut || !e.rig) continue;
           if (e.kind !== 'robot' && !(e.kind === 'snatcher' && e.unmasked)) continue;
           const pos = e.rig.root.position;
-          const d = Math.hypot(pos.x - window.player.pos.x, pos.z - window.player.pos.z);
+          const d = Math.hypot(pos.x - player.pos.x, pos.z - player.pos.z);
           if (d < 3.0) {
             this.sprint = false;
             break;
@@ -551,13 +587,13 @@
       if (at > 0) {
         // Strict civilian safeguard: suppress attack if facing an innocent pedestrian
         let facingCivilian = false;
-        if (window.enemies && window.player) {
-          const [f] = fwdRight(window.player.yaw);
-          for (const e of window.enemies) {
+        if (enemies && player) {
+          const [f] = fwdRight(player.yaw);
+          for (const e of enemies) {
             if (!e || e.isDead || e.isKnockedOut || !e.rig) continue;
             if (e.kind !== 'civilian' && !(e.kind === 'snatcher' && !e.unmasked)) continue;
             const pos = e.rig.root.position;
-            const dx = pos.x - window.player.pos.x, dz = pos.z - window.player.pos.z;
+            const dx = pos.x - player.pos.x, dz = pos.z - player.pos.z;
             const d = Math.hypot(dx, dz);
             if (d < 3.0) {
               const dot = (dx * f[0] + dz * f[1]) / d;

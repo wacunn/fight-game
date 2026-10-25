@@ -66,7 +66,7 @@ def parse():
 
 def build_fns(world, cfg):
     N, T = cfg.envs, cfg.rollout
-    vreset = jax.vmap(lambda k, cur: E.reset(world, k, cur), in_axes=(0, None))
+    vreset = jax.vmap(lambda k, cur: E.reset(world, k, cur, fighter=True), in_axes=(0, None))
     # Step with is_fighter=True
     vstep = jax.vmap(lambda s, a, k, cur: E.step(world, s, a, k, cur, cfg.gamma, is_fighter=True), in_axes=(0, 0, 0, None))
     vobs = jax.vmap(lambda s: E.observe(world, s))

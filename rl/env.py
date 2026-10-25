@@ -105,7 +105,7 @@ class Curriculum(NamedTuple):
     lo: jnp.ndarray         # geodesic start-goal band (m)
     hi: jnp.ndarray
     p_uniform: jnp.ndarray  # fraction of episodes with distance uniform in [10, hi]
-    stage: jnp.ndarray      # fighter curriculum stage 0..3 (ignored by the runner)
+    stage: jnp.ndarray = jnp.int32(0)      # fighter curriculum stage 0..3 (ignored by the runner)
 
 
 # ----------------------------------------------------------------------------- geometry helpers
