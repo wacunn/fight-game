@@ -37,7 +37,12 @@ TURNS = jnp.array([-0.5, -0.15, 0.0, 0.15, 0.5])  # rad per decision, positive =
 N_MOVE, N_TURN, N_ATK = 6, 5, 3                   # move: none,fwd,back,left,right,sprint-fwd ; atk: none,primary,kick
 ACT_DIMS = (N_MOVE, N_TURN, N_ATK)
 NPC_FEATS = 13                 # per observed NPC (obs_version 2: +fine distance, +jab-reach, +kick-reach)
-VEC_DIM = 33 + K_OBS * NPC_FEATS   # 111
+WHISKER_N = 8
+WHISKER_RANGE = 8.0
+WHISKER_ANGLES = jnp.array([-jnp.pi/2, -jnp.pi/4, -0.35, 0.0, 0.35, jnp.pi/4, jnp.pi/2, jnp.pi])
+WHISKER_STEPS = jnp.linspace(0.8, 8.0, 10)
+# VEC_DIM: 8 proprio + 2 goal_mode + 4 crate + 3 peace + 4 diff + 14 prev_act + 8 whiskers + 6*13 npcs = 121
+VEC_DIM = 43 + K_OBS * NPC_FEATS   # 121
 PRIV_DIM = 6
 FACING_COS = 0.50              # melee cone: horizontal facing +-60 deg (cos > 0.50)
 
@@ -99,6 +104,7 @@ class State(NamedTuple):
     npc: NPC
     ep_ret: jnp.ndarray; kills: jnp.ndarray; civ_hits: jnp.ndarray; dmg_taken: jnp.ndarray
     ktar: jnp.ndarray              # fighter: hostile KOs needed to win this episode (1..4); runner: 0
+    is_fighter: jnp.ndarray        # bool: True for street brawler, False for crate runner
 
 
 class Curriculum(NamedTuple):
@@ -164,6 +170,19 @@ def ego_samples(pos, yaw, n, cell, row0):
 def patch_obs(world, pos, yaw):
     X, Z = ego_samples(pos, yaw, PATCH, PATCH_CELL, PATCH_ROW0)
     return blocked(world, X, Z).astype(jnp.float32)
+
+
+def whisker_obs(world, pos, yaw):
+    """8-beam egocentric rangefinder array detecting building walls, lamp posts, fences, and trench boundaries."""
+    f, r = fwd_right(yaw)
+    ca, sa = jnp.cos(WHISKER_ANGLES), jnp.sin(WHISKER_ANGLES)
+    dx = ca[:, None] * f[0] + sa[:, None] * r[0]
+    dz = ca[:, None] * f[1] + sa[:, None] * r[1]
+    px = pos[0] + dx * WHISKER_STEPS
+    pz = pos[1] + dz * WHISKER_STEPS
+    b = blocked(world, px, pz)
+    d = jnp.where(b, WHISKER_STEPS, WHISKER_RANGE)
+    return jnp.min(d, axis=-1) / WHISKER_RANGE
 
 
 def map_target(world, pos, yaw):
@@ -330,7 +349,7 @@ def reset(world, key, cur: Curriculum, fighter: bool = False):
                rage=jax.random.uniform(jax.random.fold_in(ks[5], 7), maxval=70.0), berserk_t=z0, atk_cd=z0, score=z0, diff=diff,
                goal=g, goal_xy=jnp.stack([gx, gz]), geo0=geo0, phi=phi0,
                prev_act=jnp.zeros(3, jnp.int32), npc=npc, ep_ret=z0, kills=z0, civ_hits=z0, dmg_taken=z0,
-               ktar=jnp.float32(ktar))
+               ktar=jnp.float32(ktar), is_fighter=jnp.bool_(fighter))
     return st
 
 
@@ -339,16 +358,27 @@ def observe(world, st: State):
     p, yaw, n = st.pos, st.yaw, st.npc
     patch = patch_obs(world, p, yaw)
     v = []
+    # 0..7: Proprioception (8)
     v += [st.health / 100.0, st.armor / 50.0, st.rage / 100.0, (st.berserk_t > 0).astype(jnp.float32),
           st.berserk_t / 16.0, st.atk_cd / KICK["cooldown"], in_peace(world, p[0], p[1]).astype(jnp.float32), 1.0]
+    # 8..9: Goal mode one-hot (2): [m_crate, m_fight]
+    is_f = st.is_fighter.astype(jnp.float32)
+    v += [1.0 - is_f, is_f]
+    # 10..13: Crate goal (4)
     s, c, d = range_bearing(p, yaw, st.goal_xy[0], st.goal_xy[1])
     v += [s, c, jnp.log1p(d) / 7.5, jnp.minimum(d, 10.0) / 10.0]
+    # 14..16: Peace sanctuary (3)
     s, c, d = range_bearing(p, yaw, world.peace[0], world.peace[1])
     v += [s, c, jnp.log1p(d) / 7.5]
+    # 17..20: Difficulty (4)
     v += list(jax.nn.one_hot(st.diff, 4))
+    # 21..34: Previous action (14)
     v += list(jnp.concatenate([jax.nn.one_hot(st.prev_act[0], N_MOVE), jax.nn.one_hot(st.prev_act[1], N_TURN),
                                jax.nn.one_hot(st.prev_act[2], N_ATK)]))
-    # nearest NPCs (alive, within 40 m), sorted by distance
+    # 35..42: 8 Whisker rangefinders (8)
+    whiskers = whisker_obs(world, p, yaw)
+    v += list(whiskers)
+    # 43..120: nearest NPCs (alive, within 40 m), sorted by distance (78)
     f, r = fwd_right(yaw)
     dx, dz = n.x - p[0], n.z - p[1]
     ahead, right = dx * f[0] + dz * f[1], dx * r[0] + dz * r[1]
@@ -545,29 +575,37 @@ def step(world, st: State, action, key, cur: Curriculum, gamma: float, is_fighte
     dead = health <= 0
     bad_kos = jnp.sum(rob_ko | sna_ko)
     bad_hits = jnp.sum(hurt & ((n.kind == 1) | (n.kind == 2)))
-    wall_pen = jnp.where(hit_wall, 0.05, 0.0)                  # global: grinding into buildings costs a little
-    if not is_fighter:
-        # CRATE RUNNER. Progress shaping: F = Phi(s') - Phi(s), Phi = -geodesic/10. Summed over an episode this
-        # is exactly 0.1 x (geodesic progress), whatever gamma is and however the episode ends. (The
-        # gamma*Phi(s') - Phi(s) form with a negative Phi pays (1-gamma)|Phi| per step for merely being far
-        # away, which an earlier run exploited on >1 km routes once the mission bonus was discounted to nothing.)
-        gd = geo_dist(world, st.goal, px, pz)
-        phi = -gd / 10.0
-        success = mission
-        timeout = (t >= st.max_t) & ~success & ~dead
-        heal_r = jnp.where(peace & (health < 85.0), 0.25, 0.0)
-        game_r = (score - st.score) / 250.0 - 0.02 * jnp.maximum(0.0, h0 - health) \
-            - 0.01 * jnp.maximum(0.0, a0 - armor) - 5.0 * dead - 2.0 * timeout + 50.0 * success \
-            + heal_r + 4.0 * bad_kos - 10.0 * civ_hit_n - 25.0 * civ_ko_n - wall_pen
-    else:
-        # STREET BRAWLER. No crate objective at all. Win = reach this episode's KO target (curriculum stage).
-        phi = fighter_phi(world, pos, health, npc)
-        success = (st.kills + bad_kos) >= st.ktar
-        timeout = (t >= st.max_t) & ~success & ~dead
-        heal_r = jnp.where(peace & (health < 80.0), 0.3, 0.0)
-        game_r = 20.0 * bad_kos + 10.0 * jnp.sum(glory_k) + 3.0 * bad_hits \
-            - 25.0 * civ_hit_n - 50.0 * civ_ko_n - 15.0 * dead - 0.03 * jnp.maximum(0.0, h0 - health) \
-            + heal_r + 10.0 * success - wall_pen
+    # ---- barrier collisions and whisker proximity punishments
+    wall_pen = jnp.where(hit_wall, 0.30, 0.0)
+    w_rays = whisker_obs(world, pos, yaw)
+    front_whisker = w_rays[3]  # 0 rad dead ahead
+    prox_pen = jnp.where((mv == 1) | (mv == 5), jnp.maximum(0.0, 0.20 - front_whisker) * 1.5, 0.0)
+    barrier_cost = wall_pen + prox_pen
+
+    # CRATE RUNNER rewards & potential
+    gd = geo_dist(world, st.goal, px, pz)
+    phi_r = -gd / 10.0
+    succ_r = mission
+    to_r = (t >= st.max_t) & ~succ_r & ~dead
+    heal_r = jnp.where(peace & (health < 85.0), 0.25, 0.0)
+    game_r_r = (score - st.score) / 250.0 - 0.02 * jnp.maximum(0.0, h0 - health) \
+        - 0.01 * jnp.maximum(0.0, a0 - armor) - 5.0 * dead - 2.0 * to_r + 50.0 * succ_r \
+        + heal_r + 4.0 * bad_kos - 10.0 * civ_hit_n - 25.0 * civ_ko_n - barrier_cost
+
+    # STREET BRAWLER rewards & potential
+    phi_f = fighter_phi(world, pos, health, npc)
+    succ_f = (st.kills + bad_kos) >= st.ktar
+    to_f = (t >= st.max_t) & ~succ_f & ~dead
+    heal_f = jnp.where(peace & (health < 80.0), 0.3, 0.0)
+    game_r_f = 20.0 * bad_kos + 10.0 * jnp.sum(glory_k) + 3.0 * bad_hits \
+        - 25.0 * civ_hit_n - 50.0 * civ_ko_n - 15.0 * dead - 0.03 * jnp.maximum(0.0, h0 - health) \
+        + heal_f + 10.0 * succ_f - barrier_cost
+
+    is_f = st.is_fighter
+    phi = jnp.where(is_f, phi_f, phi_r)
+    success = jnp.where(is_f, succ_f, succ_r)
+    timeout = jnp.where(is_f, to_f, to_r)
+    game_r = jnp.where(is_f, game_r_f, game_r_r)
     shaping = phi - st.phi
     reward = game_r + shaping
     done = success | dead | timeout
@@ -575,7 +613,8 @@ def step(world, st: State, action, key, cur: Curriculum, gamma: float, is_fighte
     nst = st._replace(t=t, pos=pos, yaw=yaw, pos0=st.pos0, health=health, armor=armor, rage=rage, berserk_t=berserk_t,
                       atk_cd=atk_cd, score=score, phi=phi, prev_act=action.astype(jnp.int32), npc=npc,
                       ep_ret=st.ep_ret + game_r, kills=st.kills + bad_kos,
-                      civ_hits=st.civ_hits + civ_hit_n + civ_ko_n, dmg_taken=st.dmg_taken + dmg_in)
+                      civ_hits=st.civ_hits + civ_hit_n + civ_ko_n, dmg_taken=st.dmg_taken + dmg_in,
+                      is_fighter=st.is_fighter)
     info = dict(done=done, success=success, dead=dead, timeout=timeout, geo0=st.geo0, ep_ret=nst.ep_ret, score=score,
                 ep_len=t, kills=nst.kills, civ_hits=nst.civ_hits, dmg_taken=nst.dmg_taken, diff=st.diff,
                 start_x=st.pos0[0], start_z=st.pos0[1], ktar=st.ktar)

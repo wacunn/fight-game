@@ -137,8 +137,62 @@
     return [Math.sin(ang), Math.cos(ang), Math.hypot(a, b)];
   }
 
+  const WHISKER_ANGLES = [-Math.PI / 2, -Math.PI / 4, -0.35, 0.0, 0.35, Math.PI / 4, Math.PI / 2, Math.PI];
+  const WHISKER_RANGE = 8.0;
+
+  function computeWhiskers(G, px, pz, yaw, traffic) {
+    const [f, r] = fwdRight(yaw);
+    const out = new Float32Array(8);
+    const steps = [0.8, 1.6, 2.4, 3.2, 4.0, 4.8, 5.6, 6.4, 7.2, 8.0];
+    const cars = (traffic && traffic.cars) || [];
+    const streetcars = (traffic && traffic.streetcars) || [];
+
+    for (let k = 0; k < 8; k++) {
+      const a = WHISKER_ANGLES[k];
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const dx = ca * f[0] + sa * r[0], dz = ca * f[1] + sa * r[1];
+      let dMin = WHISKER_RANGE;
+
+      // 1. Static barriers from city grid (building walls, lamp posts, fences, trench cuts)
+      for (let s = 0; s < steps.length; s++) {
+        const dist = steps[s];
+        if (blocked(G, px + dx * dist, pz + dz * dist)) {
+          dMin = dist;
+          break;
+        }
+      }
+
+      // 2. Dynamic cars
+      for (let c = 0; c < cars.length; c++) {
+        const car = cars[c];
+        if (car.vx === undefined) continue;
+        const cx = car.vx - px, cz = car.vz - pz;
+        const proj = cx * dx + cz * dz;
+        if (proj > 0.4 && proj < dMin) {
+          const perp = Math.hypot(cx - proj * dx, cz - proj * dz);
+          if (perp < 1.6) dMin = Math.min(dMin, Math.max(0.4, proj - 1.2));
+        }
+      }
+
+      // 3. Dynamic streetcars / trains
+      for (let sc = 0; sc < streetcars.length; sc++) {
+        const train = streetcars[sc];
+        if (train.mode === 'hidden' || train.vx === undefined) continue;
+        const tx = train.vx - px, tz = train.vz - pz;
+        const proj = tx * dx + tz * dz;
+        if (proj > 0.5 && proj < dMin) {
+          const perp = Math.hypot(tx - proj * dx, tz - proj * dz);
+          if (perp < 2.2) dMin = Math.min(dMin, Math.max(0.5, proj - 2.0));
+        }
+      }
+
+      out[k] = dMin / WHISKER_RANGE;
+    }
+    return out;
+  }
+
   function buildObservation(ctx) {
-    const { G, spec, px, pz, yaw, st, goal, peace, people, prevAct } = ctx;
+    const { G, spec, px, pz, yaw, st, goal, peace, people, prevAct, isFighter, traffic } = ctx;
     const P = spec.patch, cell = spec.patch_cell, row0 = spec.patch_row0;
     const [f, r] = fwdRight(yaw);
     const patch = new Float32Array(P * P);
@@ -151,8 +205,16 @@
     }
     const v = [];
     const inPeace = (px - peace.x) ** 2 + (pz - peace.z) ** 2 <= peace.radius ** 2;
+    // 0..7: Proprioception (8)
     v.push(st.health / 100, st.armor / 50, st.rage / 100, st.isBerserk ? 1 : 0, Math.max(0, st.berserkTimer || 0) / 16,
       Math.max(0, st.attackTimer || 0) / spec.kick_cooldown, inPeace ? 1 : 0, 1);
+
+    const isV3 = spec.obs_version >= 3 || spec.vec_dim === 121;
+    if (isV3) {
+      // 8..9: Goal mode one-hot: [m_crate, m_fight] (2)
+      v.push(isFighter ? 0 : 1, isFighter ? 1 : 0);
+    }
+
     let [s, c, d] = rangeBearing(px, pz, yaw, goal.x, goal.z);
     v.push(s, c, Math.log1p(d) / 7.5, Math.min(d, 10) / 10);
     [s, c, d] = rangeBearing(px, pz, yaw, peace.x, peace.z);
@@ -161,6 +223,12 @@
     for (let k = 0; k < 4; k++) v.push(k === di ? 1 : 0);
     const dims = spec.act_dims;
     for (let a = 0; a < 3; a++) for (let k = 0; k < dims[a]; k++) v.push(prevAct[a] === k ? 1 : 0);
+
+    if (isV3) {
+      // 35..42: 8-beam whisker rangefinders (8)
+      const wRays = computeWhiskers(G, px, pz, yaw, traffic);
+      for (let k = 0; k < 8; k++) v.push(wRays[k]);
+    }
     // nearest people within 40 m
     const R = spec.npc_range, cand = [];
     for (const p of people) {
@@ -439,7 +507,7 @@
       if (this.decisionTimer >= this.decisionInterval) {
         this.decisionTimer = 0;
         const useNeural = this.mode === 'neural' && this.policy && grid() && player.pos.y < 50;
-        if (useNeural) this.neuralDecision(player, state, city, enemies, missionState);
+        if (useNeural) this.neuralDecision(player, state, city, enemies, traffic, missionState);
         else this.expertDecision(player, state, city, enemies, traffic, missionState);
       }
       // spread the chosen turn over the decision interval; keep the move relative to the current heading
@@ -515,7 +583,7 @@
       return out;
     }
 
-    neuralDecision(player, state, city, enemies, missionState) {
+    neuralDecision(player, state, city, enemies, traffic, missionState) {
       const G = grid();
       const peace = (city && city.peaceZone) || G.peace;
       const people = this.collectPeople(enemies, player.pos.y);
@@ -570,10 +638,11 @@
       const gk = goal.mission ? `m:${Math.round(goal.x / 10)}:${Math.round(goal.z / 10)}` : (goal.targetRef ? 'enemy' : 'peace');
       if (gk !== this.lastGoalKey) { this.lastGoalKey = gk; this.resetMemory(); }
       const obs = buildObservation({ G, spec: this.policy.spec, px: player.pos.x, pz: player.pos.z, yaw: player.yaw,
-        st: state, goal, peace, people, prevAct: this.prevAct });
+        st: state, goal, peace, people, prevAct: this.prevAct, isFighter: (this.persona === 'fighter'), traffic });
       const logits = this.policy.step(obs.patch, obs.vec);
       const d = this.policy.spec.act_dims;
       const pick = (lo, hi) => this.sampleTemp > 0 ? sampleSoftmax(logits, lo, hi, this.sampleTemp) : argmax(logits, lo, hi);
+      const mv = pick(0, d[0]), tn = pick(d[0], d[0] + d[1]), at = pick(d[0] + d[1], d[0] + d[1] + d[2]);
       this.applyAction(mv, tn, at);
       const dist = Math.hypot(goal.x - player.pos.x, goal.z - player.pos.z);
       if (this.persona === 'fighter') {

@@ -1,9 +1,9 @@
-# Observation / action spec (obs_version 2)
+# Observation / action spec (obs_version 3)
 
 This is the contract between `rl/env.py` (`observe`) and `ai_copilot.js` (`buildObservation`).
 Both sides produce identical patches, vectors within float rounding, and identical logits.
-obs_version 2 adds 3 fine-grained combat features per NPC (fine distance, jab reach, kick reach).
-`ai_copilot.js` backwards-compatibly supports both obs_version 1 (93 floats) and obs_version 2 (111 floats).
+- obs_version 3 adds 2-dim goal mode conditioning (`[m_crate, m_fight]`) and 8-beam egocentric whisker rangefinders detecting building walls, lamp posts, fences, railway trench boundaries, and moving traffic.
+- `ai_copilot.js` backwards-compatibly supports obs_version 1 (93 floats), obs_version 2 (111 floats), and obs_version 3 (121 floats).
 
 ## Frames
 
@@ -24,16 +24,18 @@ The patch reads `ai_grid.js`: 1 m occupancy rasterized from `city.canMoveTo(x, z
 - `right = (j − 7.5)·2 m`: ±15 m.
 - The sample point is floored to the 1 m grid.
 
-## Vector (111 floats in v2, 93 floats in v1)
+## Vector (121 floats in v3, 111 floats in v2, 93 floats in v1)
 
 | idx | feature |
 |---|---|
 | 0–7 | health/100, armor/50, rage/100, berserk (0/1), berserk_time/16, attack_cooldown/0.55, in_sanctuary (0/1), 1 |
-| 8–11 | goal (mission crate): sin θ, cos θ, log1p(d)/7.5, min(d,10)/10 — θ = atan2(right, ahead), 0 = dead ahead |
-| 12–14 | peace sanctuary centre: sin θ, cos θ, log1p(d)/7.5 |
-| 15–18 | difficulty one-hot (easy, medium, hard, impossible) |
-| 19–32 | previous action one-hot: move (6), turn (5), attack (3) |
-| 33–110 | 6 nearest living people within 40 m, nearest first, 13 features each: present, ahead/40, right/40, dist/40, looks_civilian, robot, unmasked_snatcher, hp/maxHp, staggered, punching, min(dist, 6.0)/6.0, facing & in_jab_reach (<=3.5m), facing & in_kick_reach (<=4.2m). Empty slots are all zeros. |
+| 8–9 | **goal mode one-hot**: `[m_crate, m_fight]` (e.g. `[1, 0]` for Crate Runner, `[0, 1]` for Street Brawler) |
+| 10–13 | goal (mission crate): sin θ, cos θ, log1p(d)/7.5, min(d,10)/10 — θ = atan2(right, ahead), 0 = dead ahead |
+| 14–16 | peace sanctuary centre: sin θ, cos θ, log1p(d)/7.5 |
+| 17–20 | difficulty one-hot (easy, medium, hard, impossible) |
+| 21–34 | previous action one-hot: move (6), turn (5), attack (3) |
+| 35–42 | **8-beam whisker rangefinders**: normalized distance in `[0, 1]` to nearest barrier (building wall, lamp post, railway fence, car, train) at angles `[-90°, -45°, -20°, 0°, +20°, +45°, +90°, 180°]` up to 8.0 m |
+| 43–120 | 6 nearest living people within 40 m, nearest first, 13 features each: present, ahead/40, right/40, dist/40, looks_civilian, robot, unmasked_snatcher, hp/maxHp, staggered, punching, min(dist, 6.0)/6.0, facing & in_jab_reach (<=3.5m), facing & in_kick_reach (<=4.2m). Empty slots are all zeros. |
 
 A disguised snatcher has `looks_civilian = 1` until it is unmasked: by proximity (10 m), or by being hit.
 

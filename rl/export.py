@@ -17,8 +17,9 @@ sys.path.insert(0, HERE)
 import env as E  # noqa: E402
 
 SPEC = dict(
-    obs_version=2, dt=E.DT, patch=E.PATCH, patch_cell=E.PATCH_CELL, patch_row0=E.PATCH_ROW0,
+    obs_version=3, dt=E.DT, patch=E.PATCH, patch_cell=E.PATCH_CELL, patch_row0=E.PATCH_ROW0,
     vec_dim=E.VEC_DIM, k_obs=E.K_OBS, npc_feats=E.NPC_FEATS, npc_range=E.NPC_RANGE,
+    whiskers=E.WHISKER_N, whisker_range=E.WHISKER_RANGE,
     jab_range=float(E.JAB["range"]), kick_range=float(E.KICK["range"]),
     act_dims=list(E.ACT_DIMS), turns=[float(t) for t in np.asarray(E.TURNS)],
     kick_cooldown=float(E.KICK["cooldown"]), hidden=256,
