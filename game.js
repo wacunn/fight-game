@@ -1018,8 +1018,8 @@ const state = {
 const container = document.getElementById('game-container');
 const scene = new THREE.Scene();
 
-// Far clip increased to 2500m to render CN Tower (553m) and downtown skyline
-const camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.1, 2500);
+// Far clip increased to 2500m to render CN Tower (553m) and downtown skyline; near clip 0.05m prevents wall geometry clipping
+const camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.05, 2500);
 camera.position.set(0, 1.7, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -4481,6 +4481,9 @@ function checkMeleeHits(atk) {
     if (crate.destroyed) return;
     const dist = crate.mesh.position.distanceTo(camera.position);
     if (dist <= atk.range) {
+      if (city && player.pos.y < 50 && !city.hasLineOfSight(camera.position.x, camera.position.z, crate.mesh.position.x, crate.mesh.position.z)) {
+        return; // Building wall blocks melee strike
+      }
       const dirToCrate = crate.mesh.position.clone().sub(camera.position).normalize();
       const forward = new THREE.Vector3();
       camera.getWorldDirection(forward);
@@ -4503,6 +4506,9 @@ function checkMeleeHits(atk) {
     const pos = enemy.rig ? enemy.rig.root.position : enemy.sprite.position;
     const dist = pos.distanceTo(camera.position);
     if (dist <= atk.range) {
+      if (city && player.pos.y < 50 && !city.hasLineOfSight(camera.position.x, camera.position.z, pos.x, pos.z)) {
+        return; // Building wall blocks melee strike
+      }
       const dirToEnemy = pos.clone().sub(camera.position).normalize();
       const forward = new THREE.Vector3();
       camera.getWorldDirection(forward);
@@ -5787,8 +5793,13 @@ function updatePlayer(dt) {
   const nextX = player.pos.x + player.velocity.x * dt;
   const nextZ = player.pos.z + player.velocity.z * dt;
 
-  if (canMoveTo(nextX, player.pos.z)) player.pos.x = nextX;
-  if (canMoveTo(player.pos.x, nextZ)) player.pos.z = nextZ;
+  if (canMoveTo(nextX, nextZ)) {
+    player.pos.x = nextX;
+    player.pos.z = nextZ;
+  } else {
+    if (canMoveTo(nextX, player.pos.z)) player.pos.x = nextX;
+    if (canMoveTo(player.pos.x, nextZ)) player.pos.z = nextZ;
+  }
 
   // Vertical position clamping for Ground or Observation Deck (2 floors + stairs)
   let floorY = 0;
@@ -5880,7 +5891,7 @@ function canMoveTo(x, z) {
   }
 
   if (city) {
-    if (!city.canMoveTo(x, z, 0.6, pY)) return false;
+    if (!city.canMoveTo(x, z, 0.70, pY)) return false;
   } else {
     if (Math.abs(x) > 38 || Math.abs(z) > 38) return false;
 
@@ -6039,9 +6050,16 @@ function updateEnemies(dt) {
       return;
     }
 
-    // Apply knockback velocity
-    enemy.rig.root.position.x += enemy.vx * dt;
-    enemy.rig.root.position.z += enemy.vz * dt;
+    // Apply knockback velocity (with wall collision check so enemies don't get punched into buildings)
+    const nextKx = enemy.rig.root.position.x + enemy.vx * dt;
+    const nextKz = enemy.rig.root.position.z + enemy.vz * dt;
+    if (!city || city.canMoveTo(nextKx, nextKz, 0.45, enemy.rig.root.position.y)) {
+      enemy.rig.root.position.x = nextKx;
+      enemy.rig.root.position.z = nextKz;
+    } else {
+      enemy.vx = 0;
+      enemy.vz = 0;
+    }
     enemy.vx *= 0.86;
     enemy.vz *= 0.86;
 
@@ -6290,8 +6308,12 @@ function updateEnemies(dt) {
         const overlap = 1.10 - flatToTarget;
         const pushX = (enemy.rig.root.position.x - tpos.x) / flatToTarget;
         const pushZ = (enemy.rig.root.position.z - tpos.z) / flatToTarget;
-        enemy.rig.root.position.x += pushX * overlap;
-        enemy.rig.root.position.z += pushZ * overlap;
+        const sepX = enemy.rig.root.position.x + pushX * overlap;
+        const sepZ = enemy.rig.root.position.z + pushZ * overlap;
+        if (!city || city.canMoveTo(sepX, sepZ, 0.45, enemy.rig.root.position.y)) {
+          enemy.rig.root.position.x = sepX;
+          enemy.rig.root.position.z = sepZ;
+        }
       }
 
       // Punch Attack / Boxer Guard Animation

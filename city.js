@@ -949,6 +949,43 @@
       return true;
     }
 
+    function segsIntersect(x1, z1, x2, z2, x3, z3, x4, z4) {
+      const ccw = (ax, az, bx, bz, cx, cz) => (cz - az) * (bx - ax) > (bz - az) * (cx - ax);
+      return (ccw(x1, z1, x3, z3, x4, z4) !== ccw(x2, z2, x3, z3, x4, z4)) &&
+             (ccw(x1, z1, x2, z2, x3, z3) !== ccw(x1, z1, x2, z2, x4, z4));
+    }
+
+    function hasLineOfSight(x1, z1, x2, z2) {
+      const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+      const minZ = Math.min(z1, z2), maxZ = Math.max(z1, z2);
+      const seen = new Set();
+      const minCx = Math.floor(minX / CELL), maxCx = Math.floor(maxX / CELL);
+      const minCz = Math.floor(minZ / CELL), maxCz = Math.floor(maxZ / CELL);
+      for (let cx = minCx; cx <= maxCx; cx++) {
+        for (let cz = minCz; cz <= maxCz; cz++) {
+          const list = grid.get(cellKey(cx, cz));
+          if (!list) continue;
+          for (let i = 0; i < list.length; i++) {
+            const s = list[i];
+            if (seen.has(s)) continue;
+            seen.add(s);
+            const bb = s.bb;
+            if (maxX < bb[0] || minX > bb[2] || maxZ < bb[1] || minZ > bb[3]) continue;
+            if (s.type === 'circle') {
+              if (distToSegSq(s.x, s.z, x1, z1, x2, z2) < s.r * s.r) return false;
+            } else if (s.pts) {
+              const p = s.pts;
+              for (let a = 0, b = p.length - 1; a < p.length; b = a++) {
+                if (segsIntersect(x1, z1, x2, z2, p[b][0], p[b][1], p[a][0], p[a][1])) return false;
+              }
+              if (pointInPoly(x1, z1, p) || pointInPoly(x2, z2, p)) return false;
+            }
+          }
+        }
+      }
+      return true;
+    }
+
     function findOpenSpot(cx, cz, minR, maxR, radius) {
       for (let i = 0; i < 400; i++) {
         const a = Math.random() * Math.PI * 2;
@@ -5201,6 +5238,7 @@
 
     return {
       canMoveTo,
+      hasLineOfSight,
       podCanMoveTo,
       floorAt,
       findOpenSpot,

@@ -520,22 +520,36 @@
           const lp = this.lockedTarget.ref.rig ? this.lockedTarget.ref.rig.root.position : null;
           if (lp) {
             const d = Math.hypot(lp.x - player.pos.x, lp.z - player.pos.z);
-            if (d < 35.0) {
+            if (d < 45.0) {
               best = { x: lp.x, z: lp.z, kind: this.lockedTarget.kind, ref: this.lockedTarget.ref };
               bd = d;
             }
           }
         }
         if (!best) {
+          // 1. Search hostiles in people within 50m
           for (const p of people) {
             if (p.kind === 'robot' || (p.kind === 'snatcher' && p.unmasked)) {
               const d = Math.hypot(p.x - player.pos.x, p.z - player.pos.z);
               if (d < bd) { bd = d; best = p; }
             }
           }
+          // 2. If no exposed hostiles nearby, search all non-civilian enemies in city
+          if (!best && enemies) {
+            for (const e of enemies) {
+              if (!e || e.isDead || e.isKnockedOut || !e.rig) continue;
+              if (e.kind === 'civilian') continue;
+              const ep = e.rig.root.position;
+              const d = Math.hypot(ep.x - player.pos.x, ep.z - player.pos.z);
+              if (d < bd) {
+                bd = d;
+                best = { x: ep.x, z: ep.z, kind: e.kind, ref: e };
+              }
+            }
+          }
           this.lockedTarget = best;
         }
-        if (best && bd < 50.0) {
+        if (best && bd < 90.0) {
           goal = { x: best.x, z: best.z, mission: false, targetRef: best.ref };
         } else {
           this.lockedTarget = null;
@@ -554,7 +568,7 @@
       const d = this.policy.spec.act_dims;
       const pick = (lo, hi) => this.sampleTemp > 0 ? sampleSoftmax(logits, lo, hi, this.sampleTemp) : argmax(logits, lo, hi);
       const mv = pick(0, d[0]), tn = pick(d[0], d[0] + d[1]), at = pick(d[0] + d[1], d[0] + d[1] + d[2]);
-      this.applyAction(mv, tn, at, player, enemies);
+      this.applyAction(mv, tn, at, player, enemies, goal, city);
       const dist = Math.hypot(goal.x - player.pos.x, goal.z - player.pos.z);
       if (this.persona === 'fighter') {
         this.aiIntentText = `🥊 BRAWLER • ${MOVE_NAMES[mv]}${ATK_NAMES[at]}`;
@@ -566,11 +580,54 @@
       }
     }
 
-    applyAction(mv, tn, at, player, enemies) {
-      const turn = this.policy ? this.policy.spec.turns[tn] : 0;
-      this.turnRate = -turn / this.decisionInterval;         // positive turn = right = yaw decreases
+    applyAction(mv, tn, at, player, enemies, goal, city) {
+      let turn = this.policy ? this.policy.spec.turns[tn] : 0;
       this.moveLocal = [[0, 0], [1, 0], [-1, 0], [0, -1], [0, 1], [1, 0]][mv];
       this.sprint = mv === 5;
+
+      // Anti-spin heading stabilizer and combat navigation for Brawler mode
+      if (this.persona === 'fighter' && goal && player) {
+        const [f, r] = fwdRight(player.yaw);
+        const dx = goal.x - player.pos.x, dz = goal.z - player.pos.z;
+        const d = Math.hypot(dx, dz);
+        if (d > 0.4 && d < 90.0) {
+          const ahead = dx * f[0] + dz * f[1];
+          const right = dx * r[0] + dz * r[1];
+          const ang = Math.atan2(right, ahead); // > 0: target is to right
+
+          // Clean, monotonic steering toward target without overshooting or spinning
+          if (Math.abs(ang) < 0.08) {
+            turn = 0; // squarely facing enemy: hold heading
+          } else {
+            // ang > 0 -> target to right -> yaw must decrease -> positive turn
+            turn = Math.sign(ang) * Math.min(Math.abs(ang), 0.35);
+          }
+
+          // Combat distance control: approach when far, hold stance inside strike zone
+          if (d > 2.6) {
+            this.moveLocal = [1, 0];
+            this.sprint = d > 6.5;
+          } else if (d < 1.1) {
+            this.sprint = false;
+            this.moveLocal = [-1, 0];
+          } else {
+            this.sprint = false;
+            this.moveLocal = [0, 0];
+          }
+
+          // Striking trigger when facing opponent inside melee reach (if LOS is clear)
+          const hasLos = !city || !city.hasLineOfSight || city.hasLineOfSight(player.pos.x, player.pos.z, goal.x, goal.z);
+          if (hasLos && d <= 3.2 && Math.abs(ang) < 0.55) {
+            if (at === 0) {
+              at = (d > 2.6) ? 2 : 1; // kick if outer reach, punch if close
+            }
+          } else if (!hasLos) {
+            at = 0; // Do not punch into solid building walls!
+          }
+        }
+      }
+
+      this.turnRate = -turn / this.decisionInterval;         // positive turn = right = yaw decreases
       // Combat footwork downshift: avoid 11.5 m/s sprint overshoot when within 3.0 m of an active enemy
       if (this.sprint && enemies && player) {
         for (const e of enemies) {
