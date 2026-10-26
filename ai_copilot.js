@@ -574,8 +574,7 @@
       const logits = this.policy.step(obs.patch, obs.vec);
       const d = this.policy.spec.act_dims;
       const pick = (lo, hi) => this.sampleTemp > 0 ? sampleSoftmax(logits, lo, hi, this.sampleTemp) : argmax(logits, lo, hi);
-      const mv = pick(0, d[0]), tn = pick(d[0], d[0] + d[1]), at = pick(d[0] + d[1], d[0] + d[1] + d[2]);
-      this.applyAction(mv, tn, at, player, enemies, goal, city);
+      this.applyAction(mv, tn, at);
       const dist = Math.hypot(goal.x - player.pos.x, goal.z - player.pos.z);
       if (this.persona === 'fighter') {
         this.aiIntentText = `🥊 BRAWLER • ${MOVE_NAMES[mv]}${ATK_NAMES[at]}`;
@@ -587,166 +586,12 @@
       }
     }
 
-    applyAction(mv, tn, at, player, enemies, goal, city) {
-      let turn = this.policy ? this.policy.spec.turns[tn] : 0;
+    applyAction(mv, tn, at) {
+      const turn = this.policy ? this.policy.spec.turns[tn] : [-0.5, -0.15, 0.0, 0.15, 0.5][tn];
       this.moveLocal = [[0, 0], [1, 0], [-1, 0], [0, -1], [0, 1], [1, 0]][mv];
-      this.sprint = mv === 5;
+      this.sprint = (mv === 5);
+      this.turnRate = -turn / this.decisionInterval; // positive turn = right = yaw decreases
 
-      // Anti-spin heading stabilizer and combat navigation for Brawler mode
-      if (this.persona === 'fighter' && goal && player) {
-        const [f, r] = fwdRight(player.yaw);
-        const dx = goal.x - player.pos.x, dz = goal.z - player.pos.z;
-        const d = Math.hypot(dx, dz);
-        if (d > 0.4 && d < 90.0) {
-          const ahead = dx * f[0] + dz * f[1];
-          const right = dx * r[0] + dz * r[1];
-          const ang = Math.atan2(right, ahead); // > 0: target is to right
-
-          // Clean, monotonic steering toward target without overshooting or spinning
-          if (Math.abs(ang) < 0.08) {
-            turn = 0; // squarely facing enemy: hold heading
-          } else {
-            // ang > 0 -> target to right -> yaw must decrease -> positive turn
-            turn = Math.sign(ang) * Math.min(Math.abs(ang), 0.35);
-          }
-
-          // Combat distance control: approach when far, hold stance inside strike zone
-          if (d > 2.6) {
-            this.moveLocal = [1, 0];
-            this.sprint = d > 6.5;
-          } else if (d < 1.1) {
-            this.sprint = false;
-            this.moveLocal = [-1, 0];
-          } else {
-            this.sprint = false;
-            this.moveLocal = [0, 0];
-          }
-
-          // Striking trigger when facing opponent inside melee reach (if LOS is clear)
-          const hasLos = !city || !city.hasLineOfSight || city.hasLineOfSight(player.pos.x, player.pos.z, goal.x, goal.z);
-          if (hasLos && d <= 3.2 && Math.abs(ang) < 0.55) {
-            if (at === 0) {
-              at = (d > 2.6) ? 2 : 1; // kick if outer reach, punch if close
-            }
-          } else if (!hasLos) {
-            at = 0; // Do not punch into solid building walls!
-          }
-        }
-      }
-
-      // -------------------------------------------------------------------------
-      // WALL DEFLECTION & ANTI-STUCK SYSTEM
-      // Proactively detect walls ahead and steer around building contours instead
-      // of blindly walking or sprinting into solid obstacles.
-      // -------------------------------------------------------------------------
-      if (city && city.canMoveTo && player && player.pos.y < 50) {
-        const [f, r] = fwdRight(player.yaw);
-        const [mvFwd, mvRight] = this.moveLocal;
-        const wantMove = Math.hypot(mvFwd, mvRight) > 0.1;
-
-        if (wantMove) {
-          const px = player.pos.x, pz = player.pos.z, py = player.pos.y;
-          // Step vector in world space:
-          const stepX = mvFwd * f[0] + mvRight * r[0];
-          const stepZ = mvFwd * f[1] + mvRight * r[1];
-          const stepLen = Math.hypot(stepX, stepZ) || 1;
-          const ndx = stepX / stepLen, ndz = stepZ / stepLen;
-
-          // Probe forward for walls:
-          const probeDist = this.sprint ? 2.4 : 1.5;
-          const blockedAhead = !city.canMoveTo(px + ndx * probeDist, pz + ndz * probeDist, 0.70, py);
-          const wallClose = !city.canMoveTo(px + ndx * 0.95, pz + ndz * 0.95, 0.70, py);
-
-          // Track movement to detect getting pinned against walls or corners:
-          if (!this.lastPos) this.lastPos = { x: px, z: pz };
-          const distMoved = Math.hypot(px - this.lastPos.x, pz - this.lastPos.z);
-          if (distMoved < 0.08) {
-            this.stuckTimer = (this.stuckTimer || 0) + this.decisionInterval;
-          } else {
-            this.stuckTimer = Math.max(0, (this.stuckTimer || 0) - this.decisionInterval * 2);
-            this.lastPos.x = px;
-            this.lastPos.z = pz;
-          }
-          const isStuck = this.stuckTimer > 0.35;
-
-          if (blockedAhead || wallClose || isStuck) {
-            this.sprint = false; // Kill sprint immediately against obstacles
-
-            // Goal direction for guidance:
-            let gx = 0, gz = 0;
-            if (goal) { gx = goal.x - px; gz = goal.z - pz; }
-            const gd = Math.hypot(gx, gz) || 1;
-            const ngx = gx / gd, ngz = gz / gd;
-
-            // Probe 12 candidate angles around the circle to find the best clear bypass corridor
-            const testAngles = [
-              0.45, -0.45, 0.85, -0.85, 1.3, -1.3, 1.75, -1.75, 2.2, -2.2, Math.PI, -Math.PI * 0.75
-            ];
-            let bestDir = null, bestScore = -1e9;
-
-            for (const ang of testAngles) {
-              const ca = Math.cos(ang), sa = Math.sin(ang);
-              const cx = ca * ndx - sa * ndz;
-              const cz = sa * ndx + ca * ndz;
-
-              // Must be clear at both 2.0m and 1.0m
-              if (!city.canMoveTo(px + cx * 2.0, pz + cz * 2.0, 0.70, py)) continue;
-              if (!city.canMoveTo(px + cx * 1.0, pz + cz * 1.0, 0.70, py)) continue;
-
-              const progressScore = (cx * ngx + cz * ngz);
-              const anglePenalty = Math.abs(ang) * 0.15;
-              const score = progressScore - anglePenalty;
-
-              if (score > bestScore) {
-                bestScore = score;
-                bestDir = { x: cx, z: cz, ang };
-              }
-            }
-
-            if (bestDir) {
-              const ah = bestDir.x * f[0] + bestDir.z * f[1];
-              const rt = bestDir.x * r[0] + bestDir.z * r[1];
-              const steerAngle = Math.atan2(rt, ah);
-
-              // Steer toward the open corridor
-              turn = Math.sign(steerAngle) * Math.min(Math.abs(steerAngle), 0.42);
-
-              if (wallClose || isStuck) {
-                // If touching a wall, slide/strafe along the clear flank
-                if (Math.abs(rt) > 0.3) {
-                  this.moveLocal = [Math.max(0, ah * 0.5), Math.sign(rt)];
-                } else {
-                  this.moveLocal = [1, 0];
-                }
-              } else {
-                this.moveLocal = [1, 0];
-              }
-              if (this.persona === 'fighter') {
-                this.aiIntentText = '🥊 BRAWLER • AVOIDING WALL';
-              }
-            } else if (wallClose || isStuck) {
-              // Completely boxed in or facing a dead end: back up and turn around
-              this.moveLocal = [-1, 0];
-              turn = 0.40;
-            }
-          }
-        }
-      }
-
-      this.turnRate = -turn / this.decisionInterval;         // positive turn = right = yaw decreases
-      // Combat footwork downshift: avoid 11.5 m/s sprint overshoot when within 3.0 m of an active enemy
-      if (this.sprint && enemies && player) {
-        for (const e of enemies) {
-          if (!e || e.isDead || e.isKnockedOut || !e.rig) continue;
-          if (e.kind !== 'robot' && !(e.kind === 'snatcher' && e.unmasked)) continue;
-          const pos = e.rig.root.position;
-          const d = Math.hypot(pos.x - player.pos.x, pos.z - player.pos.z);
-          if (d < 3.0) {
-            this.sprint = false;
-            break;
-          }
-        }
-      }
       if (at > 0) {
         // Strict civilian safeguard: suppress attack if facing an innocent pedestrian
         let facingCivilian = false;
@@ -772,28 +617,27 @@
       this.prevAct = [mv, tn, at];
     }
 
-    // ---------------------------------------------------------------- hand-written fallback
+    // ---------------------------------------------------------------- hand-written teacher / fallback
     expertDecision(player, state, city, enemies, traffic, missionState) {
       const px = player.pos.x, pz = player.pos.z, py = player.pos.y;
       const peace = (city && city.peaceZone) || (grid() && grid().peace) || { x: 0, z: 0, radius: 1 };
-      this.turnRate = 0; this.sprint = state.health < 40;
-      const setWorldMove = (wx, wz) => {
-        const L = Math.hypot(wx, wz) || 1;
-        player.yaw = Math.atan2(-wx / L, -wz / L);          // face the way we walk
-        this.moveLocal = [1, 0];
+      const turns = [-0.5, -0.15, 0.0, 0.15, 0.5];
+      const [f, r] = fwdRight(player.yaw);
+
+      const turnToAngle = (targetAngle) => {
+        let bestIdx = 2, minDiff = 1e9;
+        for (let i = 0; i < turns.length; i++) {
+          const diff = Math.abs(turns[i] - targetAngle);
+          if (diff < minDiff) { minDiff = diff; bestIdx = i; }
+        }
+        return bestIdx;
       };
-      // 1. low health -> sanctuary
+
+      let mv = 0, tn = 2, at = 0;
       let goal = this.goalOf(missionState, peace);
       if (state.health < 35) goal = { x: peace.x, z: peace.z, mission: false };
-      // 2. cars (positions are c.vx / c.vz in traffic.js)
-      if (traffic && traffic.cars) {
-        for (const c of traffic.cars) {
-          if (c.vx === undefined) continue;
-          const dx = px - c.vx, dz = pz - c.vz;
-          if (Math.hypot(dx, dz) < 7) { setWorldMove(dx, dz); this.aiIntentText = '⚠️ DODGING TRAFFIC'; return; }
-        }
-      }
-      // 3. fight real threats only (never civilians or still-disguised snatchers)
+
+      // 1. Hostile threats
       let best = null, bd = 1e9;
       for (const p of this.collectPeople(enemies, py)) {
         const threat = p.kind === 'robot' || (p.kind === 'snatcher' && p.unmasked);
@@ -801,32 +645,38 @@
         const d = Math.hypot(p.x - px, p.z - pz);
         if (d < bd) { bd = d; best = p; }
       }
-      if (best && bd < 3.0 && state.health > 25) {
-        player.yaw = Math.atan2(-(best.x - px), -(best.z - pz));
-        this.moveLocal = [0, 0];
-        if (best.staggered && window.triggerAttack) window.triggerAttack();          // glory kill
-        else if (bd > 2.6 && window.triggerQuickKick) window.triggerQuickKick();
-        else if (window.triggerAttack) window.triggerAttack();
+
+      if (best && bd < 3.5 && state.health > 25) {
+        const dx = best.x - px, dz = best.z - pz;
+        const ahead = dx * f[0] + dz * f[1], right = dx * r[0] + dz * r[1];
+        const ang = Math.atan2(right, ahead);
+        tn = turnToAngle(ang);
+        mv = (ahead > 1.2) ? 1 : 0;
+        if (best.staggered) at = 1; // glory kill
+        else if (bd > 2.6) at = 2; // kick
+        else at = 1; // punch
         this.aiIntentText = `⚔️ FIGHTING ${best.kind.toUpperCase()} (${Math.round(bd)} m)`;
+        this.applyAction(mv, tn, at);
         return;
       }
+
       if (best && bd < 18 && state.health > 35 && !goal.mission) goal = { x: best.x, z: best.z, mission: false };
-      // 4. walk toward the goal, probing 16 headings for a free path
+
+      // 2. Navigation toward goal
       const gx = goal.x - px, gz = goal.z - pz, gd = Math.hypot(gx, gz) || 1;
+      const gAhead = gx * f[0] + gz * f[1], gRight = gx * r[0] + gz * r[1];
+      const gAng = Math.atan2(gRight, gAhead);
+      tn = turnToAngle(gAng);
+
       if (goal.mission && gd < 5.5) {
-        player.yaw = Math.atan2(-gx / gd, -gz / gd); this.moveLocal = [0, 0];
-        if (window.triggerAttack) window.triggerAttack();
-        this.aiIntentText = '📦 SMASHING MISSION CRATE'; return;
+        mv = 0; at = 1;
+        this.aiIntentText = '📦 SMASHING MISSION CRATE';
+      } else if (gd > 1.2) {
+        mv = (gAhead > 0.35) ? (state.health < 40 ? 5 : 1) : (gAhead > -0.2 ? 1 : 0);
+        this.aiIntentText = goal.mission ? `🎯 TO MISSION (${Math.round(gd)} m)` : `🏙️ PATROLLING (${Math.round(gd)} m)`;
       }
-      let bestDir = null, bs = -1e9;
-      for (let i = 0; i < 16; i++) {
-        const a = i / 16 * Math.PI * 2, cx = Math.cos(a), cz = Math.sin(a);
-        if (city && !city.canMoveTo(px + cx * 2.5, pz + cz * 2.5, 0.6, py)) continue;
-        const s = (cx * gx + cz * gz) / gd;
-        if (s > bs) { bs = s; bestDir = [cx, cz]; }
-      }
-      if (bestDir && gd > 1.2) setWorldMove(bestDir[0], bestDir[1]); else this.moveLocal = [0, 0];
-      this.aiIntentText = goal.mission ? `🎯 TO MISSION (${Math.round(gd)} m)` : `🏙️ PATROLLING (${Math.round(gd)} m)`;
+
+      this.applyAction(mv, tn, at);
     }
   }
 
