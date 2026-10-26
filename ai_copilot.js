@@ -221,6 +221,8 @@
       this.lastGoalKey = '';
       this.sampleTemp = 0.0;                  // 0 = greedy argmax; avoids drunken random turns
       this.aiIntentText = 'IDLE';
+      this.stuckTimer = 0;
+      this.lastPos = null;
       this.init();
     }
 
@@ -313,7 +315,12 @@
       }
     }
 
-    resetMemory() { if (this.policy) this.policy.reset(); this.prevAct = [0, 2, 0]; }
+    resetMemory() {
+      if (this.policy) this.policy.reset();
+      this.prevAct = [0, 2, 0];
+      this.stuckTimer = 0;
+      this.lastPos = null;
+    }
 
     updateModePill() {
       const pill = document.getElementById('ai-mode-pill');
@@ -623,6 +630,105 @@
             }
           } else if (!hasLos) {
             at = 0; // Do not punch into solid building walls!
+          }
+        }
+      }
+
+      // -------------------------------------------------------------------------
+      // WALL DEFLECTION & ANTI-STUCK SYSTEM
+      // Proactively detect walls ahead and steer around building contours instead
+      // of blindly walking or sprinting into solid obstacles.
+      // -------------------------------------------------------------------------
+      if (city && city.canMoveTo && player && player.pos.y < 50) {
+        const [f, r] = fwdRight(player.yaw);
+        const [mvFwd, mvRight] = this.moveLocal;
+        const wantMove = Math.hypot(mvFwd, mvRight) > 0.1;
+
+        if (wantMove) {
+          const px = player.pos.x, pz = player.pos.z, py = player.pos.y;
+          // Step vector in world space:
+          const stepX = mvFwd * f[0] + mvRight * r[0];
+          const stepZ = mvFwd * f[1] + mvRight * r[1];
+          const stepLen = Math.hypot(stepX, stepZ) || 1;
+          const ndx = stepX / stepLen, ndz = stepZ / stepLen;
+
+          // Probe forward for walls:
+          const probeDist = this.sprint ? 2.4 : 1.5;
+          const blockedAhead = !city.canMoveTo(px + ndx * probeDist, pz + ndz * probeDist, 0.70, py);
+          const wallClose = !city.canMoveTo(px + ndx * 0.95, pz + ndz * 0.95, 0.70, py);
+
+          // Track movement to detect getting pinned against walls or corners:
+          if (!this.lastPos) this.lastPos = { x: px, z: pz };
+          const distMoved = Math.hypot(px - this.lastPos.x, pz - this.lastPos.z);
+          if (distMoved < 0.08) {
+            this.stuckTimer = (this.stuckTimer || 0) + this.decisionInterval;
+          } else {
+            this.stuckTimer = Math.max(0, (this.stuckTimer || 0) - this.decisionInterval * 2);
+            this.lastPos.x = px;
+            this.lastPos.z = pz;
+          }
+          const isStuck = this.stuckTimer > 0.35;
+
+          if (blockedAhead || wallClose || isStuck) {
+            this.sprint = false; // Kill sprint immediately against obstacles
+
+            // Goal direction for guidance:
+            let gx = 0, gz = 0;
+            if (goal) { gx = goal.x - px; gz = goal.z - pz; }
+            const gd = Math.hypot(gx, gz) || 1;
+            const ngx = gx / gd, ngz = gz / gd;
+
+            // Probe 12 candidate angles around the circle to find the best clear bypass corridor
+            const testAngles = [
+              0.45, -0.45, 0.85, -0.85, 1.3, -1.3, 1.75, -1.75, 2.2, -2.2, Math.PI, -Math.PI * 0.75
+            ];
+            let bestDir = null, bestScore = -1e9;
+
+            for (const ang of testAngles) {
+              const ca = Math.cos(ang), sa = Math.sin(ang);
+              const cx = ca * ndx - sa * ndz;
+              const cz = sa * ndx + ca * ndz;
+
+              // Must be clear at both 2.0m and 1.0m
+              if (!city.canMoveTo(px + cx * 2.0, pz + cz * 2.0, 0.70, py)) continue;
+              if (!city.canMoveTo(px + cx * 1.0, pz + cz * 1.0, 0.70, py)) continue;
+
+              const progressScore = (cx * ngx + cz * ngz);
+              const anglePenalty = Math.abs(ang) * 0.15;
+              const score = progressScore - anglePenalty;
+
+              if (score > bestScore) {
+                bestScore = score;
+                bestDir = { x: cx, z: cz, ang };
+              }
+            }
+
+            if (bestDir) {
+              const ah = bestDir.x * f[0] + bestDir.z * f[1];
+              const rt = bestDir.x * r[0] + bestDir.z * r[1];
+              const steerAngle = Math.atan2(rt, ah);
+
+              // Steer toward the open corridor
+              turn = Math.sign(steerAngle) * Math.min(Math.abs(steerAngle), 0.42);
+
+              if (wallClose || isStuck) {
+                // If touching a wall, slide/strafe along the clear flank
+                if (Math.abs(rt) > 0.3) {
+                  this.moveLocal = [Math.max(0, ah * 0.5), Math.sign(rt)];
+                } else {
+                  this.moveLocal = [1, 0];
+                }
+              } else {
+                this.moveLocal = [1, 0];
+              }
+              if (this.persona === 'fighter') {
+                this.aiIntentText = '🥊 BRAWLER • AVOIDING WALL';
+              }
+            } else if (wallClose || isStuck) {
+              // Completely boxed in or facing a dead end: back up and turn around
+              this.moveLocal = [-1, 0];
+              turn = 0.40;
+            }
           }
         }
       }
