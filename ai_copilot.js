@@ -297,11 +297,12 @@
     init() {
       this.loadWeights();
       this.createHUD();
+      this.startHotReloading();
     }
 
     acceptModel(doc, source, persona = 'runner') {
-      if (!doc || doc.version !== 2 || !doc.spec || (doc.spec.obs_version !== 1 && doc.spec.obs_version !== 2)) {
-        console.warn(`🤖 AI Copilot: ${persona} model is not a valid egocentric policy (obs_version 1 or 2); using EXPERT mode.`);
+      if (!doc || doc.version !== 2 || !doc.spec || (doc.spec.obs_version < 1 || doc.spec.obs_version > 3)) {
+        console.warn(`🤖 AI Copilot: ${persona} model is not a valid egocentric policy (supported obs_version 1, 2, 3; got ${doc?.spec?.obs_version}); using EXPERT mode.`);
         this.mode = 'expert';
         this.updateModePill();
         return;
@@ -313,42 +314,66 @@
         this.persona = persona;
       }
       const m = doc.meta || {};
-      this.modelInfo = `step ${(m.step || 0).toLocaleString()} • ${persona.toUpperCase()}`;
-      console.log(`🤖 AI Copilot: ${persona.toUpperCase()} neural policy loaded from ${source}`);
+      this.modelInfo = `step ${(m.step || 0).toLocaleString()} • ${persona.toUpperCase()} (v${doc.spec.obs_version})`;
+      console.log(`🤖 AI Copilot: ${persona.toUpperCase()} neural policy loaded from ${source} (step ${(m.step || 0).toLocaleString()}, v${doc.spec.obs_version})`);
       this.updateModePill();
     }
 
-    async loadWeights() {
+    async loadWeights(silent = false) {
       // 1. Inlined weights from standalone bundle
       if (window.AI_MODEL_WEIGHTS_RUNNER) this.acceptModel(window.AI_MODEL_WEIGHTS_RUNNER, 'bundle runner', 'runner');
       if (window.AI_MODEL_WEIGHTS_FIGHTER) this.acceptModel(window.AI_MODEL_WEIGHTS_FIGHTER, 'bundle fighter', 'fighter');
       if (window.AI_MODEL_WEIGHTS && !this.policies.runner) this.acceptModel(window.AI_MODEL_WEIGHTS, 'bundle default', 'runner');
 
-      // 2. Fetch external files if available
+      // 2. Fetch external files if available (with cache buster if reloading)
+      const qs = silent ? `?t=${Date.now()}` : '';
       try {
-        const respRunner = await fetch('ai_model_runner.json');
+        const respRunner = await fetch(`ai_model_runner.json${qs}`);
         if (respRunner.ok) this.acceptModel(await respRunner.json(), 'ai_model_runner.json', 'runner');
         else {
-          const respDef = await fetch('ai_model.json');
+          const respDef = await fetch(`ai_model.json${qs}`);
           if (respDef.ok) this.acceptModel(await respDef.json(), 'ai_model.json', 'runner');
         }
       } catch (e) { /* offline / file:// */ }
 
       try {
-        const respFighter = await fetch('ai_model_fighter.json');
+        const respFighter = await fetch(`ai_model_fighter.json${qs}`);
         if (respFighter.ok) this.acceptModel(await respFighter.json(), 'ai_model_fighter.json', 'fighter');
       } catch (e) { /* offline / file:// */ }
 
       if (!this.policy) {
-        console.log('🤖 AI Copilot: no neural model; EXPERT mode only.');
+        if (!silent) console.log('🤖 AI Copilot: no neural model; EXPERT mode only.');
         this.mode = 'expert';
       } else {
         this.mode = 'neural';
       }
-      if (this.policies.fighter) {
+      if (!silent && this.policies.fighter) {
         this.setPersona('fighter');
       }
       this.updateModePill();
+    }
+
+    startHotReloading() {
+      if (this._pollTimer) clearInterval(this._pollTimer);
+      this._lastTrainedStep = 0;
+      this._pollTimer = setInterval(async () => {
+        try {
+          const resp = await fetch('train_status.json?t=' + Date.now());
+          if (!resp.ok) return;
+          const status = await resp.json();
+          if (status && status.step && status.step > this._lastTrainedStep) {
+            const isFirst = (this._lastTrainedStep === 0);
+            this._lastTrainedStep = status.step;
+            if (!isFirst) {
+              console.log(`🧠 AI Copilot: newer weights available (step ${status.step.toLocaleString()}). Hot-reloading...`);
+              await this.loadWeights(true);
+              if (window.showAnnouncement) {
+                window.showAnnouncement(`🧠 AI UPDATED: STEP ${status.step.toLocaleString()}`, 2000);
+              }
+            }
+          }
+        } catch (e) { /* local file/offline */ }
+      }, 10000); // check every 10 seconds
     }
 
     cycleMode() {
