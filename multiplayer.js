@@ -182,65 +182,79 @@
     const hairMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.85, metalness: 0.0, emissive: glowColor, emissiveIntensity: 0.18 });
     const flashableMaterials = [skinMat, vestMat, pantsMat, wrapMat, bootMat];
 
-    // --- Light Yellow Aura & Squad Beacon Glow ---
-    // 1. Soft inner light-yellow aura envelope around the fighter
+    // --- Large, High-Visibility Light-Yellow Squad Glow (Much Larger Than Player) ---
+    // 1. Large 3D outer light-yellow aura sphere surrounding the player (~4m wide x 5m tall)
     const auraMat = new THREE.MeshBasicMaterial({
       color: 0xfef08a,
       transparent: true,
-      opacity: 0.28,
+      opacity: 0.38,
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide,
       depthWrite: false
     });
-    const auraShell = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.54, 1.95, 20, 1, true), auraMat);
-    auraShell.position.set(0, 0.98, 0);
+    const auraShell = new THREE.Mesh(new THREE.SphereGeometry(1.75, 24, 18), auraMat);
+    auraShell.scale.set(1.1, 1.4, 1.1);
+    auraShell.position.set(0, 1.35, 0);
     root.add(auraShell);
 
-    // 2. X-ray light-yellow silhouette glow (visible even behind buildings/obstacles so teammates never lose each other)
-    const xrayGlowMat = new THREE.MeshBasicMaterial({
+    // 2. Large radiant light-yellow billboard halo sprite (5.5m across, visible through obstacles)
+    const glowCanvas = document.createElement('canvas');
+    glowCanvas.width = 256;
+    glowCanvas.height = 256;
+    const gCtx = glowCanvas.getContext('2d');
+    const grad = gCtx.createRadialGradient(128, 128, 10, 128, 128, 126);
+    grad.addColorStop(0.0, 'rgba(255, 255, 210, 0.95)');
+    grad.addColorStop(0.28, 'rgba(254, 240, 138, 0.75)');
+    grad.addColorStop(0.62, 'rgba(253, 224, 71, 0.38)');
+    grad.addColorStop(1.0, 'rgba(254, 240, 138, 0.0)');
+    gCtx.fillStyle = grad;
+    gCtx.fillRect(0, 0, 256, 256);
+    const glowTex = new THREE.CanvasTexture(glowCanvas);
+    const xrayGlowMat = new THREE.SpriteMaterial({
+      map: glowTex,
       color: 0xfef08a,
       transparent: true,
-      opacity: 0.16,
+      opacity: 0.75,
       blending: THREE.AdditiveBlending,
       depthTest: false,
       depthWrite: false
     });
-    const xrayGlow = new THREE.Mesh(new THREE.SphereGeometry(0.62, 16, 14), xrayGlowMat);
-    xrayGlow.scale.set(0.85, 1.55, 0.85);
-    xrayGlow.position.set(0, 1.02, 0);
+    const xrayGlow = new THREE.Sprite(xrayGlowMat);
+    xrayGlow.scale.set(5.6, 5.6, 1);
+    xrayGlow.position.set(0, 1.25, 0);
     xrayGlow.renderOrder = 998;
     root.add(xrayGlow);
 
-    // 3. Light-yellow ground halo ring beneath feet
+    // 3. Large light-yellow ground halo ring & disc beneath feet (~4.6m diameter)
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0xfde047,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.65,
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide,
       depthWrite: false
     });
-    const groundRing = new THREE.Mesh(new THREE.RingGeometry(0.44, 0.76, 32), ringMat);
+    const groundRing = new THREE.Mesh(new THREE.RingGeometry(0.35, 2.3, 36), ringMat);
     groundRing.rotation.x = -Math.PI / 2;
-    groundRing.position.set(0, 0.04, 0);
+    groundRing.position.set(0, 0.05, 0);
     root.add(groundRing);
 
-    // 4. Vertical light-yellow sky pillar (subtle close up, brightens when far away)
+    // 4. Wide vertical light-yellow sky beacon pillar rising 35m above the player
     const pillarMat = new THREE.MeshBasicMaterial({
       color: 0xfef08a,
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.34,
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide,
       depthWrite: false
     });
-    const beaconPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.42, 14.0, 16, 1, true), pillarMat);
-    beaconPillar.position.set(0, 7.0, 0);
+    const beaconPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 1.45, 35.0, 20, 1, true), pillarMat);
+    beaconPillar.position.set(0, 17.5, 0);
     root.add(beaconPillar);
 
-    // 5. Warm light-yellow point light illuminating the player and ground around them
-    const glowLight = new THREE.PointLight(0xfef08a, 1.35, 9.0);
-    glowLight.position.set(0, 1.3, 0);
+    // 5. Strong warm light-yellow point light illuminating a wide area around the player
+    const glowLight = new THREE.PointLight(0xfef08a, 2.6, 18.0);
+    glowLight.position.set(0, 2.0, 0);
     root.add(glowLight);
 
     // Pelvis
@@ -1212,20 +1226,24 @@
           distToMe = Math.hypot(rp.currentPos.x - this.localPlayer.pos.x, rp.currentPos.z - this.localPlayer.pos.z);
         }
         if (rp.rig.auraMat) {
-          rp.rig.auraMat.opacity = 0.22 + 0.14 * pulse;
+          rp.rig.auraMat.opacity = 0.34 + 0.16 * pulse;
+          const auraScale = 1.05 + 0.12 * pulse;
+          rp.rig.auraShell.scale.set(1.1 * auraScale, 1.4 * auraScale, 1.1 * auraScale);
         }
         if (rp.rig.xrayGlowMat) {
-          rp.rig.xrayGlowMat.opacity = distToMe > 8 ? (0.16 + 0.12 * pulse) : 0.10;
+          rp.rig.xrayGlowMat.opacity = 0.65 + 0.25 * pulse;
+          const haloSize = Math.min(14.0, Math.max(5.5, 5.2 + distToMe * 0.12)) * (0.95 + 0.1 * pulse);
+          rp.rig.xrayGlow.scale.set(haloSize, haloSize, 1);
         }
         if (rp.rig.ringMat) {
-          rp.rig.ringMat.opacity = 0.45 + 0.25 * pulse;
-          const ringScale = 0.96 + 0.08 * pulse;
+          rp.rig.ringMat.opacity = 0.55 + 0.30 * pulse;
+          const ringScale = 0.96 + 0.12 * pulse;
           rp.rig.groundRing.scale.set(ringScale, ringScale, 1);
         }
         if (rp.rig.pillarMat) {
-          // Sky beacon pillar gets brighter when teammate is farther away so you can spot them across Toronto
-          const farFactor = Math.min(1.0, Math.max(0.15, (distToMe - 6) / 45));
-          rp.rig.pillarMat.opacity = farFactor * (0.18 + 0.12 * pulse);
+          // Bright sky beacon pillar so you can spot your teammate from anywhere in Toronto
+          const farFactor = Math.min(1.0, Math.max(0.35, (distToMe - 3) / 35));
+          rp.rig.pillarMat.opacity = farFactor * (0.30 + 0.18 * pulse);
         }
         if (rp.rig.nameplate) {
           // Keep nameplate legible even from a distance
