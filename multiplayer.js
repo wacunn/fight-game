@@ -6,42 +6,56 @@
 (function () {
   'use strict';
 
-  // Local relay server URL default (served by server_multiplayer.py)
-  // Local relay server URL default (served by server_multiplayer.py)
+  // Default Cloud Server (Render.com service from render.yaml)
+  const CLOUD_SERVER_URL = 'wss://toronto-defender.onrender.com/ws';
   const LOCAL_DEFAULT_URL = 'ws://localhost:8080/ws';
 
+  function normalizeServerUrl(raw) {
+    let s = (raw || '').trim();
+    if (!s) return CLOUD_SERVER_URL;
+    if (s.startsWith('https://')) s = 'wss://' + s.slice('https://'.length);
+    else if (s.startsWith('http://')) s = 'ws://' + s.slice('http://'.length);
+    else if (!s.startsWith('wss://') && !s.startsWith('ws://')) {
+      const isLocal = s.startsWith('localhost') || s.startsWith('127.0.0.1') || s.startsWith('192.168.') || s.startsWith('10.');
+      s = (isLocal ? 'ws://' : 'wss://') + s;
+    }
+    try {
+      const u = new URL(s);
+      if (!u.pathname || u.pathname === '/') u.pathname = '/ws';
+      return u.toString();
+    } catch (e) {
+      return s;
+    }
+  }
+
   function getAutoServerUrl() {
-    // 1. Check URL query parameters: e.g. ?server=ws://...
+    // 1. Check URL query parameters: e.g. ?server=wss://...
     const urlParams = new URLSearchParams(window.location.search);
     const queryServer = urlParams.get('server');
-    if (queryServer) return queryServer;
+    if (queryServer) return normalizeServerUrl(queryServer);
 
-    // 2. Check localStorage saved server (discard broken/dead onrender.com URLs or stale :8000)
+    // 2. Check localStorage saved server (discard stale localhost / :8000 / :8080 so internet default is used)
     let savedServer = localStorage.getItem('toronto_mp_server');
-    if (savedServer && (savedServer.includes('onrender.com') || savedServer.includes(':8000/'))) {
+    if (savedServer && (
+      savedServer.includes('localhost') ||
+      savedServer.includes('127.0.0.1') ||
+      savedServer.includes(':8000') ||
+      savedServer.includes(':8080')
+    )) {
       savedServer = null;
       localStorage.removeItem('toronto_mp_server');
     }
-    if (savedServer) return savedServer;
+    if (savedServer) return normalizeServerUrl(savedServer);
 
-    const hostname = window.location.hostname || 'localhost';
-    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' ||
-                    hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.endsWith('.local');
-
-    // 3. Local machine / LAN Wi-Fi: python3 server_multiplayer.py runs on port 8080
-    if (isLocal) {
-      return `ws://${hostname}:8080/ws`;
-    }
-
-    // 4. If hosted on a custom web server with a host (not github.io), use same-origin /ws
+    // 3. If the page itself is being served directly from a Render host or local port 8080, use same-origin /ws
     const host = window.location.host;
-    if (host && !host.endsWith('github.io')) {
+    if (host && !host.endsWith('github.io') && (host.includes('onrender.com') || window.location.port === '8080')) {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       return `${protocol}//${host}/ws`;
     }
 
-    // 5. Default for file:// or static hosts: connect to local relay server
-    return window.location.protocol === 'https:' ? 'wss://localhost:8080/ws' : LOCAL_DEFAULT_URL;
+    // 4. Default everywhere else (GitHub Pages wacunn.github.io, etc.): connect to Render Cloud Relay
+    return CLOUD_SERVER_URL;
   }
 
   function getAutoRoom() {
@@ -738,7 +752,8 @@
             localStorage.setItem('toronto_mp_room', this.room);
           }
           if (serverInput && serverInput.value.trim()) {
-            this.serverUrl = serverInput.value.trim();
+            this.serverUrl = normalizeServerUrl(serverInput.value.trim());
+            serverInput.value = this.serverUrl;
             localStorage.setItem('toronto_mp_server', this.serverUrl);
           }
           this.connect(this.serverUrl);
