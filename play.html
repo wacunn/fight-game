@@ -2595,7 +2595,7 @@ body.telescope-mode #crosshair-wrapper {
             </div>
             <div class="mp-input-group mp-server-group">
               <label for="mp-server-input">RELAY SERVER (WSS / WS)</label>
-              <input type="text" id="mp-server-input" placeholder="wss://toronto-defender.onrender.com/ws">
+              <input type="text" id="mp-server-input" placeholder="wss://broker.emqx.io:8084/mqtt">
             </div>
             <div class="mp-btn-group">
               <button id="mp-mode-btn" class="mp-mode-toggle-btn" type="button" title="Toggle Co-op vs PvP">🤝 SQUAD CO-OP (NO FRIENDLY FIRE)</button>
@@ -9090,13 +9090,108 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
 (function () {
   'use strict';
 
-  // Default Cloud Server (Render.com service from render.yaml)
-  const CLOUD_SERVER_URL = 'wss://toronto-defender.onrender.com/ws';
+  // Internet Cloud Relay brokers (MQTT-over-WSS: works globally on GitHub Pages without any Render server)
+  const CLOUD_BROKERS = [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://test.mosquitto.org:8081/mqtt'
+  ];
+  const CLOUD_SERVER_URL = CLOUD_BROKERS[0];
   const LOCAL_DEFAULT_URL = 'ws://localhost:8080/ws';
+
+  const PLAYER_COLORS = [
+    0xef4444, // red
+    0x00f0ff, // cyan
+    0xf59e0b, // amber
+    0x10b981, // emerald
+    0xc026d3, // purple
+    0xf43f5e, // rose
+    0x38bdf8, // sky
+    0xffffff  // white
+  ];
+
+  function isCloudServerUrl(url) {
+    if (!url) return true;
+    const u = String(url).trim().toLowerCase();
+    return u === 'cloud' || u === 'auto' || u.endsWith('/mqtt') ||
+           u.includes('emqx.io') || u.includes('hivemq.com') || u.includes('mosquitto.org');
+  }
+
+  // --- Minimal zero-dependency MQTT 3.1.1 over WebSockets codec ---
+  const textEncoder = new TextEncoder();
+  const textDecoder = new TextDecoder();
+
+  function mqttEncodeStr(str) {
+    const bytes = textEncoder.encode(str);
+    const out = new Uint8Array(2 + bytes.length);
+    out[0] = (bytes.length >> 8) & 0xff;
+    out[1] = bytes.length & 0xff;
+    out.set(bytes, 2);
+    return out;
+  }
+
+  function mqttConcat(arrays) {
+    let total = 0;
+    for (let i = 0; i < arrays.length; i++) total += arrays[i].length;
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (let i = 0; i < arrays.length; i++) {
+      out.set(arrays[i], offset);
+      offset += arrays[i].length;
+    }
+    return out;
+  }
+
+  function mqttEncodePacket(headerByte, bodyBytes) {
+    let len = bodyBytes.length;
+    const remBytes = [];
+    do {
+      let b = len % 128;
+      len = Math.floor(len / 128);
+      if (len > 0) b |= 0x80;
+      remBytes.push(b);
+    } while (len > 0);
+    const out = new Uint8Array(1 + remBytes.length + bodyBytes.length);
+    out[0] = headerByte;
+    for (let i = 0; i < remBytes.length; i++) out[1 + i] = remBytes[i];
+    out.set(bodyBytes, 1 + remBytes.length);
+    return out;
+  }
+
+  function mqttBuildConnect(clientId, willTopic, willPayloadStr) {
+    const varHeader = new Uint8Array([0x00, 0x04, 0x4d, 0x51, 0x54, 0x54, 0x04, 0x06, 0x00, 0x2d]);
+    const body = mqttConcat([
+      varHeader,
+      mqttEncodeStr(clientId),
+      mqttEncodeStr(willTopic),
+      mqttEncodeStr(willPayloadStr)
+    ]);
+    return mqttEncodePacket(0x10, body);
+  }
+
+  function mqttBuildSubscribe(topic, packetId) {
+    const pid = packetId || 1;
+    const body = mqttConcat([
+      new Uint8Array([(pid >> 8) & 0xff, pid & 0xff]),
+      mqttEncodeStr(topic),
+      new Uint8Array([0x00])
+    ]);
+    return mqttEncodePacket(0x82, body);
+  }
+
+  function mqttBuildPublish(topic, payloadStr) {
+    const body = mqttConcat([
+      mqttEncodeStr(topic),
+      textEncoder.encode(payloadStr)
+    ]);
+    return mqttEncodePacket(0x30, body);
+  }
 
   function normalizeServerUrl(raw) {
     let s = (raw || '').trim();
-    if (!s) return CLOUD_SERVER_URL;
+    // Redirect dead toronto-defender.onrender.com or empty URLs to live Cloud Relay
+    if (!s || s.includes('toronto-defender.onrender.com')) return CLOUD_SERVER_URL;
+    if (isCloudServerUrl(s)) return s;
     if (s.startsWith('https://')) s = 'wss://' + s.slice('https://'.length);
     else if (s.startsWith('http://')) s = 'ws://' + s.slice('http://'.length);
     else if (!s.startsWith('wss://') && !s.startsWith('ws://')) {
@@ -9118,9 +9213,10 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     const queryServer = urlParams.get('server');
     if (queryServer) return normalizeServerUrl(queryServer);
 
-    // 2. Check localStorage saved server (discard stale localhost / :8000 / :8080 so internet default is used)
+    // 2. Check localStorage saved server (discard stale localhost / dead toronto-defender.onrender.com)
     let savedServer = localStorage.getItem('toronto_mp_server');
     if (savedServer && (
+      savedServer.includes('toronto-defender.onrender.com') ||
       savedServer.includes('localhost') ||
       savedServer.includes('127.0.0.1') ||
       savedServer.includes(':8000') ||
@@ -9131,14 +9227,13 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     }
     if (savedServer) return normalizeServerUrl(savedServer);
 
-    // 3. If the page itself is being served directly from a Render host or local port 8080, use same-origin /ws
-    const host = window.location.host;
-    if (host && !host.endsWith('github.io') && (host.includes('onrender.com') || window.location.port === '8080')) {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      return `${protocol}//${host}/ws`;
+    // 3. If served directly by local server_multiplayer.py on port 8080, use local WebSocket
+    if (window.location.port === '8080') {
+      const hostname = window.location.hostname || 'localhost';
+      return `ws://${hostname}:8080/ws`;
     }
 
-    // 4. Default everywhere else (GitHub Pages wacunn.github.io, etc.): connect to Render Cloud Relay
+    // 4. Default everywhere else (GitHub Pages wacunn.github.io, etc.): use live Cloud Relay
     return CLOUD_SERVER_URL;
   }
 
@@ -9336,13 +9431,19 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       this.ws = null;
       this.connected = false;
       this.connecting = false;
-      this.localId = null;
+      this.localId = 'p_' + Math.random().toString(16).slice(2, 10);
+      this.joinedAt = Date.now() + Math.random();
       this.hostId = null;
       this.role = 'solo';            // 'solo' | 'host' | 'guest'
       this.localName = getSavedPlayerName();
-      this.localColor = 0xef4444;
+      const hash = Array.from(this.localId).reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      this.localColor = PLAYER_COLORS[hash % PLAYER_COLORS.length];
       this.room = getAutoRoom();
       this.serverUrl = getAutoServerUrl();
+      this.cloudMode = isCloudServerUrl(this.serverUrl);
+      this.rxBuffer = new Uint8Array(0);
+      this.cloudInterval = null;
+      this.pingTick = 0;
       this.scene = null;
       this.localPlayer = null;
       this.gameState = null;
@@ -9351,7 +9452,12 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       this.worldTimer = 0;
       this.reconnectTimer = null;
       this.reconnectAttempts = 0;
-      this.friendlyFire = false;     // ROOM setting, owned by the server
+      this.friendlyFire = false;     // ROOM setting
+      window.addEventListener('beforeunload', () => {
+        if (this.connected && this.cloudMode) {
+          this.sendRawCloud({ type: 'player_left', id: this.localId, name: this.localName });
+        }
+      });
     }
 
     init(scene, player, state) {
@@ -9366,6 +9472,10 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     isGuest() { return this.role === 'guest'; }
     isHostWithPeers() { return this.role === 'host' && this.remotePlayers.size > 0; }
 
+    roomTopic() {
+      return `fod_toronto_v1/room/${this.room}`;
+    }
+
     socketUrl(base) {
       try {
         const u = new URL(base);
@@ -9378,11 +9488,25 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       }
     }
 
+    clearCloudTimers() {
+      if (this.cloudInterval) {
+        clearInterval(this.cloudInterval);
+        this.cloudInterval = null;
+      }
+    }
+
     disconnect() {
       if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+      this.clearCloudTimers();
       this.reconnectAttempts = 0;
       if (this.ws) {
         const old = this.ws;
+        if (this.connected && this.cloudMode && old.readyState === WebSocket.OPEN) {
+          try {
+            this.sendRawCloud({ type: 'player_left', id: this.localId, name: this.localName });
+            old.send(new Uint8Array([0xe0, 0x00]));
+          } catch (e) {}
+        }
         old.onopen = old.onmessage = old.onerror = old.onclose = null;
         try { old.close(); } catch (e) {}
         this.ws = null;
@@ -9397,6 +9521,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
 
     connect(overrideUrl) {
       if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+      this.clearCloudTimers();
       if (this.ws) {
         // Detach the old socket completely so its late onclose can't clobber the new one
         const old = this.ws;
@@ -9407,9 +9532,16 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         this.removeAllRemotePlayers();
         this.setRole('solo');
       }
-      if (overrideUrl) this.serverUrl = overrideUrl;
+      if (overrideUrl) this.serverUrl = normalizeServerUrl(overrideUrl);
+      this.cloudMode = isCloudServerUrl(this.serverUrl);
       this.connecting = true;
       this.updateHUDStatus('connecting');
+
+      if (this.cloudMode) {
+        this.connectCloud();
+        return;
+      }
+
       const url = this.socketUrl(this.serverUrl);
       console.log(`[Multiplayer] Connecting to ${url} ...`);
       let ws;
@@ -9453,6 +9585,294 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       };
     }
 
+    connectCloud() {
+      const brokerUrl = this.serverUrl.startsWith('wss://') || this.serverUrl.startsWith('ws://')
+        ? this.serverUrl
+        : CLOUD_BROKERS[this.reconnectAttempts % CLOUD_BROKERS.length];
+      console.log(`[Multiplayer] Connecting to Cloud Relay ${brokerUrl} [room: ${this.room}] ...`);
+      let ws;
+      try {
+        ws = new WebSocket(brokerUrl, 'mqtt');
+        ws.binaryType = 'arraybuffer';
+      } catch (err) {
+        console.warn('[Multiplayer] Failed to create Cloud WebSocket:', err);
+        this.onConnectionFailed(err && err.message);
+        return;
+      }
+      this.ws = ws;
+      this.rxBuffer = new Uint8Array(0);
+
+      ws.onopen = () => {
+        if (this.ws !== ws) return;
+        const clientId = `fod_${this.localId}_${Math.floor(1000 + Math.random() * 8999)}`;
+        const willPayload = JSON.stringify({
+          type: 'player_left',
+          id: this.localId,
+          name: this.localName,
+          senderId: this.localId
+        });
+        ws.send(mqttBuildConnect(clientId, this.roomTopic(), willPayload));
+      };
+
+      ws.onmessage = (event) => {
+        if (this.ws !== ws || !(event.data instanceof ArrayBuffer)) return;
+        const chunk = new Uint8Array(event.data);
+        this.rxBuffer = mqttConcat([this.rxBuffer, chunk]);
+        this.processMqttBuffer(ws);
+      };
+
+      ws.onerror = (err) => {
+        if (this.ws === ws) {
+          console.warn('[Multiplayer] Cloud WebSocket error:', err);
+          this.onConnectionFailed('Cloud relay error');
+        }
+      };
+
+      ws.onclose = (ev) => {
+        if (this.ws !== ws) return;
+        console.log(`[Multiplayer] Cloud socket closed (code ${ev && ev.code}); will retry`);
+        this.clearCloudTimers();
+        this.ws = null;
+        this.connected = false;
+        this.connecting = false;
+        this.removeAllRemotePlayers();
+        this.setRole('solo');
+        this.updateHUDStatus('offline');
+        this.scheduleReconnect();
+      };
+    }
+
+    processMqttBuffer(ws) {
+      while (this.rxBuffer.length >= 2) {
+        const header = this.rxBuffer[0];
+        const pktType = header >> 4;
+        const flags = header & 0x0f;
+        let multiplier = 1;
+        let remLen = 0;
+        let idx = 1;
+        let completeLen = false;
+        while (idx < this.rxBuffer.length && idx <= 4) {
+          const b = this.rxBuffer[idx++];
+          remLen += (b & 0x7f) * multiplier;
+          multiplier *= 128;
+          if ((b & 0x80) === 0) {
+            completeLen = true;
+            break;
+          }
+        }
+        if (!completeLen || this.rxBuffer.length < idx + remLen) return;
+        const body = this.rxBuffer.subarray(idx, idx + remLen);
+        this.rxBuffer = this.rxBuffer.slice(idx + remLen);
+
+        if (pktType === 2) {
+          // CONNACK
+          this.connected = true;
+          this.connecting = false;
+          this.reconnectAttempts = 0;
+          ws.send(mqttBuildSubscribe(this.roomTopic(), 1));
+          this.recomputeCloudHost();
+          this.updateHUDStatus('connected');
+          this.sendCloudHello(true);
+          setTimeout(() => { if (this.connected && this.ws === ws) this.sendCloudHello(true); }, 350);
+          setTimeout(() => { if (this.connected && this.ws === ws) this.sendCloudHello(false); }, 1000);
+          this.clearCloudTimers();
+          this.pingTick = 0;
+          this.cloudInterval = setInterval(() => this.onCloudInterval(), 2000);
+        } else if (pktType === 3) {
+          // PUBLISH
+          if (body.length < 2) continue;
+          const topicLen = (body[0] << 8) | body[1];
+          const qos = (flags >> 1) & 0x03;
+          const payloadOffset = 2 + topicLen + (qos > 0 ? 2 : 0);
+          if (body.length <= payloadOffset) continue;
+          const jsonStr = textDecoder.decode(body.subarray(payloadOffset));
+          let msg;
+          try { msg = JSON.parse(jsonStr); } catch (e) { continue; }
+          try { this.handleCloudMessage(msg); } catch (e) { console.warn('[Multiplayer] cloud handler error', e); }
+        }
+      }
+    }
+
+    myPlayerInfo() {
+      const p = this.localPlayer;
+      const gs = this.gameState;
+      return {
+        id: this.localId,
+        name: this.localName,
+        color: this.localColor,
+        x: p ? Number(p.pos.x.toFixed(2)) : 0,
+        y: p ? Number((p.pos.y - 1.7).toFixed(2)) : 0,
+        z: p ? Number(p.pos.z.toFixed(2)) : 0,
+        yaw: p ? Number(p.yaw.toFixed(3)) : 0,
+        health: gs ? (gs.isDead ? 0 : Math.round(gs.health)) : 100,
+        armor: gs ? Math.round(gs.armor) : 50,
+        isBerserk: !!(gs && gs.isBerserk)
+      };
+    }
+
+    sendCloudHello(isInitial) {
+      this.sendRawCloud({
+        type: isInitial ? 'peer_hello' : 'peer_announce',
+        player: this.myPlayerInfo(),
+        joinedAt: this.joinedAt,
+        pvp: this.friendlyFire
+      });
+    }
+
+    onCloudInterval() {
+      if (!this.connected || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+      this.sendCloudHello(false);
+      this.pingTick++;
+      if (this.pingTick % 8 === 0) {
+        try { this.ws.send(new Uint8Array([0xc0, 0x00])); } catch (e) {}
+      }
+      // Evict stale peers that vanished without a clean disconnect
+      const now = Date.now();
+      let removedAny = false;
+      this.remotePlayers.forEach((rp, id) => {
+        if (rp.lastSeen && now - rp.lastSeen > 10000) {
+          this.removeRemotePlayer(id);
+          removedAny = true;
+        }
+      });
+      if (removedAny) {
+        this.recomputeCloudHost();
+        this.updateHUDStatus('connected');
+      }
+    }
+
+    recomputeCloudHost() {
+      const roster = [{ id: this.localId, joinedAt: this.joinedAt }];
+      this.remotePlayers.forEach((rp) => {
+        roster.push({ id: rp.id, joinedAt: rp.joinedAt || Infinity });
+      });
+      roster.sort((a, b) => (a.joinedAt - b.joinedAt) || a.id.localeCompare(b.id));
+      const newHostId = roster[0].id;
+      const prevRole = this.role;
+      this.hostId = newHostId;
+      this.refreshRole();
+      if (prevRole === 'guest' && this.role === 'host' && this.remotePlayers.size > 0 && window.showAnnouncement) {
+        window.showAnnouncement('👑 YOU ARE NOW RUNNING THE CITY', 2200);
+      } else if (prevRole !== 'guest' && this.role === 'guest' && window.showAnnouncement) {
+        const host = this.remotePlayers.get(this.hostId);
+        window.showAnnouncement(`🤝 JOINED ${host ? host.name.toUpperCase() : 'THE SQUAD'}'S TORONTO!`, 2500);
+      }
+    }
+
+    handleCloudMessage(msg) {
+      if (!msg || typeof msg !== 'object') return;
+      const senderId = msg.senderId || msg.id;
+      if (senderId === this.localId) return;
+
+      if (senderId && this.remotePlayers.has(senderId)) {
+        this.remotePlayers.get(senderId).lastSeen = Date.now();
+      }
+
+      if (msg.type === 'peer_hello' || msg.type === 'peer_announce') {
+        const p = msg.player;
+        if (!p || !p.id || p.id === this.localId) return;
+        const isNew = !this.remotePlayers.has(p.id);
+        if (isNew) {
+          this.addRemotePlayer(p, msg.joinedAt);
+          if (window.showAnnouncement) {
+            window.showAnnouncement(`⭐ ${String(p.name).toUpperCase()} JOINED THE SQUAD! ⭐`, 2500);
+          }
+          this.sendCloudHello(false);
+        } else {
+          const rp = this.remotePlayers.get(p.id);
+          rp.lastSeen = Date.now();
+          if (msg.joinedAt) rp.joinedAt = msg.joinedAt;
+          if (p.name && p.name !== rp.name) {
+            rp.name = p.name;
+            if (rp.rig) rp.rig.updateNameplate(rp.name, rp.health, rp.isBerserk);
+          }
+        }
+        this.recomputeCloudHost();
+        if (p.id === this.hostId && msg.pvp !== undefined && isNew) {
+          this.applyMode(!!msg.pvp, null);
+        }
+        this.updateHUDStatus('connected');
+        return;
+      }
+
+      if (msg.type === 'state') {
+        msg.id = senderId;
+        if (!this.remotePlayers.has(msg.id) && msg.name) {
+          this.addRemotePlayer({
+            id: msg.id,
+            name: msg.name,
+            color: msg.color || 0x00f0ff,
+            x: msg.x,
+            y: msg.y,
+            z: msg.z,
+            yaw: msg.yaw,
+            health: msg.health
+          }, msg.joinedAt);
+          this.recomputeCloudHost();
+        }
+        this.handleMessage(msg);
+        return;
+      }
+
+      if (msg.type === 'set_mode') {
+        this.applyMode(!!msg.pvp, msg.senderName || msg.by);
+        return;
+      }
+
+      if (msg.type === 'join_info') {
+        this.handleMessage({ type: 'player_updated', player: { id: senderId, name: msg.name } });
+        return;
+      }
+
+      if (msg.type === 'attack' || msg.type === 'taunt') {
+        msg.id = senderId;
+        msg.name = msg.senderName;
+        this.handleMessage(msg);
+        return;
+      }
+
+      if (msg.type === 'hit') {
+        if (this.friendlyFire && msg.targetId === this.localId) {
+          msg.attackerId = senderId;
+          msg.attackerName = msg.senderName;
+          this.handleMessage(msg);
+        }
+        return;
+      }
+
+      if (msg.type === 'ko') {
+        msg.victimId = senderId;
+        msg.victimName = msg.senderName;
+        this.handleMessage(msg);
+        return;
+      }
+
+      if (msg.type === 'world') {
+        if (senderId === this.hostId) this.handleMessage(msg);
+        return;
+      }
+
+      if (msg.type === 'enemy_hit') {
+        if (this.role === 'host') {
+          msg.from = senderId;
+          this.handleMessage(msg);
+        }
+        return;
+      }
+
+      if (msg.type === 'enemy_dmg' || msg.type === 'score_event') {
+        if (msg.targetId === this.localId) this.handleMessage(msg);
+        return;
+      }
+
+      if (msg.type === 'player_left') {
+        msg.id = senderId;
+        this.handleMessage(msg);
+        this.recomputeCloudHost();
+        this.updateHUDStatus('connected');
+      }
+    }
+
     scheduleReconnect() {
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
       this.reconnectAttempts++;
@@ -9470,10 +9890,33 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       this.scheduleReconnect();
     }
 
-    send(data) {
-      if (this.ws && this.connected && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify(data));
+    sendRawCloud(payloadObj) {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        payloadObj.senderId = this.localId;
+        payloadObj.senderName = this.localName;
+        const pkt = mqttBuildPublish(this.roomTopic(), JSON.stringify(payloadObj));
+        this.ws.send(pkt);
       }
+    }
+
+    send(data) {
+      if (!this.ws || !this.connected || this.ws.readyState !== WebSocket.OPEN) return;
+      if (this.cloudMode) {
+        if (data.type === 'state') {
+          data.name = this.localName;
+          data.color = this.localColor;
+          data.joinedAt = this.joinedAt;
+        } else if (data.type === 'set_mode') {
+          this.applyMode(!!data.pvp, this.localName);
+        } else if (data.type === 'ko') {
+          if (window.showAnnouncement) {
+            window.showAnnouncement(`⚡ ${data.killerName || 'PLAYER'} KO'D ${this.localName}! ⚡`, 3500);
+          }
+        }
+        this.sendRawCloud(data);
+        return;
+      }
+      this.ws.send(JSON.stringify(data));
     }
 
     // ---- role changes drive the NPC ownership hand-off in game.js ----
@@ -9601,7 +10044,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       this.send({ type: 'score_event', targetId, ev });
     }
 
-    addRemotePlayer(info) {
+    addRemotePlayer(info, joinedAt) {
       if (this.remotePlayers.has(info.id)) return;
       const has = (info.x || info.z);
       const spawnX = has ? info.x : (this.localPlayer ? this.localPlayer.pos.x + 3 : 0);
@@ -9614,6 +10057,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         id: info.id,
         name: info.name || 'DEFENDER',
         color: info.color || 0xef4444,
+        joinedAt: joinedAt || Date.now(),
+        lastSeen: Date.now(),
         rig,
         currentPos: new THREE.Vector3(spawnX, spawnY, spawnZ),
         targetPos: new THREE.Vector3(spawnX, spawnY, spawnZ),
