@@ -5611,14 +5611,14 @@ function animate(now) {
         });
       }
     });
-    // Remote Squad Players on Minimap Radar
+    // Remote Squad Players on Minimap Radar (bright light-yellow beacon dot)
     if (window.multiplayer && window.multiplayer.remotePlayers) {
       window.multiplayer.remotePlayers.forEach(rp => {
         dots.push({
           x: rp.currentPos.x,
           z: rp.currentPos.z,
-          c: '#' + rp.color.toString(16).padStart(6, '0'),
-          r: 4.2
+          c: '#fef08a',
+          r: 5.2
         });
       });
     }
