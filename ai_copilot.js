@@ -627,29 +627,25 @@
           }
         }
         if (!best) {
-          // 1. Search hostiles in people within 50m
+          // 1. Search hostiles in people within 45m, prioritizing direct Line of Sight
+          let losBest = null, losBd = 1e9;
           for (const p of people) {
             if (p.kind === 'robot' || (p.kind === 'snatcher' && p.unmasked)) {
               const d = Math.hypot(p.x - player.pos.x, p.z - player.pos.z);
+              const hasLos = city && city.hasLineOfSight ? city.hasLineOfSight(player.pos.x, player.pos.z, p.x, p.z) : true;
+              if (hasLos && d < losBd) { losBd = d; losBest = p; }
               if (d < bd) { bd = d; best = p; }
             }
           }
-          // 2. If no exposed hostiles nearby, search all non-civilian enemies in city
-          if (!best && enemies) {
-            for (const e of enemies) {
-              if (!e || e.isDead || e.isKnockedOut || !e.rig) continue;
-              if (e.kind === 'civilian') continue;
-              const ep = e.rig.root.position;
-              const d = Math.hypot(ep.x - player.pos.x, ep.z - player.pos.z);
-              if (d < bd) {
-                bd = d;
-                best = { x: ep.x, z: ep.z, kind: e.kind, ref: e };
-              }
-            }
+          if (losBest) {
+            best = losBest;
+            bd = losBd;
           }
           this.lockedTarget = best;
         }
-        if (best && bd < 90.0) {
+        // Only set goal directly to the enemy if it has LOS or is within close combat range (< 12m)
+        const hasLos = best && city && city.hasLineOfSight ? city.hasLineOfSight(player.pos.x, player.pos.z, best.x, best.z) : true;
+        if (best && (hasLos || bd < 12.0) && bd < 50.0) {
           goal = { x: best.x, z: best.z, mission: false, targetRef: best.ref };
         } else {
           this.lockedTarget = null;

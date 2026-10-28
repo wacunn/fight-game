@@ -58,8 +58,8 @@ def parse():
     ap.add_argument("--w-geo", type=float, default=0.25)
     ap.add_argument("--w-probe", type=float, default=1.0)
     ap.add_argument("--w-bc", type=float, default=1.0, help="Teacher behavioral cloning loss weight")
-    ap.add_argument("--teacher-eps", type=float, default=0.40, help="Initial teacher guidance fraction")
-    ap.add_argument("--teacher-decay", type=float, default=0.9996, help="Teacher guidance decay rate")
+    ap.add_argument("--teacher-eps", type=float, default=0.35, help="Initial teacher guidance fraction")
+    ap.add_argument("--teacher-decay", type=float, default=0.997, help="Teacher guidance decay rate")
     ap.add_argument("--cur-start", type=float, default=60.0)
     ap.add_argument("--cur-max", type=float, default=2000.0)
     ap.add_argument("--export-every", type=int, default=25, help="Updates between exported JSON weights")
@@ -237,6 +237,7 @@ def main():
 
     step0 = 0
     hi = cfg.cur_start
+    stage = 0
     hist = []
     tier_stats = districts.get_district_stats_template()
     teacher_eps = cfg.teacher_eps
@@ -246,18 +247,19 @@ def main():
         params, opt_state = d["params"], d["opt_state"]
         step0 = d["meta"].get("step", 0)
         hi = d["meta"].get("cur_hi", cfg.cur_start)
+        stage = d["meta"].get("cur_stage", 0)
         hist = d["meta"].get("history", [])
         tier_stats = d["meta"].get("tiers", tier_stats)
-        print(f"Resumed unified training from {ckpt} at step {step0:,}")
+        print(f"Resumed unified training from {ckpt} at step {step0:,} (cur_hi={hi:.0f}m, stage={stage})")
     else:
         params = A.init(jax.random.fold_in(key, 1))
         opt_state = tx.init(params)
         print(f"Initialized new agent weights (vec_dim={E.VEC_DIM}, patch=16x16, whiskers=8)")
 
-    def cur_of(h):
-        return E.Curriculum(lo=jnp.float32(0.4 * h), hi=jnp.float32(h), p_uniform=jnp.float32(0.35))
+    def cur_of(h, stg):
+        return E.Curriculum(lo=jnp.float32(0.4 * h), hi=jnp.float32(h), p_uniform=jnp.float32(0.35), stage=jnp.int32(stg))
 
-    carry = first_carry(jax.random.fold_in(key, 2), cur_of(hi))
+    carry = first_carry(jax.random.fold_in(key, 2), cur_of(hi, stage))
     per_update = cfg.envs * cfg.rollout
     n_updates = max(1, (cfg.steps - step0) // per_update)
     t_start, steps_run = time.time(), 0
@@ -265,9 +267,9 @@ def main():
 
     for u in range(n_updates):
         key, k1 = jax.random.split(key)
-        cur = cur_of(hi)
+        cur = cur_of(hi, stage)
         carry, traj, last_v, hc0, resetf0 = rollout(params, carry, cur, jnp.float32(teacher_eps))
-        teacher_eps = max(0.02, teacher_eps * cfg.teacher_decay)
+        teacher_eps = max(0.0, teacher_eps * cfg.teacher_decay)
         params, opt_state, met = update(params, opt_state, traj, last_v, hc0, resetf0, k1)
 
         met = {k: float(v) for k, v in jax.device_get(met).items()}
@@ -276,7 +278,8 @@ def main():
         eps = [dict(success=bool(info["success"][i]), dead=bool(info["dead"][i]),
                     ret=float(info["ep_ret"][i]), score=float(info["score"][i]), len=int(info["ep_len"][i]),
                     kills=float(info["kills"][i]), civ=float(info["civ_hits"][i]),
-                    start_x=float(info["start_x"][i]), start_z=float(info["start_z"][i])) for i in zip(*np.nonzero(dmask))]
+                    start_x=float(info["start_x"][i]), start_z=float(info["start_z"][i]),
+                    is_fighter=bool(info["is_fighter"][i])) for i in zip(*np.nonzero(dmask))]
         recent = (recent + eps)[-2000:]
         for e in eps:
             d_name = districts.get_nearest_district(e["start_x"], e["start_z"])
@@ -296,18 +299,29 @@ def main():
         avg_kills = float(np.mean([e["kills"] for e in recent[-300:]])) if recent else 0.0
         avg_civ = float(np.mean([e["civ"] for e in recent[-300:]])) if recent else 0.0
 
-        # Curriculum expansion on successful navigation
-        if succ > 0.65 and hi < cfg.cur_max:
+        recent_r = [e for e in recent[-300:] if not e["is_fighter"]]
+        recent_f = [e for e in recent[-300:] if e["is_fighter"]]
+        succ_r = float(np.mean([e["success"] for e in recent_r])) if recent_r else 0.0
+        succ_f = float(np.mean([e["success"] for e in recent_f])) if recent_f else 0.0
+
+        # Curriculum expansion: runner expands on successful navigation
+        if succ_r > 0.65 and hi < cfg.cur_max:
             hi = min(cfg.cur_max, hi * 1.05)
 
+        # Curriculum expansion: brawler advances stage on combat mastery
+        if stage < 3 and len(recent_f) >= 60 and succ_f > 0.70:
+            stage += 1
+            print(f"\n🔥 [CURRICULUM ADVANCE] Brawler reached Stage {stage}! (Hostiles: {E.FIGHT_N_HOST[stage]}, Civs: {E.FIGHT_N_CIV[stage]}, Target KOs: {E.FIGHT_KTAR[stage]})\n", flush=True)
+
         if u % 5 == 0 or u == n_updates - 1:
-            print(f"[{step:>10,}/{cfg.steps:,}] {sps:6.0f} sps | ret {mean_r:6.2f} succ {succ:.2f} kills {avg_kills:4.1f} civ {avg_civ:4.2f} died {deaths:.2f} | "
-                  f"pg {met['pg']:+.3f} vf {met['vf']:.3f} ent {met['ent']:.2f} bc {met['bc']:.3f} teach {teacher_eps:.2f} | "
+            print(f"[{step:>10,}/{cfg.steps:,}] {sps:6.0f} sps | ret {mean_r:6.2f} succ {succ:.2f} (r:{succ_r:.2f}/f:{succ_f:.2f}) kills {avg_kills:4.1f} civ {avg_civ:4.2f} died {deaths:.2f} | "
+                  f"stg {stage} | pg {met['pg']:+.3f} vf {met['vf']:.3f} ent {met['ent']:.2f} bc {met['bc']:.3f} teach {teacher_eps:.2f} | "
                   f"cur_hi {hi:.0f}m", flush=True)
 
         if u % cfg.export_every == 0 or u == n_updates - 1:
-            meta = dict(step=step, cur_hi=hi, history=hist, tiers=tier_stats, cfg=vars(cfg),
-                        avg_kills=round(avg_kills, 2), civ_hits=round(avg_civ, 2), success_rate=round(succ, 3))
+            meta = dict(step=step, cur_hi=hi, cur_stage=stage, history=hist, tiers=tier_stats, cfg=vars(cfg),
+                        avg_kills=round(avg_kills, 2), civ_hits=round(avg_civ, 2), success_rate=round(succ, 3),
+                        succ_runner=round(succ_r, 3), succ_fighter=round(succ_f, 3))
             os.makedirs(os.path.dirname(ckpt), exist_ok=True)
             with open(ckpt + ".tmp", "wb") as f:
                 pickle.dump(dict(params=jax.device_get(params), opt_state=jax.device_get(opt_state), meta=meta), f)
@@ -321,7 +335,8 @@ def main():
             # Write train_status for dashboard
             status_data = dict(step=step, target_steps=cfg.steps, sps=round(sps, 1),
                                mean_return=round(mean_r, 2), success_rate=round(succ, 3),
-                               kills=round(avg_kills, 2), civ_hits=round(avg_civ, 2),
+                               succ_runner=round(succ_r, 3), succ_fighter=round(succ_f, 3),
+                               stage=stage, kills=round(avg_kills, 2), civ_hits=round(avg_civ, 2),
                                cur_hi=round(hi, 1), elapsed_s=round(el, 1), timestamp=time.time())
             with open(os.path.join(ROOT, "train_status.json"), "w") as sf:
                 json.dump(status_data, sf, indent=2)

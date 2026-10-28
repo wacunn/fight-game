@@ -204,10 +204,6 @@ def range_bearing(pos, yaw, tx, tz):
 
 # ----------------------------------------------------------------------------- NPC spawning
 def _ring_spot(world, key, cx, cz, rmin, rmax, avoid_x, avoid_z, min_gap, tries=8):
-    """First of `tries` random points in an annulus that is walkable, outside the sanctuary
-    buffer and at least min_gap from (avoid_x, avoid_z). Returns (ok, x, z).
-    When the ring is centred on the player, pass min_gap=0 (rmin already keeps the gap): a 24 m gap
-    here previously made every spawn within 24 m of the player silently fail."""
     k1, k2 = jax.random.split(key)
     a = jax.random.uniform(k1, (tries,), maxval=2 * jnp.pi)
     rr = jnp.sqrt(jax.random.uniform(k2, (tries,), minval=rmin ** 2, maxval=rmax ** 2))
@@ -263,15 +259,11 @@ def hostile_mask(n):
     return n.alive & ((n.kind == 1) | ((n.kind == 2) & n.unmasked))
 
 
-def fighter_phi(world, pos, health, n):
-    """Brawler shaping potential. Healthy: -dist to nearest visible hostile (capped 30 m) / 5, so closing
-    1 m pays +0.2. Low health (<35): -dist to the sanctuary / 10. Potential-based, so it cannot change
-    which policy is optimal; it only makes 'go engage' discoverable."""
-    d = jnp.hypot(n.x - pos[0], n.z - pos[1])
-    dh = jnp.min(jnp.where(hostile_mask(n), d, 30.0))
-    dh = jnp.minimum(dh, 30.0)
-    dp = jnp.minimum(jnp.hypot(world.peace[0] - pos[0], world.peace[1] - pos[1]), 300.0)
-    return jnp.where(health < 35.0, -dp / 10.0, -dh / 5.0)
+def fighter_phi(world, pos, health, n, goal_g=None):
+    """Pure RL: No artificial distance potential shaping. PPO learns to navigate to enemies
+    directly from combat rewards (punches, kicks, KOs, win), penalties (wall collision, stagnation, damage),
+    and expert demonstrations via early teacher guidance."""
+    return jnp.float32(0.0)
 
 
 # fighter curriculum stages:      0: duel   1: 2v1 + civ   2: 3v1 + 2 civs   3: normal city
@@ -344,7 +336,7 @@ def reset(world, key, cur: Curriculum, fighter: bool = False):
                            aggro=npc.aggro.at[i].set(aggro), guard=npc.guard.at[i].set(True),
                            wander_a=npc.wander_a.at[i].set(wa))
     z0 = jnp.float32(0.0)
-    phi0 = fighter_phi(world, pos, jnp.float32(100.0), npc) if fighter else -geo0 / 10.0
+    phi0 = fighter_phi(world, pos, jnp.float32(100.0), npc, g) if fighter else -geo0 / 10.0
     st = State(t=jnp.int32(0), max_t=max_t, pos=pos, yaw=yaw, pos0=pos, health=jnp.float32(100.0), armor=jnp.float32(50.0),
                rage=jax.random.uniform(jax.random.fold_in(ks[5], 7), maxval=70.0), berserk_t=z0, atk_cd=z0, score=z0, diff=diff,
                goal=g, goal_xy=jnp.stack([gx, gz]), geo0=geo0, phi=phi0,
@@ -575,12 +567,15 @@ def step(world, st: State, action, key, cur: Curriculum, gamma: float, is_fighte
     dead = health <= 0
     bad_kos = jnp.sum(rob_ko | sna_ko)
     bad_hits = jnp.sum(hurt & ((n.kind == 1) | (n.kind == 2)))
-    # ---- barrier collisions and whisker proximity punishments
-    wall_pen = jnp.where(hit_wall, 0.30, 0.0)
+    # ---- barrier collisions, whisker proximity, and motion stagnation penalties
+    wall_pen = jnp.where(hit_wall, 0.40, 0.0)
     w_rays = whisker_obs(world, pos, yaw)
     front_whisker = w_rays[3]  # 0 rad dead ahead
-    prox_pen = jnp.where((mv == 1) | (mv == 5), jnp.maximum(0.0, 0.20 - front_whisker) * 1.5, 0.0)
-    barrier_cost = wall_pen + prox_pen
+    prox_pen = jnp.where((mv == 1) | (mv == 5), jnp.maximum(0.0, 0.25 - front_whisker) * 2.0, 0.0)
+    disp = jnp.hypot(pos[0] - st.pos[0], pos[1] - st.pos[1])
+    want_fwd = (mv == 1) | (mv == 5)
+    stuck_pen = jnp.where(want_fwd & (disp < 0.06), 0.60, 0.0)
+    barrier_cost = wall_pen + prox_pen + stuck_pen
 
     # CRATE RUNNER rewards & potential
     gd = geo_dist(world, st.goal, px, pz)
@@ -593,13 +588,13 @@ def step(world, st: State, action, key, cur: Curriculum, gamma: float, is_fighte
         + heal_r + 4.0 * bad_kos - 10.0 * civ_hit_n - 25.0 * civ_ko_n - barrier_cost
 
     # STREET BRAWLER rewards & potential
-    phi_f = fighter_phi(world, pos, health, npc)
+    phi_f = fighter_phi(world, pos, health, npc, st.goal)
     succ_f = (st.kills + bad_kos) >= st.ktar
     to_f = (t >= st.max_t) & ~succ_f & ~dead
     heal_f = jnp.where(peace & (health < 80.0), 0.3, 0.0)
     game_r_f = 20.0 * bad_kos + 10.0 * jnp.sum(glory_k) + 3.0 * bad_hits \
-        - 25.0 * civ_hit_n - 50.0 * civ_ko_n - 15.0 * dead - 0.03 * jnp.maximum(0.0, h0 - health) \
-        + heal_f + 10.0 * succ_f - barrier_cost
+        - 25.0 * civ_hit_n - 50.0 * civ_ko_n - 15.0 * dead - 5.0 * to_f - 0.03 * jnp.maximum(0.0, h0 - health) \
+        + heal_f + 15.0 * succ_f - barrier_cost
 
     is_f = st.is_fighter
     phi = jnp.where(is_f, phi_f, phi_r)
@@ -617,7 +612,7 @@ def step(world, st: State, action, key, cur: Curriculum, gamma: float, is_fighte
                       is_fighter=st.is_fighter)
     info = dict(done=done, success=success, dead=dead, timeout=timeout, geo0=st.geo0, ep_ret=nst.ep_ret, score=score,
                 ep_len=t, kills=nst.kills, civ_hits=nst.civ_hits, dmg_taken=nst.dmg_taken, diff=st.diff,
-                start_x=st.pos0[0], start_z=st.pos0[1], ktar=st.ktar)
+                start_x=st.pos0[0], start_z=st.pos0[1], ktar=st.ktar, is_fighter=st.is_fighter)
     # (no auto-reset here: the trainer swaps in a pre-generated spare start state on `done`,
     #  which is ~4x cheaper than computing a full reset for every env on every step under vmap)
     return nst, reward, done, info
