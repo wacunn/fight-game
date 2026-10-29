@@ -690,9 +690,9 @@
     LM.hhof = [498.5, -327.9];
     LM.dominionPublic = [466.2, -229.8];
     LM.googleKing = [664.5, -594.7];
-    LM.stJamesCathedral = [748.0, -678.0];
-    LM.stJamesPark = [835.0, -695.0];
-    LM.berczyPark = [696.0, -488.0];
+    LM.stJamesCathedral = [752.0, -688.0];
+    LM.stJamesPark = [848.0, -728.0];
+    LM.berczyPark = [642.0, -428.0];
     LM.olympicPark = [-350.0, 205.0];
     LM.clarenceSquare = [-805.0, -15.0];
     LM.harbourSquarePark = [470.0, 490.0];
@@ -2567,21 +2567,20 @@
         const nose = [tipP[0] + inward[0] * 2.2, tipP[1] + inward[1] * 2.2];
         landmarkExtras.gooderham = { poly: P, apex: nose, nose };
         LM.gooderham = [c[0], c[1]];
-        // Berczy Park: the green triangular plaza immediately west of the Gooderham Building
+        // Berczy Park: 4,541 m² triangular park bounded by Front St E, Wellington St E, Scott St & Gooderham Flatiron
         landmarkExtras.berczy = [
-          [c[0] - 18, c[1] - 12],
-          [c[0] - 68, c[1] - 8],
-          [c[0] - 65, c[1] + 18],
-          [c[0] - 16, c[1] + 14]
+          [608.3, -454.6],
+          [719.0, -484.5],
+          [726.5, -471.5],
+          [626.3, -394.4]
         ];
       }
       if (!landmarkExtras.berczy && LM.gooderham) {
-        const [gcx, gcz] = LM.gooderham;
         landmarkExtras.berczy = [
-          [gcx - 18, gcz - 12],
-          [gcx - 68, gcz - 8],
-          [gcx - 65, gcz + 18],
-          [gcx - 16, gcz + 14]
+          [608.3, -454.6],
+          [719.0, -484.5],
+          [726.5, -471.5],
+          [626.3, -394.4]
         ];
       }
       wells.forEach(w => [0, w.pts.length - 1].forEach(wi => {
@@ -6458,8 +6457,19 @@
         color: 0x1d4ed8, emissive: 0x2563eb, emissiveIntensity: 0.65, roughness: 0.15, metalness: 0.2
       });
 
-      // 1. Tower & Spire on King Street East (Centroid [748, -668])
-      const tcx = 748, tcz = -668;
+      // Stone ceremonial entrance plaza / forecourt facing King Street East
+      const plazaMat = new THREE.MeshStandardMaterial({
+        color: 0xd4cebe, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
+      });
+      const churchPlazaPoly = [
+        [738, -670], [766, -674], [766, -681.5], [738, -681.5]
+      ];
+      const churchPlazaMesh = new THREE.Mesh(capGeo(churchPlazaPoly, () => 0.06), plazaMat);
+      churchPlazaMesh.receiveShadow = true;
+      cathedGrp.add(churchPlazaMesh);
+
+      // 1. Tower & Spire on King Street East (Centroid [752, -688])
+      const tcx = 752.0, tcz = -688.0;
       const towerMesh = new THREE.Mesh(new THREE.BoxGeometry(13.5, 42, 13.5), buffBrickMat);
       towerMesh.position.set(tcx, 21, tcz);
       cathedGrp.add(towerMesh);
@@ -6520,8 +6530,8 @@
       crossGroup.position.set(tcx, 82, tcz);
       cathedGrp.add(crossGroup);
 
-      // 2. Nave, Clerestory & Copper Gable Roof
-      const naveZ = tcz - 26, naveLen = 42, naveWidth = 18;
+      // 2. Nave, Clerestory & Copper Gable Roof (extending north from tower)
+      const naveZ = -715.5, naveLen = 42, naveWidth = 18;
       const naveWalls = new THREE.Mesh(new THREE.BoxGeometry(naveWidth, 18, naveLen), buffBrickMat);
       naveWalls.position.set(tcx, 9, naveZ);
       cathedGrp.add(naveWalls);
@@ -6538,7 +6548,7 @@
       cathedGrp.add(naveRoofMesh);
 
       // 3. North & South Transepts (Wings extending east-west)
-      const transeptX = tcx, transeptZ = tcz - 30;
+      const transeptX = tcx, transeptZ = -718.0;
       const transeptWidth = 36, transeptLen = 14;
       const transeptWalls = new THREE.Mesh(new THREE.BoxGeometry(transeptWidth, 18, transeptLen), buffBrickMat);
       transeptWalls.position.set(transeptX, 9, transeptZ);
@@ -6592,12 +6602,12 @@
         cathedGrp.add(pArch);
       });
 
-      // Church Plaque / Notice Board on King Street East
+      // Church Plaque / Notice Board on King Street East Entrance Plaza
       const cathedSign = signMesh([
         'THE CATHEDRAL CHURCH OF ST. JAMES',
         'ANGLICAN DIOCESE OF TORONTO • CONSECRATED 1853'
       ], 11, 1.6, { bg: '#1c1917', fg: '#fef08a', borderColor: '#d4af37', size: 52 });
-      cathedSign.position.set(tcx, 2.2, tcz + 9.5);
+      cathedSign.position.set(tcx, 2.2, tcz + 12.0);
       cathedGrp.add(cathedSign);
 
       addSolid({ type: 'poly', pts: [[tcx - 7, tcz - 7], [tcx + 7, tcz - 7], [tcx + 7, tcz + 7], [tcx - 7, tcz + 7]], h: 42, name: 'St. James Cathedral Tower' });
@@ -6606,13 +6616,13 @@
 
       // =========================================================================
       // 6. ST. JAMES PARK (User's Favorite Park!)
-      // Spans X: 770 to 920, Z: -730 to -660.
+      // Spans X: 770 to 925, strictly north of King Street East curb (Z: -676 to -758).
       // Victorian gazebo bandstand pavilion, formal Victorian rose gardens with
       // circular boxwood hedges & central bronze sundial, serpentine gravel paths,
       // mature canopy trees, Victorian gas lamps, and park benches.
       // =========================================================================
       const parkPoly = [
-        [765, -735], [925, -735], [925, -660], [765, -660]
+        [770, -758], [925, -758], [925, -723], [770, -676]
       ];
       const parkTurfMat = new THREE.MeshStandardMaterial({
         color: 0x224a1b, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
@@ -6623,10 +6633,10 @@
 
       const bermMat = new THREE.MeshStandardMaterial({ color: 0x26551e, roughness: 0.95 });
       [
-        { cx: 805, cz: -675, rx: 18, rz: 10, h: 0.75 },
-        { cx: 875, cz: -672, rx: 22, rz: 11, h: 0.85 },
-        { cx: 810, cz: -720, rx: 20, rz: 10, h: 0.8 },
-        { cx: 890, cz: -720, rx: 24, rz: 12, h: 0.9 }
+        { cx: 805, cz: -695, rx: 16, rz: 8, h: 0.75 },
+        { cx: 875, cz: -720, rx: 20, rz: 10, h: 0.85 },
+        { cx: 810, cz: -735, rx: 18, rz: 8, h: 0.8 },
+        { cx: 890, cz: -745, rx: 22, rz: 9, h: 0.9 }
       ].forEach(b => {
         const berm = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), bermMat);
         berm.scale.set(b.rx, b.h, b.rz);
@@ -6639,10 +6649,10 @@
         color: 0xd4be9c, roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
       });
       const paths = [
-        [[766, -668], [795, -682], [835, -695], [875, -705], [924, -725]],
-        [[766, -666], [835, -666], [924, -666]],
-        [[835, -666], [835, -695], [835, -734]],
-        [[875, -695], [924, -695]]
+        [[772, -682], [805, -692], [835, -702], [875, -714], [923, -729]],
+        [[772, -685], [805, -710], [835, -730], [880, -736], [923, -745]],
+        [[835, -702], [835, -730], [835, -756]],
+        [[880, -715], [880, -736], [880, -756]]
       ];
       paths.forEach(walk => {
         for (let i = 0; i < walk.length - 1; i++) {
@@ -6662,8 +6672,8 @@
         }
       });
 
-      // A. The Iconic Victorian Gazebo Bandstand Pavilion at [835, -695]
-      const gbx = 835, gbz = -695;
+      // A. The Iconic Victorian Gazebo Bandstand Pavilion at [835, -730]
+      const gbx = 835.0, gbz = -730.0;
       const gazPlinthMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.7 });
       const gazWoodMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.6 });
       const gazRoofMat = new THREE.MeshStandardMaterial({ color: 0x4f8a72, roughness: 0.45, metalness: 0.4 });
@@ -6698,6 +6708,7 @@
       const gRoof = new THREE.Mesh(new THREE.ConeGeometry(5.2, 3.2, 8), gazRoofMat);
       gRoof.position.set(gbx, 6.2, gbz);
       cathedGrp.add(gRoof);
+
       const gFinial = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.12, 1.6, 8), goldGildedMat);
       gFinial.position.set(gbx, 8.2, gbz);
       cathedGrp.add(gFinial);
@@ -6706,8 +6717,8 @@
       gazLight.position.set(gbx, 3.8, gbz);
       cathedGrp.add(gazLight);
 
-      // B. Formal Victorian Rose Gardens & Central Bronze Sundial at [875, -695]
-      const rgx = 875, rgz = -695;
+      // B. Formal Victorian Rose Gardens & Central Bronze Sundial at [880, -736]
+      const rgx = 880.0, rgz = -736.0;
       const rPlaza = new THREE.Mesh(new THREE.CircleGeometry(12.5, 32), gravelMat);
       rPlaza.rotation.x = -Math.PI / 2;
       rPlaza.position.set(rgx, 0.085, rgz);
@@ -6758,10 +6769,10 @@
       const oakFoliageMat2 = new THREE.MeshStandardMaterial({ color: 0x2d6824, roughness: 0.95 });
       const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3b2516, roughness: 0.85 });
       const stJamesTrees = [
-        [782, -675, 4.2], [795, -690, 4.8], [808, -665, 3.8], [815, -710, 4.5],
-        [822, -680, 4.0], [848, -670, 4.6], [855, -715, 5.0], [862, -680, 4.2],
-        [895, -675, 4.5], [905, -710, 5.2], [915, -680, 4.0], [912, -725, 4.6],
-        [785, -725, 4.8], [865, -728, 4.4], [835, -728, 4.0]
+        [782, -690, 4.2], [795, -705, 4.8], [808, -692, 3.8], [815, -720, 4.5],
+        [822, -700, 4.0], [848, -705, 4.6], [855, -725, 5.0], [862, -708, 4.2],
+        [895, -722, 4.5], [905, -735, 5.2], [915, -732, 4.0], [912, -748, 4.6],
+        [785, -735, 4.8], [865, -745, 4.4], [835, -748, 4.0]
       ];
       stJamesTrees.forEach(([tx, tz, rad], ti) => {
         const th = rad * 2.2;
@@ -6782,9 +6793,9 @@
       const vBenchMat = new THREE.MeshStandardMaterial({ color: 0x1b4332, roughness: 0.7 });
       const vWoodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
       const benchPositions = [
-        [795, -670, 0], [815, -670, 0], [855, -670, 0], [895, -670, 0],
-        [825, -690, 0.4], [845, -690, -0.4], [865, -690, 0.2], [885, -690, -0.2],
-        [865, -702, 1.5], [885, -702, -1.5], [835, -720, 0], [880, -720, 0]
+        [795, -690, 0.29], [815, -696, 0.29], [855, -708, 0.29], [895, -720, 0.29],
+        [825, -725, 0.4], [845, -725, -0.4], [865, -730, 0.2], [885, -730, -0.2],
+        [870, -745, 1.5], [890, -745, -1.5], [835, -742, 0], [880, -750, 0]
       ];
       benchPositions.forEach(([bx, bz, rotY]) => {
         const bg = new THREE.Group();
@@ -6805,8 +6816,8 @@
       const vLampMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.3 });
       const lampGlowMat = new THREE.MeshBasicMaterial({ color: 0xffdf88, toneMapped: false });
       const lampPositions = [
-        [780, -668], [835, -668], [890, -668], [800, -695],
-        [870, -695], [835, -715], [915, -700], [875, -725]
+        [780, -686], [835, -704], [890, -720], [800, -712],
+        [870, -730], [835, -738], [915, -736], [875, -746]
       ];
       lampPositions.forEach(([lx, lz]) => {
         const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 4.2, 8), vLampMat);
@@ -6824,7 +6835,8 @@
         'ST. JAMES PARK',
         'HISTORIC VICTORIAN GARDENS • EST. 1834'
       ], 13, 1.8, { bg: '#064e3b', fg: '#fde68a', borderColor: '#10b981', size: 56 });
-      parkSign.position.set(835, 2.2, -662);
+      parkSign.position.set(835, 2.2, -699);
+      parkSign.rotation.y = -0.29;
       cathedGrp.add(parkSign);
 
       scene.add(cathedGrp);
@@ -6989,31 +7001,48 @@
 
       // ---------------- Upgraded Berczy Park & Claude Cormier Dog Fountain ----------------
       // Redesigned by Claude Cormier + Associés.
-      // Distinctive triangular park bounded by Front St E, Wellington St E, Scott St & Gooderham Flatiron.
-      // Western Plaza at [694, -488] features:
+      // Full 4,541 m² triangular park bounded by Front St E, Wellington St E, Scott St & Gooderham Flatiron:
+      // Polygon: [[608.3, -454.6], [719.0, -484.5], [726.5, -471.5], [626.3, -394.4]]
+      // Western Plaza (X: 608 to 660) at [642, -428] features:
       // - Two-tone decorative granite paving with circular and hexagonal pavers
       // - Two-tiered cast-iron circular fountain with 27 spouting dogs of diverse breeds gazing toward the apex
       // - Gilded Golden Bone shining at the top of the central fountain pedestal
       // - Sculpted Cat on a granite drinking trough looking aloofly at 2 bronze birds perched on the Victorian lamppost
-      // - Eastern park features rolling green lawn berms, curved walking paths, London Plane trees, and benches
+      // - Scott Street park entrance sign
+      // Eastern Parkland (X: 660 to 726.5) features:
+      // - Rolling green lawn berms, curved walking promenade to the Flatiron Mural, London Plane trees, and benches
       {
         const berczyGrp = new THREE.Group();
-        // 1. Eastern Park Turf & Rolling Lawn Berms (between X=704 and X=733)
+
+        // Full park turf base layer across entire parcel
         const bGrassMat = new THREE.MeshStandardMaterial({
           color: 0x234419, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
         });
-        const eastGrassPoly = [
-          [704, -504], [733, -498], [733, -478], [704, -472]
+        const fullParkPoly = [
+          [608.3, -454.6], [719.0, -484.5], [726.5, -471.5], [626.3, -394.4]
         ];
-        const bGrassMesh = new THREE.Mesh(capGeo(eastGrassPoly, () => 0.06), bGrassMat);
+        const bGrassMesh = new THREE.Mesh(capGeo(fullParkPoly, () => 0.05), bGrassMat);
         bGrassMesh.receiveShadow = true;
         berczyGrp.add(bGrassMesh);
 
-        // Rolling grassy berms along Wellington and Front St
+        // 1. Western Plaza Decorative Granite Paving (X=608 to 660)
+        const westPlazaPoly = [
+          [608.3, -454.6], [660.0, -468.5], [660.0, -418.0], [626.3, -394.4]
+        ];
+        const plazaPavingMat = new THREE.MeshStandardMaterial({
+          color: 0xc8cdd5, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
+        });
+        const bPlazaMesh = new THREE.Mesh(capGeo(westPlazaPoly, () => 0.06), plazaPavingMat);
+        bPlazaMesh.receiveShadow = true;
+        berczyGrp.add(bPlazaMesh);
+
+        // 2. Rolling grassy berms in Eastern Parkland (X=660 to 725)
         const bBermMat = new THREE.MeshStandardMaterial({ color: 0x2d5a22, roughness: 0.95 });
         [
-          { cx: 718, cz: -498, rx: 12, rz: 5, h: 0.7 },
-          { cx: 718, cz: -477, rx: 12, rz: 5, h: 0.75 }
+          { cx: 685, cz: -465, rx: 14, rz: 6, h: 0.75 },
+          { cx: 706, cz: -472, rx: 12, rz: 5, h: 0.7 },
+          { cx: 685, cz: -428, rx: 14, rz: 6, h: 0.75 },
+          { cx: 708, cz: -446, rx: 12, rz: 5, h: 0.7 }
         ].forEach(bm => {
           const mound = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), bBermMat);
           mound.scale.set(bm.rx, bm.h, bm.rz);
@@ -7021,21 +7050,33 @@
           berczyGrp.add(mound);
         });
 
-        // 2. Western Plaza Decorative Granite Paving (X=678 to 704)
-        const westPlazaPoly = [
-          [678, -506], [704, -504], [704, -472], [678, -470]
-        ];
-        const plazaPavingMat = new THREE.MeshStandardMaterial({
-          color: 0xc8cdd5, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
+        // 3. Central Promenade from Western Plaza through the lawn connecting to Flatiron Mural
+        const mPathMat = new THREE.MeshStandardMaterial({
+          color: 0xb0b8c4, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3
         });
-        const bPlazaMesh = new THREE.Mesh(capGeo(westPlazaPoly, () => 0.06), plazaPavingMat);
-        bPlazaMesh.receiveShadow = true;
-        berczyGrp.add(bPlazaMesh);
+        const promenadeWalk = [
+          [642.0, -428.0], [665.0, -444.0], [690.0, -458.0], [724.6, -480.05]
+        ];
+        for (let i = 0; i < promenadeWalk.length - 1; i++) {
+          const p1 = promenadeWalk[i], p2 = promenadeWalk[i + 1];
+          const dx = p2[0] - p1[0], dz = p2[1] - p1[1];
+          const len = Math.hypot(dx, dz);
+          const w = 4.2;
+          const nx = -dz / len * (w / 2), nz = dx / len * (w / 2);
+          const quad = [
+            [p1[0] - nx, p1[1] - nz], [p1[0] + nx, p1[1] + nz],
+            [p2[0] + nx, p2[1] + nz], [p2[0] - nx, p2[1] - nz]
+          ];
+          if (polyArea(quad) < 0) quad.reverse();
+          const pMesh = new THREE.Mesh(capGeo(quad, () => 0.07), mPathMat);
+          pMesh.receiveShadow = true;
+          berczyGrp.add(pMesh);
+        }
 
         // Circular two-tone cobblestone ring around fountain
-        const fpx = 694.0, fpz = -488.0;
+        const fpx = 642.0, fpz = -428.0;
         const ringMat = new THREE.MeshStandardMaterial({
-          color: 0x94a3b8, roughness: 0.75, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
+          color: 0x94a3b8, roughness: 0.75, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3
         });
         const fRing = new THREE.Mesh(new THREE.RingGeometry(4.8, 8.5, 32), ringMat);
         fRing.rotation.x = -Math.PI / 2;
@@ -7043,17 +7084,7 @@
         fRing.receiveShadow = true;
         berczyGrp.add(fRing);
 
-        // Curved central path through the grass to the Gooderham Flatiron trompe-l'œil mural
-        const mPathMat = new THREE.MeshStandardMaterial({
-          color: 0xb0b8c4, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
-        });
-        const mPathMesh = new THREE.Mesh(
-          capGeo([[704, -490.5], [732, -490.5], [732, -485.5], [704, -485.5]], () => 0.08),
-          mPathMat
-        );
-        berczyGrp.add(mPathMesh);
-
-        // 3. THE CLAUDE CORMIER DOG FOUNTAIN (Western Plaza at [694, -488])
+        // 4. THE CLAUDE CORMIER DOG FOUNTAIN (Western Plaza at [642, -428])
         const castIronDark = new THREE.MeshStandardMaterial({ color: 0x162a22, roughness: 0.45, metalness: 0.5 });
         const goldTrimMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.85, roughness: 0.25 });
         const waterPoolMat = new THREE.MeshStandardMaterial({
@@ -7097,7 +7128,7 @@
           berczyGrp.add(bulb);
         });
 
-        // 4. THE 27 DOG SCULPTURES (18 Lower Tier + 9 Upper Tier)
+        // 5. THE 27 DOG SCULPTURES (18 Lower Tier + 9 Upper Tier)
         const dogPalette = [
           0xf8fafc, // Dalmatian / white
           0xd97706, // Golden Retriever / Labrador
@@ -7177,22 +7208,22 @@
           berczyGrp.add(new THREE.Mesh(jetGeo, streamMat));
         }
 
-        // 5. THE CAT & THE BIRDS (Famous Whimsical Claude Cormier Detail)
+        // 6. THE CAT & THE BIRDS (Famous Whimsical Claude Cormier Detail)
         const troughMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.7 });
         const catTrough = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.75, 1.2), troughMat);
-        catTrough.position.set(687, 0.38, -494);
+        catTrough.position.set(635.0, 0.38, -436.0);
         berczyGrp.add(catTrough);
 
         const catMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.5 });
         const catBody = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 0.45, 8), catMat);
-        catBody.position.set(687, 0.98, -494);
+        catBody.position.set(635.0, 0.98, -436.0);
         berczyGrp.add(catBody);
         const catHead = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), catMat);
-        catHead.position.set(687, 1.25, -493.9);
+        catHead.position.set(635.0, 1.25, -435.9);
         berczyGrp.add(catHead);
         [-0.08, 0.08].forEach(ex => {
           const ear = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.1, 4), catMat);
-          ear.position.set(687 + ex, 1.4, -493.9);
+          ear.position.set(635.0 + ex, 1.4, -435.9);
           berczyGrp.add(ear);
         });
 
@@ -7200,28 +7231,28 @@
         const vPoleMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 });
         const birdMat = new THREE.MeshStandardMaterial({ color: 0xb45309, metalness: 0.8, roughness: 0.3 });
         const lampPole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 4.2, 8), vPoleMat);
-        lampPole.position.set(686, 2.1, -497);
+        lampPole.position.set(634.0, 2.1, -439.0);
         berczyGrp.add(lampPole);
         const lampCrossarm = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 0.08), vPoleMat);
-        lampCrossarm.position.set(686, 3.8, -497);
+        lampCrossarm.position.set(634.0, 3.8, -439.0);
         berczyGrp.add(lampCrossarm);
         const lLantern = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.4), new THREE.MeshBasicMaterial({ color: 0xffdf88, toneMapped: false }));
-        lLantern.position.set(686, 4.3, -497);
+        lLantern.position.set(634.0, 4.3, -439.0);
         berczyGrp.add(lLantern);
 
         [-0.45, 0.45].forEach(bx => {
           const bird = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.2, 6), birdMat);
           bird.rotation.x = Math.PI / 2;
-          bird.position.set(686 + bx, 3.9, -497);
+          bird.position.set(634.0 + bx, 3.9, -439.0);
           berczyGrp.add(bird);
         });
 
-        // 6. London Plane Trees & Modern Park Benches
+        // 7. London Plane Trees & Modern Park Benches
         const planeFoliageMat = new THREE.MeshStandardMaterial({ color: 0x2e6b26, roughness: 0.9 });
         const planeTrunkMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.7 });
         const berczyTrees = [
-          [712, -496, 3.4], [724, -494, 3.8], [712, -478, 3.5], [724, -479, 3.8],
-          [684, -502, 3.2], [684, -474, 3.2]
+          [625, -444, 3.4], [628, -406, 3.4], [650, -458, 3.8], [650, -412, 3.6],
+          [675, -468, 3.8], [675, -425, 3.8], [700, -476, 3.6], [702, -448, 3.6]
         ];
         berczyTrees.forEach(([tx, tz, rad]) => {
           const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.26, 4.2, 8), planeTrunkMat);
@@ -7236,7 +7267,8 @@
         const bBenchMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6 });
         const bWoodSeat = new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.75 });
         [
-          [688, -480, 0.2], [688, -496, -0.2], [702, -480, 0.8], [702, -496, -0.8]
+          [632, -420, 0.0], [652, -420, 0.0], [632, -436, Math.PI], [652, -436, Math.PI],
+          [670, -450, 0.6], [670, -438, -0.6], [692, -462, 0.6], [692, -452, -0.6]
         ].forEach(([bx, bz, rotY]) => {
           const bg = new THREE.Group();
           const frame = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.4, 0.7), bBenchMat);
@@ -7250,11 +7282,12 @@
           berczyGrp.add(bg);
         });
 
+        // Berczy Park entrance sign facing Scott Street
         const berczySign = signMesh([
           'BERCZY PARK',
           'LE PARC BERCZY • CLAUDE CORMIER DOG FOUNTAIN'
         ], 10, 1.4, { bg: '#064e3b', fg: '#fef08a', borderColor: '#10b981', size: 54 });
-        berczySign.position.set(680, 2.0, -488);
+        berczySign.position.set(617.0, 2.0, -425.0);
         berczySign.rotation.y = Math.PI / 2;
         berczyGrp.add(berczySign);
 
