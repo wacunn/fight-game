@@ -5428,7 +5428,7 @@ function triggerSlamFlash() {
   setTimeout(() => f.style.opacity = '0', 180);
 }
 
-let announcementTimer = null;
+var announcementTimer = null;
 function showAnnouncement(text, duration = 2400) {
   const ann = document.getElementById('announcement');
   if (!ann) return;
@@ -5439,7 +5439,7 @@ function showAnnouncement(text, duration = 2400) {
 }
 
 // Peace Sanctuary Banner Controller
-let peaceBannerTimer = null;
+var peaceBannerTimer = null;
 function triggerPeaceZoneBanner(insidePeace) {
   const banner = document.getElementById('peace-zone-banner');
   if (!banner) return;
