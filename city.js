@@ -3443,11 +3443,11 @@
       }
       return { geo: gb.build(), top };
     }
-    const signBackMat = new THREE.MeshStandardMaterial({ color: 0x141820, roughness: 0.7, metalness: 0.4 });
     function signMesh(text, w, h, colors) {
+      const backMat = signMesh._backMat || (signMesh._backMat = new THREE.MeshStandardMaterial({ color: 0x141820, roughness: 0.7, metalness: 0.4 }));
       const tex = makeLabelTexture(Array.isArray(text) ? text : [text], Object.assign({ size: 70, w: 1024, h: Array.isArray(text) ? 170 : 140 }, colors));
       const frontMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
-      return new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.16), [signBackMat, signBackMat, signBackMat, signBackMat, frontMat, signBackMat]);
+      return new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.16), [backMat, backMat, backMat, backMat, frontMat, backMat]);
     }
     // Place a flat sign on the footprint edge whose outward normal best faces `towards`
     function signOnEdge(pts, towards, sign, y, minLen) {
@@ -4894,9 +4894,10 @@
       });
       const pathTex = new THREE.CanvasTexture(pc);
       const pathFrontMat = new THREE.MeshStandardMaterial({ map: pathTex, roughness: 0.3, emissive: 0xffffff, emissiveMap: pathTex, emissiveIntensity: 0.65 });
+      const pathBackMat = signMesh._backMat || (signMesh._backMat = new THREE.MeshStandardMaterial({ color: 0x141820, roughness: 0.7, metalness: 0.4 }));
       const pSign = new THREE.Mesh(
         new THREE.BoxGeometry(3.8, 0.8, 0.16),
-        [signBackMat, signBackMat, signBackMat, signBackMat, pathFrontMat, signBackMat]
+        [pathBackMat, pathBackMat, pathBackMat, pathBackMat, pathFrontMat, pathBackMat]
       );
       pSign.position.set(0, 3.1, 2.02);
       pGroup.add(pSign);
