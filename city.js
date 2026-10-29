@@ -696,6 +696,7 @@
     LM.olympicPark = [-350.0, 205.0];
     LM.clarenceSquare = [-805.0, -15.0];
     LM.harbourSquarePark = [470.0, 490.0];
+    LM.davidPecautSquare = [-308.0, -270.0];
 
     // ---------- CN Tower vertical walkables ----------
     const TWR = { x: LM.cnTower[0], z: LM.cnTower[1] };
@@ -5792,6 +5793,169 @@
       scene.add(s);
     }
 
+    // ---------------- 4a-2. David Pecaut Square (Civic Square & Urban Park Green Space) ----------------
+    // Premier civic square & urban park of Toronto's Entertainment District (named for civic leader David Pecaut).
+    // Situated between Metro Hall and Roy Thomson Hall, spanning King St W to Wellington St W (x=-360..-260, z=-315..-225).
+    // Features:
+    // - The Great Lawn: expansive 60m x 56m emerald green park lawn with rolling perimeter berms
+    // - Double avenue of Honey Locust trees in raised architectural granite planter curbs along east & west promenades
+    // - Modern rectangular granite reflecting pool with water cascades towards King St W
+    // - Polished light-grey granite flagstone promenades connecting King St W to Wellington St W
+    // - Contemporary teak and stainless steel park benches, minimalist illuminated bollards, and civic signage
+    {
+      const dpsGrp = new THREE.Group();
+
+      // 1. Light-Grey Granite Flagstone Civic Plaza Base
+      const dpsPlazaPoly = [
+        [-358, -315], [-258, -315], [-258, -225], [-358, -225]
+      ];
+      const dpsPlazaMat = new THREE.MeshStandardMaterial({
+        color: 0xc8cdd5, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
+      });
+      const dpsPlazaMesh = new THREE.Mesh(capGeo(dpsPlazaPoly, () => 0.05), dpsPlazaMat);
+      dpsPlazaMesh.receiveShadow = true;
+      dpsGrp.add(dpsPlazaMesh);
+
+      // 2. The Great Lawn (Signature Urban Green Space)
+      // Expansive emerald green lawn where city workers lounge and TIFF hosts outdoor festival screenings
+      const dpsLawnPoly = [
+        [-338, -298], [-278, -298], [-278, -242], [-338, -242]
+      ];
+      const dpsTurfMat = new THREE.MeshStandardMaterial({
+        color: 0x224d1a, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
+      });
+      const dpsLawnMesh = new THREE.Mesh(capGeo(dpsLawnPoly, () => 0.08), dpsTurfMat);
+      dpsLawnMesh.receiveShadow = true;
+      dpsGrp.add(dpsLawnMesh);
+
+      // Gentle rolling grassy lawn berms along the perimeter
+      const dpsBermMat = new THREE.MeshStandardMaterial({ color: 0x2a5d20, roughness: 0.95 });
+      [
+        { cx: -308, cz: -294, rx: 28, rz: 4.5, h: 0.65 },
+        { cx: -308, cz: -246, rx: 28, rz: 4.5, h: 0.65 },
+        { cx: -334, cz: -270, rx: 4.0, rz: 22, h: 0.60 },
+        { cx: -282, cz: -270, rx: 4.0, rz: 22, h: 0.60 }
+      ].forEach(b => {
+        const berm = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), dpsBermMat);
+        berm.scale.set(b.rx, b.h, b.rz);
+        berm.position.set(b.cx, 0.06, b.cz);
+        dpsGrp.add(berm);
+      });
+
+      // 3. Double Promenade of Honey Locust Trees in Raised Architectural Planters
+      // Flanking both sides of the Great Lawn (West promenade toward Metro Hall, East promenade toward Roy Thomson Hall)
+      const planterCurbMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.65 });
+      const planterSoilMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.95 });
+      const locustFoliageMat1 = new THREE.MeshStandardMaterial({ color: 0x3d7e26, roughness: 0.9 });
+      const locustFoliageMat2 = new THREE.MeshStandardMaterial({ color: 0x48942e, roughness: 0.9 });
+      const locustTrunkMat = new THREE.MeshStandardMaterial({ color: 0x422f22, roughness: 0.8 });
+
+      [-346, -270].forEach(px => {
+        const pBox = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.55, 68), planterCurbMat);
+        pBox.position.set(px, 0.275, -270);
+        dpsGrp.add(pBox);
+        const pSoil = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.1, 67.2), planterSoilMat);
+        pSoil.position.set(px, 0.56, -270);
+        dpsGrp.add(pSoil);
+        addSolid({ type: 'poly', pts: [[px - 3.2, -304], [px + 3.2, -304], [px + 3.2, -236], [px - 3.2, -236]], h: 0.55, name: 'David Pecaut Planter' });
+
+        // Double row of Honey Locust trees along each promenade
+        [-1.6, 1.6].forEach(ox => {
+          for (let ti = 0; ti < 5; ti++) {
+            const tz = -298 + ti * 14;
+            const tx = px + ox;
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 4.2, 8), locustTrunkMat);
+            trunk.position.set(tx, 2.1, tz);
+            dpsGrp.add(trunk);
+
+            const fMat = ti % 2 === 0 ? locustFoliageMat1 : locustFoliageMat2;
+            const dome1 = new THREE.Mesh(new THREE.SphereGeometry(2.4, 10, 8), fMat);
+            dome1.scale.set(1.4, 0.7, 1.4);
+            dome1.position.set(tx, 4.2, tz);
+            dpsGrp.add(dome1);
+            const dome2 = new THREE.Mesh(new THREE.SphereGeometry(1.8, 8, 6), fMat);
+            dome2.scale.set(1.3, 0.65, 1.3);
+            dome2.position.set(tx, 5.3, tz);
+            dpsGrp.add(dome2);
+          }
+        });
+      });
+
+      // 4. Sleek Rectangular Granite Reflecting Pool & Water Feature
+      // Situated at the north end of the square facing King Street West
+      const poolWallMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.6 });
+      const poolWaterMat = new THREE.MeshStandardMaterial({
+        color: 0x0284c7, roughness: 0.05, metalness: 0.4, emissive: 0x0369a1, emissiveIntensity: 0.5
+      });
+      const poolBorder = new THREE.Mesh(new THREE.BoxGeometry(24, 0.45, 9.0), poolWallMat);
+      poolBorder.position.set(-308, 0.225, -308);
+      dpsGrp.add(poolBorder);
+      const poolWater = new THREE.Mesh(new THREE.PlaneGeometry(22.8, 7.8), poolWaterMat);
+      poolWater.rotation.x = -Math.PI / 2;
+      poolWater.position.set(-308, 0.46, -308);
+      dpsGrp.add(poolWater);
+      addSolid({ type: 'poly', pts: [[-320, -312.5], [-296, -312.5], [-296, -303.5], [-320, -303.5]], h: 0.45, name: 'David Pecaut Reflecting Pool' });
+
+      [-7, 0, 7].forEach(ox => {
+        const jet = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.35, 0.6, 12), new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0ea5e9, emissiveIntensity: 0.9 }));
+        jet.position.set(-308 + ox, 0.65, -308);
+        dpsGrp.add(jet);
+      });
+
+      // 5. Contemporary Teak & Stainless Steel Park Benches
+      const sBenchMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.85, roughness: 0.2 });
+      const sTeakMat = new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.75 });
+      [
+        [-341, -285, Math.PI / 2], [-341, -270, Math.PI / 2], [-341, -255, Math.PI / 2],
+        [-275, -285, -Math.PI / 2], [-275, -270, -Math.PI / 2], [-275, -255, -Math.PI / 2],
+        [-320, -300, 0], [-296, -300, 0]
+      ].forEach(([bx, bz, rotY]) => {
+        const bg = new THREE.Group();
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.45, 0.7), sBenchMat);
+        frame.position.y = 0.22;
+        bg.add(frame);
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.12, 0.65), sTeakMat);
+        seat.position.y = 0.46;
+        bg.add(seat);
+        bg.position.set(bx, 0.06, bz);
+        bg.rotation.y = rotY;
+        dpsGrp.add(bg);
+      });
+
+      // 6. Minimalist Illuminated Bollards
+      const bollardLightMat = new THREE.MeshBasicMaterial({ color: 0xffdf88, toneMapped: false });
+      const bollardMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.3 });
+      [
+        [-338, -312], [-278, -312], [-338, -228], [-278, -228],
+        [-308, -314], [-308, -226]
+      ].forEach(([lx, lz]) => {
+        const bCol = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.1, 8), bollardMat);
+        bCol.position.set(lx, 0.55, lz);
+        dpsGrp.add(bCol);
+        const bGlow = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.25, 8), bollardLightMat);
+        bGlow.position.set(lx, 1.15, lz);
+        dpsGrp.add(bGlow);
+      });
+
+      // 7. Park Entrance Marquee Signs facing King St W and Wellington St W
+      const dpsSignKing = signMesh([
+        'DAVID PECAUT SQUARE',
+        'CIVIC SQUARE & URBAN PARK • TIFF FESTIVAL HUB'
+      ], 16, 2.2, { bg: '#0f172a', fg: '#f8fafc', borderColor: '#3b82f6', size: 56 });
+      dpsSignKing.position.set(-308, 2.4, -315);
+      dpsGrp.add(dpsSignKing);
+
+      const dpsSignWell = signMesh([
+        'DAVID PECAUT SQUARE',
+        'METRO HALL PROMENADE • CULTURAL PLAZA'
+      ], 14, 2.0, { bg: '#0f172a', fg: '#f8fafc', borderColor: '#3b82f6', size: 54 });
+      dpsSignWell.position.set(-308, 2.4, -225);
+      dpsSignWell.rotation.y = Math.PI;
+      dpsGrp.add(dpsSignWell);
+
+      scene.add(dpsGrp);
+    }
+
     // ---------------- 4b. Hockey Hall of Fame: 1885 Beaux-Arts Bank of Montreal ----------------
     // 30 Yonge Street at Front Street West (Darling & Curry, 1885)
     // Opulent Beaux-Arts / Rococo Revival palazzo in carved Ohio freestone.
@@ -6679,49 +6843,148 @@
       cup.position.set(tx, 29, tz); scene.add(cup);
       addCircle(tx, tz, 3.5);
 
-      // The Flatiron Trompe-l'œil Mural (Derek Michael Besant) on the western back wall facing Berczy Park
-      // Combine the full western back facade (all west-facing wall segments where nx < -0.65)
-      let westPts = [];
-      for (let i = 0; i < poly.length; i++) {
-        const p1 = poly[i], p2 = poly[(i + 1) % poly.length];
-        const len = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
-        if (len < 1.0) continue;
-        const nx = (p2[1] - p1[1]) / len;
-        if (nx < -0.65) { westPts.push(p1, p2); }
-      }
-      if (westPts.length >= 2) {
-        westPts.sort((a, b) => a[1] - b[1]); // north-to-south along the western back wall
-        const backP1 = westPts[0], backP2 = westPts[westPts.length - 1];
-        const dx = backP2[0] - backP1[0], dz = backP2[1] - backP1[1];
-        const bw = Math.hypot(dx, dz) || 1;
-        const wnx = dz / bw, wnz = -dx / bw; // outward normal pointing west toward Berczy Park
-        const [mc, mctx] = canvas2(512, 512);
-        mctx.fillStyle = '#8a3b2b'; mctx.fillRect(0, 0, 512, 512);
-        // Painted faux-windows reflecting the streetscape
-        mctx.fillStyle = '#1c2430';
-        for (let row = 0; row < 5; row++) {
+      // The Flatiron Trompe-l'œil Mural (Derek Michael Besant, 1980) on the western back wall facing Berczy Park
+      // 5-storey west wall of the Gooderham Building (midpoint [724.6, -480.05])
+      {
+        const [mc, mctx] = canvas2(1024, 1024);
+        // Deep Victorian red brick background of the Gooderham Building
+        mctx.fillStyle = '#822c22'; mctx.fillRect(0, 0, 1024, 1024);
+        mctx.fillStyle = '#641e17';
+        for (let y = 0; y < 1024; y += 12) mctx.fillRect(0, y, 1024, 2);
+
+        // Giant Pinned Parchment Canvas Banner (Trompe-l'œil optical illusion)
+        // Drop shadow under the canvas edges
+        mctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        mctx.fillRect(48, 48, 936, 936);
+
+        // Ivory drawing parchment surface
+        mctx.fillStyle = '#faf6ec';
+        mctx.fillRect(36, 36, 948, 948);
+        mctx.strokeStyle = '#d4cbb8'; mctx.lineWidth = 4;
+        mctx.strokeRect(36, 36, 948, 948);
+
+        // Curled/fluttering dog-eared corners (famous optical illusion detail)
+        mctx.fillStyle = '#e5dec9';
+        mctx.beginPath();
+        mctx.moveTo(36, 880); mctx.lineTo(120, 984); mctx.lineTo(120, 880);
+        mctx.closePath(); mctx.fill();
+        mctx.strokeStyle = '#9ca3af'; mctx.lineWidth = 3; mctx.stroke();
+
+        mctx.beginPath();
+        mctx.moveTo(984, 880); mctx.lineTo(900, 984); mctx.lineTo(900, 880);
+        mctx.closePath(); mctx.fill();
+        mctx.stroke();
+
+        // The Perkins Building facade (painted on the pinned canvas)
+        // Top classical carved pediment & entablature (y: 60..180)
+        mctx.fillStyle = '#78281e';
+        mctx.fillRect(80, 80, 864, 90);
+        mctx.fillStyle = '#e2d5c3';
+        mctx.fillRect(70, 70, 884, 22);
+        for (let dx = 80; dx < 950; dx += 24) mctx.fillRect(dx, 92, 14, 12);
+
+        // Inscribed mural title banner
+        mctx.fillStyle = '#fef08a';
+        mctx.font = 'bold 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, serif';
+        mctx.textAlign = 'center';
+        mctx.fillText("THE FLATIRON MURAL • DEREK MICHAEL BESANT (1980)", 512, 145);
+
+        // 4 Floors of Victorian Arched and Rectangular Windows reflecting sky & streetscape
+        const windowLevels = [
+          { y: 200, h: 140, arched: true },  // 4th Floor: Romanesque Round-Arched Windows
+          { y: 380, h: 130, arched: false }, // 3rd Floor: Classical Pediment Windows
+          { y: 550, h: 130, arched: false }, // 2nd Floor: Molded Architrave Windows
+          { y: 720, h: 135, arched: false }  // 1st Floor: Commercial Ground Display Windows
+        ];
+
+        windowLevels.forEach(lvl => {
           for (let col = 0; col < 4; col++) {
-            mctx.fillRect(60 + col * 105, 50 + row * 90, 65, 60);
-            mctx.strokeStyle = '#e2d5c3'; mctx.lineWidth = 4;
-            mctx.strokeRect(60 + col * 105, 50 + row * 90, 65, 60);
+            const wx = 110 + col * 215, ww = 150, wy = lvl.y, wh = lvl.h;
+            mctx.fillStyle = '#e5d5b8';
+            mctx.fillRect(wx - 8, wy - 10, ww + 16, 12);
+            mctx.fillRect(wx - 10, wy + wh - 2, ww + 20, 14);
+
+            if (lvl.arched) {
+              mctx.beginPath();
+              mctx.arc(wx + ww / 2, wy + 20, ww / 2, Math.PI, 0);
+              mctx.fillStyle = '#d4c5a9';
+              mctx.fill();
+              mctx.strokeStyle = '#78350f'; mctx.lineWidth = 5; mctx.stroke();
+              mctx.fillStyle = '#fef08a';
+              mctx.fillRect(wx + ww / 2 - 12, wy - 15, 24, 22);
+            }
+
+            // Window glass reflecting vivid Toronto sky and white clouds
+            const skyGrad = mctx.createLinearGradient(0, wy, 0, wy + wh);
+            skyGrad.addColorStop(0, '#0284c7');
+            skyGrad.addColorStop(0.45, '#38bdf8');
+            skyGrad.addColorStop(0.7, '#bae6fd');
+            skyGrad.addColorStop(1.0, '#1e293b');
+            mctx.fillStyle = skyGrad;
+            mctx.fillRect(wx, wy + (lvl.arched ? 20 : 0), ww, wh - (lvl.arched ? 20 : 0));
+
+            // Soft white cloud reflection in glass
+            mctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+            mctx.beginPath();
+            mctx.arc(wx + ww * 0.35, wy + wh * 0.4, 24, 0, Math.PI * 2);
+            mctx.arc(wx + ww * 0.55, wy + wh * 0.35, 30, 0, Math.PI * 2);
+            mctx.arc(wx + ww * 0.72, wy + wh * 0.42, 22, 0, Math.PI * 2);
+            mctx.fill();
+
+            // Glazing bar mullions
+            mctx.strokeStyle = '#1e1b18';
+            mctx.lineWidth = 4;
+            mctx.strokeRect(wx, wy + (lvl.arched ? 20 : 0), ww, wh - (lvl.arched ? 20 : 0));
+            mctx.beginPath();
+            mctx.moveTo(wx + ww / 2, wy + (lvl.arched ? 20 : 0));
+            mctx.lineTo(wx + ww / 2, wy + wh);
+            mctx.stroke();
+            mctx.beginPath();
+            mctx.moveTo(wx, wy + wh * 0.5);
+            mctx.lineTo(wx + ww, wy + wh * 0.5);
+            mctx.stroke();
           }
-        }
-        // Fluttering pinned canvas border (trompe-l'œil effect)
-        mctx.strokeStyle = '#e5e7eb'; mctx.lineWidth = 6;
-        mctx.strokeRect(20, 20, 472, 472);
-        // Golden corner pins
-        [[30, 30], [482, 30], [482, 482], [30, 482]].forEach(([px, py]) => {
-          mctx.fillStyle = '#d97706'; mctx.beginPath(); mctx.arc(px, py, 12, 0, Math.PI * 2); mctx.fill();
         });
+
+        // Giant Gilded Brass Pins / Tacks holding down the canvas at the corners
+        [[70, 70], [954, 70], [130, 910], [894, 910]].forEach(([px, py]) => {
+          mctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          mctx.beginPath(); mctx.arc(px + 6, py + 6, 24, 0, Math.PI * 2); mctx.fill();
+          const pinGrad = mctx.createRadialGradient(px - 5, py - 5, 2, px, py, 22);
+          pinGrad.addColorStop(0, '#fef08a');
+          pinGrad.addColorStop(0.5, '#f59e0b');
+          pinGrad.addColorStop(1, '#b45309');
+          mctx.fillStyle = pinGrad;
+          mctx.beginPath(); mctx.arc(px, py, 22, 0, Math.PI * 2); mctx.fill();
+          mctx.strokeStyle = '#78350f'; mctx.lineWidth = 3; mctx.stroke();
+        });
+
         const muralTex = new THREE.CanvasTexture(mc);
+        const muralW = 15.2, muralH = 17.5;
         const muralMesh = new THREE.Mesh(
-          new THREE.PlaneGeometry(Math.max(8, bw * 0.86), 16),
-          new THREE.MeshStandardMaterial({ map: muralTex, roughness: 0.8, side: THREE.DoubleSide })
+          new THREE.PlaneGeometry(muralW, muralH),
+          new THREE.MeshStandardMaterial({ map: muralTex, roughness: 0.65, side: THREE.DoubleSide })
         );
-        const mx = (backP1[0] + backP2[0]) / 2, mz = (backP1[1] + backP2[1]) / 2;
-        muralMesh.position.set(mx + wnx * 0.14, 10.5, mz + wnz * 0.14);
-        muralMesh.rotation.y = Math.atan2(wnx, wnz);
+        // Outward normal pointing WEST into Berczy Park
+        const mx = 724.6, mz = -480.05;
+        const nx = -0.838, nz = 0.546;
+        muralMesh.position.set(mx + nx * 0.25, 11.0, mz + nz * 0.25);
+        muralMesh.rotation.y = Math.atan2(nx, nz);
         scene.add(muralMesh);
+
+        // Ground-level bronze commemorative plaque for the mural
+        const mPlaque = signMesh([
+          'THE FLATIRON MURAL',
+          'DEREK MICHAEL BESANT • 1980 • TROMPE-L\'ŒIL'
+        ], 5.2, 0.9, { bg: '#1c1917', fg: '#fef08a', borderColor: '#d4af37', size: 52 });
+        mPlaque.position.set(mx + nx * 0.5, 0.9, mz + nz * 0.5);
+        mPlaque.rotation.y = Math.atan2(nx, nz);
+        scene.add(mPlaque);
+
+        // Warm uplight illuminating the Flatiron Mural
+        const muralLight = new THREE.PointLight(0xfff1d6, 2.2, 24);
+        muralLight.position.set(mx + nx * 3.5, 3.2, mz + nz * 3.5);
+        scene.add(muralLight);
       }
 
       // ---------------- Upgraded Berczy Park & Claude Cormier Dog Fountain ----------------
