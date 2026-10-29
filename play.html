@@ -3389,6 +3389,50 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       return Math.abs(z - getUsrcZ(x)) < TRENCH_HALF_W;
     }
 
+    // ---------- Real-world Toronto Inner Harbour Shoreline (Piers, Quays & Water Slips) ----------
+    // Traces the exact waterfront edge from Bathurst/Spadina in the west across HTO Park,
+    // Rees Slip, York Quay (Harbourfront Centre & Power Plant), Simcoe Slip, Queen's Quay Terminal,
+    // York Slip, Harbour Square, Jack Layton Ferry Terminal, Yonge Slip, Pier 27, Redpath Sugar Wharf,
+    // and Sugar Beach in the east.
+    const HARBOUR_SHORELINE = [
+      [-2200, 700], [-1250, 684], [-1050, 676], [-850, 624], [-690, 616],
+      [-675, 580], [-625, 580], // Spadina Slip & Spadina WaveDeck
+      [-615, 610], [-425, 608], // Toronto Music Garden & Marina Quay West
+      [-415, 604], [-355, 600], // Peter Street Basin / Slip
+      [-345, 584], [-250, 574], // Fire Station 334 Marine Unit & Rees Pier
+      [-188, 568], [-175, 550], [-142, 548], [-130, 566], [-95, 568], // HTO Park West, HTO Bay & HTO East Beach
+      [-90, 588], [-44, 586],   // Amsterdam Brewhouse Pier
+      [-38, 518], [-6, 516],    // Rees Slip & Rees WaveDeck
+      [-2, 560], [35, 602], [50, 632], [88, 626], [92, 592], [148, 574], // York Quay: Harbourfront Centre, Natrel Pond & Power Plant
+      [151, 488],               // Simcoe Slip & Simcoe WaveDeck
+      [198, 622], [218, 650], [284, 644], // Queen's Quay Terminal Pier & Pier 6
+      [289, 488], [308, 488],   // York Slip
+      [335, 550], [352, 562], [384, 552], [392, 534], [468, 514], [485, 506], [540, 506], // Harbour Square Quays & Basin
+      [570, 490], [615, 454], [638, 482], [648, 478], [662, 440], [718, 404], [734, 374], // Westin Harbour Castle & Jack Layton Ferry Terminal
+      [738, 246], [768, 330], [802, 396], // Yonge Slip & Marina Pier
+      [838, 380], [918, 338], [992, 302], // Waterlink at Pier 27 Quay
+      [1000, 270], [1035, 268], [1072, 248], [1090, 192], // Redpath Sugar Refinery Wharf & Jarvis Slip
+      [1140, 98], [1250, 58], [2200, 40]  // Sugar Beach & East Bayfront
+    ];
+
+    function getShorelineZ(x) {
+      if (x <= HARBOUR_SHORELINE[0][0]) return HARBOUR_SHORELINE[0][1];
+      if (x >= HARBOUR_SHORELINE[HARBOUR_SHORELINE.length - 1][0]) return HARBOUR_SHORELINE[HARBOUR_SHORELINE.length - 1][1];
+      for (let i = 0; i < HARBOUR_SHORELINE.length - 1; i++) {
+        const x0 = HARBOUR_SHORELINE[i][0], z0 = HARBOUR_SHORELINE[i][1];
+        const x1 = HARBOUR_SHORELINE[i + 1][0], z1 = HARBOUR_SHORELINE[i + 1][1];
+        if (x >= x0 && x <= x1) {
+          const t = (x1 !== x0) ? (x - x0) / (x1 - x0) : 0;
+          return z0 + t * (z1 - z0);
+        }
+      }
+      return 600.0;
+    }
+
+    function isHarbourWater(x, z, pad) {
+      return z > getShorelineZ(x) - (pad || 0);
+    }
+
     // ---------- Bridges over the cut, derived from the real streets ----------
     // 1. Streets that cross the corridor in the OSM data (Spadina, Blue Jays Way, the SkyWalk).
     // 2. Streets that end at the corridor (Bay, Yonge, Lower Simcoe...) are carried straight
@@ -3619,6 +3663,9 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         if (isInsideTrench(x, z) && !isOnBridge(x, z)) {
           return false;
         }
+        if (isHarbourWater(x, z, r)) {
+          return false;
+        }
       }
       const seen = new Set();
       for (let cx = Math.floor((x - r) / CELL); cx <= Math.floor((x + r) / CELL); cx++) {
@@ -3759,18 +3806,26 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       const c = gb.vert(x1, y, zN1, 0, 1, 0, x1 / 4, zN1 / 4), d = gb.vert(x0, y, zN0, 0, 1, 0, x0 / 4, zN0 / 4);
       gb.quad(a, b, c, d);
     }
-    const xCuts = [X_MIN_EXT, TRENCH_X0];
-    for (let x = TRENCH_X0 + 8; x < TRENCH_X1; x += 8) xCuts.push(x);
-    xCuts.push(TRENCH_X1, X_MAX_EXT);
+    const rawXCuts = [X_MIN_EXT, TRENCH_X0, TRENCH_X1, X_MAX_EXT];
+    for (let x = X_MIN_EXT + 8; x < X_MAX_EXT; x += 8) rawXCuts.push(x);
+    HARBOUR_SHORELINE.forEach(([sx]) => {
+      if (sx > X_MIN_EXT && sx < X_MAX_EXT) rawXCuts.push(sx);
+    });
+    rawXCuts.sort((a, b) => a - b);
+    const xCuts = [];
+    rawXCuts.forEach(x => {
+      if (!xCuts.length || x - xCuts[xCuts.length - 1] > 0.05) xCuts.push(x);
+    });
     const WALL_TOP = [0.86, 0.86, 0.9], WALL_BOT = [0.34, 0.34, 0.37];   // fake ambient occlusion: darker toward the bottom
     for (let i = 0; i < xCuts.length - 1; i++) {
       const x0 = xCuts[i], x1 = xCuts[i + 1];
+      const zShore0 = getShorelineZ(x0), zShore1 = getShorelineZ(x1);
       const cut = x0 >= TRENCH_X0 && x1 <= TRENCH_X1;
-      if (!cut) { groundQuad(groundGB, x0, x1, Z_MIN_EXT, Z_MIN_EXT, Z_MAX_EXT, Z_MAX_EXT, 0); continue; }
+      if (!cut) { groundQuad(groundGB, x0, x1, Z_MIN_EXT, Z_MIN_EXT, zShore0, zShore1, 0); continue; }
       const c0 = getUsrcZ(x0), c1 = getUsrcZ(x1);
       const zn0 = c0 - TRENCH_HALF_W, zn1 = c1 - TRENCH_HALF_W, zs0 = c0 + TRENCH_HALF_W, zs1 = c1 + TRENCH_HALF_W;
       groundQuad(groundGB, x0, x1, Z_MIN_EXT, Z_MIN_EXT, zn0, zn1, 0);       // north of the cut
-      groundQuad(groundGB, x0, x1, zs0, zs1, Z_MAX_EXT, Z_MAX_EXT, 0);       // south of the cut
+      groundQuad(groundGB, x0, x1, zs0, zs1, zShore0, zShore1, 0);           // south of the cut down to exact harbour shoreline
       trenchGB.color = [0.62, 0.6, 0.58];
       groundQuad(trenchGB, x0, x1, zn0, zn1, zs0, zs1, TRENCH_Y);           // ballast floor
       // north wall faces south (+z): bottom-left, bottom-right, top-right, top-left
@@ -3801,15 +3856,101 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     wallsMesh.receiveShadow = true;
     scene.add(wallsMesh);
 
-
-    // Lake Ontario beyond the southern edge of the data
-    const lake = new THREE.Mesh(
-      new THREE.PlaneGeometry(6000, 3000),
-      new THREE.MeshPhongMaterial({ color: 0x0a1424, specular: 0x334466, shininess: 80 })
-    );
+    // ---------- Toronto Inner Harbour & Lake Ontario Water + Granite Seawall ----------
+    const WATER_Y = -0.65;
+    const waterTex = (() => {
+      const [wc, wctx] = canvas2(256, 256);
+      const wg = wctx.createLinearGradient(0, 0, 256, 256);
+      wg.addColorStop(0.0, '#071c2f');
+      wg.addColorStop(0.5, '#0c2d48');
+      wg.addColorStop(1.0, '#082036');
+      wctx.fillStyle = wg;
+      wctx.fillRect(0, 0, 256, 256);
+      // Subtle harbour wave ripples & moonlit specular glints
+      for (let i = 0; i < 240; i++) {
+        const wx = hash(i * 1.9) * 256, wy = hash(i * 3.7) * 256;
+        const ww = 10 + hash(i * 5.3) * 26;
+        wctx.fillStyle = (i % 3 === 0) ? 'rgba(125,211,252,0.14)' : 'rgba(14,116,144,0.22)';
+        wctx.fillRect(wx, wy, ww, 2);
+      }
+      const wt = new THREE.CanvasTexture(wc);
+      wt.wrapS = wt.wrapT = THREE.RepeatWrapping;
+      wt.repeat.set(140, 90);
+      return wt;
+    })();
+    const lakeMat = new THREE.MeshStandardMaterial({
+      map: waterTex,
+      color: 0x0e3a5c,
+      roughness: 0.16,
+      metalness: 0.72,
+      envMapIntensity: 1.15
+    });
+    const lake = new THREE.Mesh(new THREE.PlaneGeometry(6000, 3800), lakeMat);
     lake.rotation.x = -Math.PI / 2;
-    lake.position.set(0, 0.02, maxZ + 1560);
+    lake.position.set(0, WATER_Y, 1920);
+    lake.receiveShadow = true;
     scene.add(lake);
+
+    // Continuous 3D Granite Harbour Seawall, Waterfront Promenade Coping & Timber Bumper Pilings
+    {
+      const seawallGB = new GeoBuilder();
+      const boardwalkGB = new GeoBuilder();
+      const bollardPts = [];
+      for (let i = 0; i < HARBOUR_SHORELINE.length - 1; i++) {
+        const [ax, az] = HARBOUR_SHORELINE[i];
+        const [bx, bz] = HARBOUR_SHORELINE[i + 1];
+        const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz);
+        if (len < 0.2) continue;
+        // Outward normal pointing toward water (+z side)
+        const nx = -dz / len, nz = dx / len;
+        // Vertical granite seawall from WATER_Y - 0.35 up to +0.20
+        const v0 = seawallGB.vert(ax, WATER_Y - 0.35, az, nx, 0, nz, 0, 0);
+        const v1 = seawallGB.vert(bx, WATER_Y - 0.35, bz, nx, 0, nz, len / 4, 0);
+        const v2 = seawallGB.vert(bx, 0.20, bz, nx, 0, nz, len / 4, 1);
+        const v3 = seawallGB.vert(ax, 0.20, az, nx, 0, nz, 0, 1);
+        seawallGB.quad(v0, v1, v2, v3);
+        seawallGB.quad(v0, v3, v2, v1);
+        // Raised granite coping lip (1.2m wide) along the water's edge
+        const c0 = seawallGB.vert(ax, 0.20, az, 0, 1, 0, 0, 0);
+        const c1 = seawallGB.vert(bx, 0.20, bz, 0, 1, 0, len / 4, 0);
+        const c2 = seawallGB.vert(bx - nx * 1.2, 0.20, bz - nz * 1.2, 0, 1, 0, len / 4, 1);
+        const c3 = seawallGB.vert(ax - nx * 1.2, 0.20, az - nz * 1.2, 0, 1, 0, 0, 1);
+        seawallGB.quad(c0, c1, c2, c3);
+        seawallGB.quad(c0, c3, c2, c1);
+        // Warm cedar/granite waterfront promenade strip (4.2m wide inland from coping)
+        if (ax >= -950 && bx <= 1250) {
+          const b0 = boardwalkGB.vert(ax - nx * 1.2, 0.04, az - nz * 1.2, 0, 1, 0, 0, 0);
+          const b1 = boardwalkGB.vert(bx - nx * 1.2, 0.04, bz - nz * 1.2, 0, 1, 0, len / 3, 0);
+          const b2 = boardwalkGB.vert(bx - nx * 5.4, 0.04, bz - nz * 5.4, 0, 1, 0, len / 3, 1);
+          const b3 = boardwalkGB.vert(ax - nx * 5.4, 0.04, az - nz * 5.4, 0, 1, 0, 0, 1);
+          boardwalkGB.quad(b0, b1, b2, b3);
+          boardwalkGB.quad(b0, b3, b2, b1);
+          for (let s = 4; s < len - 2; s += 14) {
+            const f = s / len;
+            bollardPts.push([ax + dx * f - nx * 0.55, az + dz * f - nz * 0.55]);
+          }
+        }
+      }
+      const seawallMesh = new THREE.Mesh(seawallGB.build(), new THREE.MeshStandardMaterial({ map: wallTex, color: 0x9ca3af, roughness: 0.82, side: THREE.DoubleSide }));
+      seawallMesh.receiveShadow = true;
+      scene.add(seawallMesh);
+      if (boardwalkGB.pos.length) {
+        const bwMesh = new THREE.Mesh(boardwalkGB.build(), new THREE.MeshStandardMaterial({ color: 0x8b5a3c, roughness: 0.78, side: THREE.DoubleSide }));
+        bwMesh.receiveShadow = true;
+        scene.add(bwMesh);
+      }
+      if (bollardPts.length) {
+        const bolGeo = new THREE.CylinderGeometry(0.16, 0.22, 0.75, 10);
+        const bolMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.45, metalness: 0.75 });
+        const bolInst = new THREE.InstancedMesh(bolGeo, bolMat, bollardPts.length);
+        const bm4 = new THREE.Matrix4();
+        bollardPts.forEach(([bx, bz], idx) => {
+          bm4.makeTranslation(bx, 0.55, bz);
+          bolInst.setMatrixAt(idx, bm4);
+        });
+        scene.add(bolInst);
+      }
+    }
 
     // ---------- Roads ----------
     const asphaltTex = makeGroundTexture('asphalt');
@@ -4682,12 +4823,48 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       const isMarket = name === 'St. Lawrence Market South' || (name === 'St. Lawrence Market' && !landmarkFeet.market);
       if (isGooderham) { h = 20; landmarkFeet.gooderham = pts; }
       if (isMarket) { h = 12; landmarkFeet.market = pts; }
+
+      // Real Toronto Waterfront building base heights & styles (towers/superstructures added in Waterfront section)
+      const isPowerPlant = name.indexOf('Home Game Toronto') === 0;
+      const isHarbourfrontMain = name.indexOf('Harbourfront Centre Main Building') === 0;
+      const isWaterclub = name === 'Waterclub Condos';
+      const isWestinHarbour = name === 'Westin Harbour Castle';
+      const isRedpathShed = !name && cx > 945 && cx < 1015 && cz > 135 && cz < 200;
+      const isRedpathTower = !name && cx >= 1015 && cx < 1085 && cz > 90 && cz < 170;
+      const isIceCondos = name.indexOf('ce Condomin') >= 0;
+      const isTenYork = name === 'Ten York';
+      const isCanadaHouse = name === 'Canada House';
+      const isPumpingStation = name === 'John Street Pumping Station';
+      if (isWaterclub) h = 16.5;
+      else if (isHarbourfrontMain) h = 15.5;
+      else if (isPowerPlant) h = 15.0;
+      else if (isWestinHarbour) h = 14.5;
+      else if (isRedpathShed) h = 26.0;
+      else if (isRedpathTower) h = 44.0;
+      else if (isIceCondos) h = 18.0;
+      else if (isTenYork) h = 16.0;
+      else if (isCanadaHouse) h = 20.0;
+      else if (isPumpingStation) h = 15.0;
+      else if (name === 'Pier 6' || name.indexOf('Pier 27 Presentation') === 0) h = 10.5;
+
       h = Math.max(4, Math.min(h, 320));
 
       let style, namedTint = null;
       const look = NAMED_LOOK.find(([re]) => re.test(name));
       if (look) { style = look[1]; namedTint = look[2]; }
-      else if (name.indexOf('Hockey Hall') >= 0) style = 'stone';
+      else if (isPowerPlant || isRedpathShed || isRedpathTower || isPumpingStation) {
+        style = 'warehouse';
+        namedTint = isRedpathTower ? [1.22, 0.58, 0.44] : [1.36, 0.64, 0.48];
+      } else if (isHarbourfrontMain) {
+        style = 'Victorian' in facadeGB ? 'victorian' : 'brick';
+        namedTint = [1.28, 0.78, 0.56];
+      } else if (isWaterclub || isIceCondos || isTenYork || isCanadaHouse) {
+        style = 'condo';
+        namedTint = [0.82, 1.02, 1.15];
+      } else if (isWestinHarbour) {
+        style = 'concrete';
+        namedTint = [1.05, 1.02, 0.96];
+      } else if (name.indexOf('Hockey Hall') >= 0) style = 'stone';
       else if (name.indexOf('Rogers Centre') === 0) style = 'concrete';
       else style = districtStyle(cx, cz, h, bi);
 
@@ -5056,16 +5233,23 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     }
 
     // ==========================================================================
-    // GENERIC PHARMACIES & COFFEE SHOPS at real pharmacy / coffee-chain locations
-    // (from public directory listings). Signs are generic on purpose.
+    // ICONIC TORONTO RETAIL & FAST-FOOD STOREFRONTS (Shoppers Drug Mart, LCBO,
+    // Tim Hortons, McDonald's, Pizza Pizza, Rabba Fine Foods) at real corners
     // ==========================================================================
     {
       const PLACES = [
-        { kind: 'pharmacy', a: 'King Street West', b: 'Blue Jays Way', quad: [0.4, -1], face: 'a' },   // 388 King St W (King & Peter)
-        { kind: 'pharmacy', a: 'Yonge Street', b: 'King Street East', quad: [1, 1], face: 'a' },       // 69 Yonge St (Yonge & King)
-        { kind: 'coffee', a: 'Front Street West', b: 'Blue Jays Way', quad: [-0.4, -1], face: 'a' },   // 340 Front St W
-        { kind: 'coffee', a: 'Queens Quay West', b: 'York Street', quad: [0.3, 1], face: 'a' },        // 207 Queens Quay W
-        { kind: 'coffee', a: 'Queens Quay West', b: 'Lower Simcoe Street', quad: [-1, 0.8], face: 'a' } // 249 Queens Quay W
+        { kind: 'pharmacy', brand: 'shoppers', a: 'King Street West', b: 'Blue Jays Way', quad: [0.4, -1], face: 'a' },   // 388 King St W (Shoppers Drug Mart at King & Peter)
+        { kind: 'pharmacy', brand: 'shoppers', a: 'Yonge Street', b: 'King Street East', quad: [1, 1], face: 'a' },       // 69 Yonge St (Shoppers Drug Mart at Yonge & King)
+        { kind: 'pharmacy', brand: 'shoppers', a: 'Queens Quay West', b: 'York Street', quad: [-0.4, -1], face: 'a' },    // Queens Quay W & York (Shoppers Drug Mart)
+        { kind: 'coffee', brand: 'tims', a: 'Front Street West', b: 'Blue Jays Way', quad: [-0.4, -1], face: 'a' },       // 340 Front St W (Tim Hortons)
+        { kind: 'coffee', brand: 'tims', a: 'Queens Quay West', b: 'York Street', quad: [0.3, 1], face: 'a' },            // 207 Queens Quay W (Tim Hortons at Queens Quay Terminal)
+        { kind: 'coffee', brand: 'rabba', a: 'Queens Quay West', b: 'Lower Simcoe Street', quad: [-1, 0.8], face: 'a' },  // 249 Queens Quay W (Rabba Fine Foods / Harbourfront)
+        { kind: 'lcbo', brand: 'lcbo', a: 'Queens Quay West', b: 'Yonge Street', quad: [0.6, -0.8], face: 'a' },          // Queens Quay LCBO Flagship
+        { kind: 'lcbo', brand: 'lcbo', a: 'King Street West', b: 'Spadina Avenue', quad: [0.6, -0.8], face: 'a' },        // King & Spadina LCBO
+        { kind: 'lcbo', brand: 'lcbo', a: 'Front Street East', b: 'Jarvis Street', quad: [-0.6, -0.8], face: 'a' },       // St. Lawrence Market LCBO
+        { kind: 'mcdonalds', brand: 'mcdonalds', a: 'King Street West', b: 'John Street', quad: [-0.6, -0.8], face: 'a' },// King & John McDonald's
+        { kind: 'mcdonalds', brand: 'mcdonalds', a: 'Yonge Street', b: 'Front Street East', quad: [0.6, -0.8], face: 'a' },// Yonge & Front McDonald's
+        { kind: 'pizzapizza', brand: 'pizzapizza', a: 'King Street West', b: 'Peter Street', quad: [-0.6, 0.8], face: 'a' }// King & Peter Pizza Pizza
       ];
       const linesOf = n => MAP.roads.filter(r => r.n === n).map(r => toPairs(r.p));
       const segNearest = (x, z, a, b) => {
@@ -5110,36 +5294,56 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
             }
           }
         });
-        if (hit && hit.d < 30) genericStores.push({ kind: pl.kind, x: hit.x, z: hit.z, nx: hit.nx, nz: hit.nz, len: hit.len, where: pl.a + ' & ' + pl.b });
+        if (hit && hit.d < 34) genericStores.push({ kind: pl.kind, brand: pl.brand, x: hit.x, z: hit.z, nx: hit.nx, nz: hit.nz, len: hit.len, where: pl.a + ' & ' + pl.b });
       });
 
-      const pharmaCross = new THREE.MeshBasicMaterial({ color: 0x2bd46a, toneMapped: false });
+      const BRAND_SPEC = {
+        shoppers: { lines: ['SHOPPERS DRUG MART', 'PHARMACY • OPEN LATE'], bg: '#dc2626', fg: '#ffffff', border: '#fecaca', fascia: 0xb91c1c, cross: 0xef4444 },
+        tims:     { lines: ['TIM HORTONS', 'ALWAYS FRESH • COFFEE & BAKE SHOP'], bg: '#991b1b', fg: '#fef08a', border: '#f87171', fascia: 0x7f1d1d, cross: 0 },
+        lcbo:     { lines: ['LCBO • LIQUOR & WINE', 'SPIRITS • VINTAGES • CRAFT BEER'], bg: '#14532d', fg: '#fde047', border: '#4ade80', fascia: 0x064e3b, cross: 0 },
+        mcdonalds:{ lines: ["McDONALD'S", 'Golden Arches • Open 24 Hours'], bg: '#b91c1c', fg: '#facc15', border: '#fde047', fascia: 0x991b1b, arch: true },
+        pizzapizza:{ lines: ['PIZZA PIZZA • HOT SLICES', '416-967-1111'], bg: '#ea580c', fg: '#ffffff', border: '#fed7aa', fascia: 0xc2410c, cross: 0 },
+        rabba:    { lines: ['RABBA FINE FOODS', '24 HOUR NEIGHBOURHOOD MARKET'], bg: '#15803d', fg: '#ffffff', border: '#86efac', fascia: 0x166534, cross: 0 }
+      };
+      const pharmaCrossRed = new THREE.MeshBasicMaterial({ color: 0xef4444, toneMapped: false });
+      const goldenArchMat = new THREE.MeshBasicMaterial({ color: 0xfacc15, toneMapped: false });
       const windowGlow = new THREE.MeshBasicMaterial({ color: 0xfff4dc, toneMapped: false, side: THREE.DoubleSide });
-      genericStores.forEach(st => {
+      genericStores.forEach((st, idx) => {
         const g = new THREE.Group();
-        const w = Math.min(9, st.len - 2);
-        const sign = st.kind === 'pharmacy'
-          ? signMesh(['PHARMACY'], w * 0.8, 0.9, { bg: '#0d4d30', fg: '#ffffff', borderColor: '#0d4d30', size: 84 })
-          : signMesh(['COFFEE'], w * 0.7, 0.9, { bg: '#3b2a20', fg: '#f3e3c3', borderColor: '#3b2a20', size: 84 });
-        sign.position.set(0, 3.95, 0.2); g.add(sign);
-        const glow = new THREE.Mesh(new THREE.BoxGeometry(w, 2.9, 0.08), windowGlow);
+        const w = Math.min(10.5, st.len - 2);
+        const bKey = st.brand || (st.kind === 'pharmacy' ? 'shoppers' : (idx % 2 === 0 ? 'tims' : 'rabba'));
+        const spec = BRAND_SPEC[bKey] || BRAND_SPEC.shoppers;
+        const sign = signMesh(spec.lines, w * 0.88, 1.05, { bg: spec.bg, fg: spec.fg, borderColor: spec.border, size: 68 });
+        sign.position.set(0, 4.05, 0.24); g.add(sign);
+        const glow = new THREE.Mesh(new THREE.BoxGeometry(w, 2.95, 0.08), windowGlow);
         glow.position.set(0, 1.75, 0.08); g.add(glow);
-        const fascia = new THREE.Mesh(new THREE.BoxGeometry(w + 0.6, 1.3, 0.25), new THREE.MeshStandardMaterial({ color: 0x1f2328, roughness: 0.6 }));
-        fascia.position.set(0, 3.95, 0.05); g.add(fascia);
-        if (st.kind === 'pharmacy') {
-          // projecting double-sided lightbox with a generic green cross
+        const fascia = new THREE.Mesh(new THREE.BoxGeometry(w + 0.6, 1.4, 0.26), new THREE.MeshStandardMaterial({ color: spec.fascia, roughness: 0.5, emissive: spec.fascia, emissiveIntensity: 0.25 }));
+        fascia.position.set(0, 4.05, 0.06); g.add(fascia);
+        if (spec.cross) {
+          // Projecting illuminated red Shoppers Drug Mart pharmacy cross blade sign
           const blade = new THREE.Group();
-          const bar1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.3), pharmaCross);
-          const bar2 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 0.9), pharmaCross);
+          const bar1 = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.95, 0.32), pharmaCrossRed);
+          const bar2 = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.32, 0.95), pharmaCrossRed);
           blade.add(bar1, bar2);
-          blade.position.set(w / 2 + 0.2, 4.8, 0.7);
+          blade.position.set(w / 2 + 0.2, 4.85, 0.72);
           g.add(blade);
+        } else if (spec.arch) {
+          // Projecting Golden Arches blade sign
+          const archG = new THREE.Group();
+          [-0.22, 0.22].forEach(az => {
+            const leg = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.07, 8, 16, Math.PI), goldenArchMat);
+            leg.rotation.y = Math.PI / 2;
+            leg.position.set(0, 0, az);
+            archG.add(leg);
+          });
+          archG.position.set(w / 2 + 0.2, 4.85, 0.75);
+          g.add(archG);
         }
         g.position.set(st.x + st.nx * 0.08, 0, st.z + st.nz * 0.08);
         g.rotation.y = Math.atan2(st.nx, st.nz);
         scene.add(g);
       });
-      if (typeof window !== 'undefined') window.__genericStores = genericStores.map(s => ({ kind: s.kind, where: s.where || 'The Well', x: Math.round(s.x), z: Math.round(s.z) }));
+      if (typeof window !== 'undefined') window.__genericStores = genericStores.map(s => ({ kind: s.kind, brand: s.brand, where: s.where || 'The Well', x: Math.round(s.x), z: Math.round(s.z) }));
 
       // ========================================================================
       // VIBRANT TORONTO STREET LIFE: KING STREET RESTAURANT ROW, THEATRE
@@ -5315,6 +5519,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
           const jx = gx + (hash(gx * 0.13 + gz) - 0.5) * 16, jz = gz + (hash(gz * 0.17 + gx) - 0.5) * 16;
           if (jx > PLAY.minX - 18 && jx < PLAY.maxX + 18 && jz > PLAY.minZ - 18 && jz < PLAY.maxZ + 18) continue;
           const sx = 22 + hash(jx * 0.7) * 30, sz = 22 + hash(jz * 0.9) * 30;
+          if (jz + sz / 2 + 18 > getShorelineZ(jx)) continue; // never place skyline blocks in Lake Ontario / Harbour
           if (onRoad(jx, jz, -Math.max(sx, sz) / 2, -1)) continue;
           if (jx > TRENCH_X0 - 40 && jx < TRENCH_X1 + 40 && Math.abs(jz - getUsrcZ(jx)) < TRENCH_HALF_W + Math.max(sx, sz) * 0.75) continue;  // keep the rail cut open
           if (reservedLines.some(L => { const dx = L.b[0] - L.a[0], dz = L.b[1] - L.a[1], L2 = dx * dx + dz * dz; const t = Math.max(0, Math.min(1, ((jx - L.a[0]) * dx + (jz - L.a[1]) * dz) / L2)); return Math.hypot(L.a[0] + dx * t - jx, L.a[1] + dz * t - jz) < L.hw + Math.max(sx, sz) * 0.71; })) continue;
@@ -5333,6 +5538,80 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
           n++;
         }
       }
+    }
+
+    // ==========================================================================
+    // REAL TORONTO WATERFRONT HIGH-RISES, TOWERS & SUPERSTRUCTURES
+    // Built into facadeGB before batching so they share full window/balcony UVs
+    // ==========================================================================
+    {
+      const GA = -17 * Math.PI / 180, gca = Math.cos(GA), gsa = Math.sin(GA);
+      const rotRect = (cx, cz, hw, hd, ang = GA) => {
+        const ca = Math.cos(ang), sa = Math.sin(ang);
+        const r = [[-hw, hd], [hw, hd], [hw, -hd], [-hw, -hd]].map(([u, v]) => [cx + u * ca - v * sa, cz + u * sa + v * ca]);
+        if (polyArea(r) < 0) r.reverse();
+        return r;
+      };
+      const ellipPoly = (cx, cz, rx, rz, sides = 14, ang = GA) => {
+        const ca = Math.cos(ang), sa = Math.sin(ang), pts = [];
+        for (let i = 0; i < sides; i++) {
+          const a = (i / sides) * Math.PI * 2;
+          const u = Math.cos(a) * rx, v = Math.sin(a) * rz;
+          pts.push([cx + u * ca - v * sa, cz + u * sa + v * ca]);
+        }
+        if (polyArea(pts) < 0) pts.reverse();
+        return pts;
+      };
+
+      // 1. Waterclub Condos (208, 218 & 228 Queens Quay W): 3 elliptical glass towers on 16.5m podium
+      [
+        [95, 425, 16, 12.5, 118],
+        [148, 442, 15, 13.5, 118],
+        [192, 396, 15, 12.5, 94]
+      ].forEach(([tx, tz, rx, rz, th]) => {
+        addBuilding(ellipPoly(tx, tz, rx, rz, 14), th, 'condo', 16.5, { tint: [0.80, 1.05, 1.22], shops: false });
+        roofLights.push(new THREE.Vector3(tx, th + 1.5, tz));
+      });
+
+      // 2. Queen's Quay Terminal (207 Queens Quay W): stepped upper glass atrium terraces (35.4m -> 49m) + SE clock tower
+      addBuilding(rotRect(243, 496, 23, 34), 48.5, 'glass', 35.4, { tint: [0.85, 1.12, 1.15], shops: false });
+      addBuilding(rotRect(262, 526, 8.5, 8.5), 57.0, 'brick', 35.4, { tint: [1.30, 0.92, 0.68], shops: false });
+
+      // 3. Westin Harbour Castle (1 Harbour Square): North rectangular tower (108m) & South cylindrical harbour tower (114m)
+      addBuilding(rotRect(618, 314, 21, 13), 108, 'concrete', 14.5, { tint: [1.08, 1.04, 0.96], shops: false });
+      addBuilding(ellipPoly(636, 366, 17.5, 17.5, 16), 114, 'concrete', 14.5, { tint: [1.10, 1.05, 0.98], shops: false });
+      addBuilding(ellipPoly(636, 366, 13.5, 13.5, 16), 121, 'glass', 114, { tint: [1.15, 1.10, 0.85], shops: false });
+      roofLights.push(new THREE.Vector3(636, 122.5, 366));
+
+      // 4. Waterlink at Pier 27 (29-39 Queens Quay E): iconic 3-storey cantilevered skybridge (42m -> 53.5m)
+      const bridgePoly = [
+        [868, 272], [936, 246], [942, 260], [874, 286]
+      ];
+      if (polyArea(bridgePoly) < 0) bridgePoly.reverse();
+      addBuilding(bridgePoly, 53.5, 'glass', 42.0, { tint: [0.95, 1.12, 1.24], shops: false });
+
+      // 5. Ice Condominiums at York Centre (12 & 14 York St): 202m & 234m curved towers
+      addBuilding(ellipPoly(118, 252, 15.5, 13.5, 16), 202, 'glass', 18.0, { tint: [0.88, 1.10, 1.22], shops: false });
+      addBuilding(ellipPoly(148, 224, 15.5, 13.5, 16), 234, 'glass', 18.0, { tint: [0.88, 1.10, 1.22], shops: false });
+      roofLights.push(new THREE.Vector3(118, 204, 252), new THREE.Vector3(148, 236, 224));
+
+      // 6. Ten York (10 York St): 224m wedge glass skyscraper above 16m podium
+      const tenYorkPoly = [
+        [132, 316], [194, 306], [198, 326], [142, 342]
+      ];
+      if (polyArea(tenYorkPoly) < 0) tenYorkPoly.reverse();
+      addBuilding(tenYorkPoly, 224, 'glass', 16.0, { tint: [0.84, 1.04, 1.20], shops: false });
+      roofLights.push(new THREE.Vector3(165, 226, 322));
+
+      // 7. Concord Canada House (23 Spadina Ave): twin 230m & 255m towers above 20m podium
+      addBuilding(rotRect(-738, 316, 16, 16), 230, 'condo', 20.0, { tint: [0.95, 1.02, 1.12], shops: false });
+      addBuilding(rotRect(-694, 316, 16, 16), 255, 'condo', 20.0, { tint: [0.95, 1.02, 1.12], shops: false });
+      roofLights.push(new THREE.Vector3(-738, 232, 316), new THREE.Vector3(-694, 257, 316));
+
+      // 8. Amsterdam Brewhouse on the Water (245 Queens Quay W pier)
+      const amstPoly = rotRect(-67, 556, 18, 20, -0.22);
+      addBuilding(amstPoly, 11.5, 'warehouse', 0, { tint: [1.32, 0.62, 0.45], shops: true });
+      addSolid({ type: 'poly', pts: amstPoly, h: 11.5, name: 'Amsterdam Brewhouse' });
     }
 
     if (cutDeckGB.pos.length) {
@@ -7915,6 +8194,626 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       scene.add(pGroup);
     });
 
+    // ==========================================================================
+    // 8. TORONTO HARBOURFRONT LANDMARKS, WAVEDECKS, BEACHES, BOATS & ISLANDS
+    // ==========================================================================
+    const bobbingBoats = [];
+    const cruisingBoats = [];
+    let cruisingFerry = null;
+    let islandFerrisWheel = null;
+    let lighthouseBeam = null;
+    let airportBeacon = null;
+    {
+      const cedarWaveMat = new THREE.MeshStandardMaterial({ color: 0x9a5b32, roughness: 0.72 });
+      const railSteelMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.3 });
+      const beachSandMat = new THREE.MeshStandardMaterial({ color: 0xe6cfa3, roughness: 0.92 });
+      const yellowUmbMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.45, emissive: 0xfacc15, emissiveIntensity: 0.25, side: THREE.DoubleSide });
+      const pinkUmbMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.45, emissive: 0xf472b6, emissiveIntensity: 0.28, side: THREE.DoubleSide });
+      const whiteFabricMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4, emissive: 0xe2e8f0, emissiveIntensity: 0.22, side: THREE.DoubleSide });
+      const smokestackBrickMat = new THREE.MeshStandardMaterial({ color: 0x8c2d1f, roughness: 0.82 });
+
+      // ---------- A. Sculptural Wooden WaveDecks (Simcoe, Rees & Spadina) ----------
+      function buildWaveDeck(cx, cz, width, depth, rotY, label) {
+        const wg = new THREE.Group();
+        const strips = 18;
+        const sw = width / strips;
+        for (let i = 0; i < strips; i++) {
+          const u = (i / (strips - 1)) - 0.5;
+          const crest = Math.sin((i / strips) * Math.PI * 2.2) * 1.35 + Math.sin((i / strips) * Math.PI) * 1.1;
+          const stepH = Math.max(0.35, 0.55 + crest);
+          const plank = new THREE.Mesh(new THREE.BoxGeometry(sw * 0.94, stepH, depth), cedarWaveMat);
+          plank.position.set(u * width, stepH / 2 - 0.1, Math.sin(u * Math.PI * 2) * 1.6);
+          wg.add(plank);
+        }
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(width, 0.12, 0.12), railSteelMat);
+        rail.position.set(0, 1.35, depth * 0.48);
+        wg.add(rail);
+        if (label) {
+          const s = signMesh([label], 5.5, 0.65, { bg: '#0f172a', fg: '#38bdf8', borderColor: '#0284c7', size: 54 });
+          s.position.set(0, 1.65, -depth * 0.42);
+          wg.add(s);
+        }
+        wg.position.set(cx, 0, cz);
+        wg.rotation.y = rotY;
+        scene.add(wg);
+      }
+      buildWaveDeck(150, 494, 24, 11, -0.22, 'SIMCOE WAVEDECK');
+      buildWaveDeck(-22, 524, 22, 10, -0.22, 'REES WAVEDECK');
+      buildWaveDeck(-650, 560, 26, 12, -0.10, 'SPADINA WAVEDECK');
+
+      // ---------- B. HTO Park Beach (Yellow Umbrellas) & Sugar Beach (Candy-Pink Umbrellas) ----------
+      const buildBeach = (cx, cz, rx, rz, rotY, umbMat, umbPositions, signTitle, rockColor) => {
+        const bg = new THREE.Group();
+        const sand = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.18, 20), beachSandMat);
+        sand.scale.set(rx, 1, rz);
+        sand.position.y = 0.06;
+        bg.add(sand);
+        umbPositions.forEach(([ux, uz]) => {
+          const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.8, 8), railSteelMat);
+          pole.position.set(ux, 1.4, uz);
+          bg.add(pole);
+          const cone = new THREE.Mesh(new THREE.ConeGeometry(1.85, 0.75, 12), umbMat);
+          cone.position.set(ux, 2.8, uz);
+          bg.add(cone);
+          // Muskoka / beach chairs
+          const ch = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.55, 0.85), umbMat);
+          ch.position.set(ux + 0.9, 0.32, uz + 0.4);
+          bg.add(ch);
+        });
+        if (rockColor) {
+          // Sugar Beach iconic striped granite outcrop
+          const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(3.2, 1), new THREE.MeshStandardMaterial({ color: rockColor, roughness: 0.75 }));
+          rock.scale.set(1.8, 0.65, 1.2);
+          rock.position.set(-rx * 0.35, 0.8, -rz * 0.25);
+          bg.add(rock);
+        }
+        if (signTitle) {
+          const s = signMesh([signTitle], 7.5, 0.85, { bg: '#0f172a', fg: '#fde047', borderColor: '#f59e0b', size: 58 });
+          s.position.set(0, 2.2, -rz * 0.75);
+          bg.add(s);
+        }
+        bg.position.set(cx, 0, cz);
+        bg.rotation.y = rotY;
+        scene.add(bg);
+      };
+      // HTO Park West & East sandy beaches with iconic bright yellow umbrellas
+      buildBeach(-205, 588, 28, 14, -0.18, yellowUmbMat, [
+        [-16, -2], [-8, 3], [0, -1], [8, 4], [16, -2], [-12, 6], [4, 6], [14, 5]
+      ], 'HTO PARK • URBAN BEACH', 0);
+      buildBeach(-122, 566, 22, 12, -0.22, yellowUmbMat, [
+        [-12, 0], [-4, 3], [4, -1], [12, 2], [-6, 5], [6, 5]
+      ], null, 0);
+      // Sugar Beach (11 Dockside Dr, just east of Redpath Sugar) with iconic candy-pink umbrellas
+      buildBeach(1112, 102, 24, 14, -0.35, pinkUmbMat, [
+        [-14, -2], [-6, 2], [2, -2], [10, 3], [16, -1], [-10, 6], [0, 5], [9, 6]
+      ], 'SUGAR BEACH • WATERFRONT', 0xf472b6);
+
+      // ---------- C. The Power Plant Contemporary Art Gallery Smokestack & Harbourfront Centre ----------
+      {
+        const ppg = new THREE.Group();
+        // 38m tall historic 1926 red-brick powerhouse smokestack at (137, 520)
+        const stack = new THREE.Mesh(new THREE.CylinderGeometry(1.65, 2.35, 38, 16), smokestackBrickMat);
+        stack.position.set(137, 19, 520);
+        ppg.add(stack);
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 1.75, 1.4, 16), railSteelMat);
+        cap.position.set(137, 38.2, 520);
+        ppg.add(cap);
+        // Vertical "THE POWER PLANT" sign on the smokestack & gallery facade
+        const ppSign = signMesh(['THE POWER PLANT', 'CONTEMPORARY ART GALLERY'], 11, 1.6, { bg: '#7f1d1d', fg: '#ffffff', borderColor: '#ef4444', size: 60 });
+        ppSign.position.set(137, 16.5, 510.5);
+        ppSign.rotation.y = Math.PI;
+        ppg.add(ppSign);
+
+        // Harbourfront Centre Concert Stage white tensile tent canopy & Natrel Rink/Pond
+        const stageCanopy = new THREE.Mesh(new THREE.ConeGeometry(14, 9.5, 6, 1, true), whiteFabricMat);
+        stageCanopy.position.set(42, 11.5, 588);
+        ppg.add(stageCanopy);
+        const stageMast = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 16.5, 8), railSteelMat);
+        stageMast.position.set(42, 8.25, 588);
+        ppg.add(stageMast);
+        const hcSign = signMesh(['HARBOURFRONT CENTRE', 'YORK QUAY • CONCERTS & ARTS'], 16, 2.2, { bg: '#0f172a', fg: '#38bdf8', borderColor: '#0284c7', size: 62 });
+        hcSign.position.set(42, 17.2, 522);
+        hcSign.rotation.y = Math.PI;
+        ppg.add(hcSign);
+
+        // Natrel Pond reflecting pool next to York Quay boardwalk
+        const pond = new THREE.Mesh(
+          new THREE.PlaneGeometry(34, 18),
+          new THREE.MeshStandardMaterial({ color: 0x0ea5e9, roughness: 0.15, metalness: 0.7, emissive: 0x0369a1, emissiveIntensity: 0.3 })
+        );
+        pond.rotation.x = -Math.PI / 2;
+        pond.position.set(92, 0.07, 558);
+        pond.rotation.z = 0.22;
+        ppg.add(pond);
+
+        // Amsterdam Brewhouse waterfront sign
+        const amstSign = signMesh(['AMSTERDAM BREWHOUSE', 'CRAFT BREWERY ON THE LAKE'], 15, 2.1, { bg: '#450a0a', fg: '#fde047', borderColor: '#dc2626', size: 62 });
+        amstSign.position.set(-67, 13.0, 538);
+        amstSign.rotation.y = Math.PI - 0.22;
+        ppg.add(amstSign);
+
+        // Ice Condos signature lime-green & white sculptural "cheese-hole" rooftop canopies
+        const iceCanopyMat1 = new THREE.MeshStandardMaterial({ color: 0x84cc16, emissive: 0x65a30d, emissiveIntensity: 0.45, roughness: 0.3, side: THREE.DoubleSide });
+        const iceCanopyMat2 = new THREE.MeshStandardMaterial({ color: 0xf8fafc, emissive: 0x38bdf8, emissiveIntensity: 0.35, roughness: 0.3, side: THREE.DoubleSide });
+        const iceDisc1 = new THREE.Mesh(new THREE.CylinderGeometry(16.5, 16.5, 1.2, 20), iceCanopyMat1);
+        iceDisc1.position.set(118, 203.2, 252);
+        iceDisc1.rotation.z = 0.08;
+        ppg.add(iceDisc1);
+        const iceDisc2 = new THREE.Mesh(new THREE.CylinderGeometry(16.5, 16.5, 1.2, 20), iceCanopyMat2);
+        iceDisc2.position.set(148, 235.2, 224);
+        iceDisc2.rotation.z = -0.08;
+        ppg.add(iceDisc2);
+
+        scene.add(ppg);
+      }
+
+      // ---------- D. Jack Layton Ferry Terminal & Redpath Sugar Refinery Landmarks ----------
+      {
+        const ftg = new THREE.Group();
+        // Jack Layton Ferry Terminal (9 Queens Quay W, south-east of Westin Harbour Castle at x=695..734, z=278..330)
+        const canopyMat = new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.45, metalness: 0.3 });
+        const termRoof = new THREE.Mesh(new THREE.BoxGeometry(36, 1.2, 22), canopyMat);
+        termRoof.position.set(708, 7.2, 294);
+        termRoof.rotation.y = -0.35;
+        ftg.add(termRoof);
+        const termSign = signMesh(['JACK LAYTON FERRY TERMINAL', 'TORONTO ISLAND FERRIES • CENTRE • WARD\'S • HANLAN\'S'], 22, 2.4, { bg: '#064e3b', fg: '#fef08a', borderColor: '#10b981', size: 56 });
+        termSign.position.set(706, 9.2, 286);
+        termSign.rotation.y = Math.PI - 0.35;
+        ftg.add(termSign);
+        // 3 Ferry loading gantry arches along the slip
+        [[702, 312], [716, 304], [730, 296]].forEach(([gx, gz]) => {
+          const arch = new THREE.Mesh(new THREE.BoxGeometry(7.5, 6.5, 1.2), railSteelMat);
+          arch.position.set(gx, 3.25, gz);
+          arch.rotation.y = -0.35;
+          ftg.add(arch);
+        });
+
+        // Redpath Sugar Refinery (95 Queens Quay E, x=960..1074, z=98..190)
+        // Giant glowing red neon "REDPATH SUGAR" rooftop signs facing both the city and the harbour
+        const redpathSign1 = signMesh(['REDPATH SUGAR', 'REFINERY • EST. 1858'], 28, 4.8, { bg: '#450a0a', fg: '#ef4444', borderColor: '#f87171', size: 78 });
+        redpathSign1.position.set(1042, 47.5, 118);
+        redpathSign1.rotation.y = Math.PI - 0.35;
+        ftg.add(redpathSign1);
+        const redpathSign2 = signMesh(['REDPATH SUGAR'], 26, 4.5, { bg: '#450a0a', fg: '#ef4444', borderColor: '#f87171', size: 82 });
+        redpathSign2.position.set(1046, 47.5, 134);
+        redpathSign2.rotation.y = -0.35;
+        ftg.add(redpathSign2);
+        // White cylindrical sugar silos + blue unloading cranes on Redpath Wharf
+        const siloMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.6 });
+        const craneMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.45, metalness: 0.5 });
+        [[1012, 132], [1020, 127], [1028, 122]].forEach(([sx, sz]) => {
+          const silo = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 34, 14), siloMat);
+          silo.position.set(sx, 17, sz);
+          ftg.add(silo);
+        });
+        [[1018, 168], [1052, 148]].forEach(([cx, cz]) => {
+          const leg = new THREE.Mesh(new THREE.BoxGeometry(3.2, 24, 3.2), craneMat);
+          leg.position.set(cx, 12, cz);
+          ftg.add(leg);
+          const boom = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.0, 22), craneMat);
+          boom.position.set(cx + 2, 23, cz + 8);
+          boom.rotation.x = -0.25;
+          ftg.add(boom);
+        });
+        scene.add(ftg);
+      }
+
+      // ---------- E. Authentic Toronto Harbour Fleet (Ferries, Tall Ship, Freighter, Fireboat, Sailboats, Water Taxis) ----------
+      const hullWhite = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.35 });
+      const hullBlue = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.45 });
+      const hullBlack = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.55 });
+      const hullRed = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.45 });
+      const hullYellow = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4, emissive: 0xca8a04, emissiveIntensity: 0.2 });
+      const deckOrange = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.55 });
+      const cabinLit = new THREE.MeshBasicMaterial({ color: 0xfef08a, toneMapped: false });
+
+      // 1. Classic Double-Ended Toronto Island Ferry builder (Sam McBride / Ongiara / Thomas Rennie)
+      function makeIslandFerry(name) {
+        const fg = new THREE.Group();
+        // Lower blue/black steel hull
+        const hull = new THREE.Mesh(new THREE.BoxGeometry(11.5, 2.6, 38), hullBlue);
+        hull.position.y = 0.6;
+        fg.add(hull);
+        // Tapered bows at both ends
+        [-21.5, 21.5].forEach((bz, idx) => {
+          const bow = new THREE.Mesh(new THREE.ConeGeometry(8.1, 6.5, 4), hullBlue);
+          bow.rotation.x = idx === 0 ? -Math.PI / 2 : Math.PI / 2;
+          bow.rotation.y = Math.PI / 4;
+          bow.scale.set(1, 1, 0.32);
+          bow.position.set(0, 0.6, bz);
+          fg.add(bow);
+        });
+        // Orange/white main passenger deck
+        const mainDeck = new THREE.Mesh(new THREE.BoxGeometry(10.8, 3.0, 32), hullWhite);
+        mainDeck.position.y = 3.2;
+        fg.add(mainDeck);
+        const trimBand = new THREE.Mesh(new THREE.BoxGeometry(11.0, 0.65, 33), deckOrange);
+        trimBand.position.y = 2.0;
+        fg.add(trimBand);
+        // Warm illuminated cabin window strip
+        const winStrip = new THREE.Mesh(new THREE.BoxGeometry(10.95, 1.1, 28), cabinLit);
+        winStrip.position.y = 3.4;
+        fg.add(winStrip);
+        // Upper open promenade deck & twin wheelhouses
+        const upperDeck = new THREE.Mesh(new THREE.BoxGeometry(9.6, 2.2, 26), hullWhite);
+        upperDeck.position.y = 5.6;
+        fg.add(upperDeck);
+        const wheelhouse = new THREE.Mesh(new THREE.BoxGeometry(5.2, 2.4, 6.5), hullWhite);
+        wheelhouse.position.y = 7.8;
+        fg.add(wheelhouse);
+        const funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.95, 3.2, 12), deckOrange);
+        funnel.position.y = 8.4;
+        fg.add(funnel);
+        const fSign = signMesh([name, 'TORONTO ISLAND FERRY'], 9.5, 1.1, { bg: '#1e3a8a', fg: '#fde047', borderColor: '#f97316', size: 58 });
+        fSign.position.set(5.6, 5.6, 0);
+        fSign.rotation.y = Math.PI / 2;
+        fg.add(fSign);
+        return fg;
+      }
+      // Moored Island Ferry at Jack Layton Ferry Terminal
+      const mooredFerry = makeIslandFerry('SAM McBRIDE');
+      mooredFerry.position.set(718, WATER_Y, 334);
+      mooredFerry.rotation.y = -0.32;
+      scene.add(mooredFerry);
+      bobbingBoats.push({ mesh: mooredFerry, baseY: WATER_Y, phase: 0.4, amp: 0.12 });
+
+      // Animated Cruising Island Ferry travelling back & forth between Jack Layton Terminal and Centre Island
+      cruisingFerry = makeIslandFerry('THOMAS RENNIE');
+      cruisingFerry.position.set(520, WATER_Y, 640);
+      scene.add(cruisingFerry);
+
+      // 2. Three-Masted Schooner Tall Ship "KAJAMA" moored at York Quay (x = 92, z = 636)
+      {
+        const tg = new THREE.Group();
+        const hull = new THREE.Mesh(new THREE.BoxGeometry(7.2, 2.8, 36), hullBlack);
+        hull.position.y = 0.8;
+        tg.add(hull);
+        const bowsprit = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.25, 11, 8), cedarWaveMat);
+        bowsprit.rotation.x = Math.PI / 2 - 0.25;
+        bowsprit.position.set(0, 2.6, 22);
+        tg.add(bowsprit);
+        const deck = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.6, 34), cedarWaveMat);
+        deck.position.y = 2.3;
+        tg.add(deck);
+        [-11, 0, 11].forEach((mz, mi) => {
+          const mh = mi === 1 ? 26 : 23;
+          const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.32, mh, 10), cedarWaveMat);
+          mast.position.set(0, 2.3 + mh / 2, mz);
+          tg.add(mast);
+          // Yardarms & furled white sails
+          [8, 15].forEach(sy => {
+            const yard = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 8.5, 8), cedarWaveMat);
+            yard.rotation.z = Math.PI / 2;
+            yard.position.set(0, sy, mz);
+            tg.add(yard);
+          });
+          const sail = new THREE.Mesh(new THREE.PlaneGeometry(0.4, mh * 0.65), whiteFabricMat);
+          sail.position.set(0, 2.3 + mh * 0.45, mz - 2.2);
+          tg.add(sail);
+        });
+        const kSign = signMesh(['TALL SHIP KAJAMA • 1930'], 8.5, 0.95, { bg: '#0f172a', fg: '#fde047', borderColor: '#d97706', size: 56 });
+        kSign.position.set(-3.8, 3.2, 0);
+        kSign.rotation.y = -Math.PI / 2;
+        tg.add(kSign);
+        tg.position.set(92, WATER_Y, 636);
+        tg.rotation.y = 1.35;
+        scene.add(tg);
+        bobbingBoats.push({ mesh: tg, baseY: WATER_Y, phase: 1.7, amp: 0.14 });
+      }
+
+      // 3. Great Lakes Bulk Carrier Freighter ("Laker") unloading raw sugar at Redpath Sugar Wharf
+      {
+        const lg = new THREE.Group();
+        const lHull = new THREE.Mesh(new THREE.BoxGeometry(16, 6.5, 112), hullRed);
+        lHull.position.y = 2.2;
+        lg.add(lHull);
+        const lDeck = new THREE.Mesh(new THREE.BoxGeometry(15.4, 0.8, 108), hullBlack);
+        lDeck.position.y = 5.6;
+        lg.add(lDeck);
+        // Cargo hatches along deck
+        for (let hz = -38; hz <= 26; hz += 13) {
+          const hatch = new THREE.Mesh(new THREE.BoxGeometry(11, 0.7, 8.5), smokestackBrickMat);
+          hatch.position.set(0, 6.2, hz);
+          lg.add(hatch);
+        }
+        // White stern superstructure & bridge
+        const sternBridge = new THREE.Mesh(new THREE.BoxGeometry(14, 11, 18), hullWhite);
+        sternBridge.position.set(0, 11.0, -44);
+        lg.add(sternBridge);
+        const sternWin = new THREE.Mesh(new THREE.BoxGeometry(14.3, 1.4, 18.2), cabinLit);
+        sternWin.position.set(0, 14.5, -44);
+        lg.add(sternWin);
+        const stack = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2.0, 7.5, 12), hullRed);
+        stack.position.set(0, 19.5, -46);
+        lg.add(stack);
+        const lSign = signMesh(['ALGOMA SUGAR CARRIER • PORT OF TORONTO'], 18, 1.8, { bg: '#7f1d1d', fg: '#ffffff', borderColor: '#fca5a5', size: 58 });
+        lSign.position.set(-8.2, 4.2, 0);
+        lSign.rotation.y = -Math.PI / 2;
+        lg.add(lSign);
+        lg.position.set(1045, WATER_Y, 178);
+        lg.rotation.y = 1.22;
+        scene.add(lg);
+      }
+
+      // 4. Toronto Fire Services Fireboat "William Lyon Mackenzie" at Fire Station 334 Pier (x = -295, z = 632)
+      {
+        const fbg = new THREE.Group();
+        const hull = new THREE.Mesh(new THREE.BoxGeometry(6.2, 2.2, 24), hullRed);
+        hull.position.y = 0.6;
+        fbg.add(hull);
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(4.8, 2.8, 11), hullWhite);
+        cabin.position.set(0, 2.8, 2);
+        fbg.add(cabin);
+        const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 5.5, 8), hullRed);
+        tower.position.set(0, 5.8, -3);
+        fbg.add(tower);
+        const fbSign = signMesh(['TORONTO FIREBOAT 334', 'WILLIAM LYON MACKENZIE'], 7.5, 0.9, { bg: '#991b1b', fg: '#fef08a', borderColor: '#ef4444', size: 54 });
+        fbSign.position.set(0, 4.8, 2);
+        fbg.add(fbSign);
+        fbg.position.set(-295, WATER_Y, 632);
+        fbg.rotation.y = 1.38;
+        scene.add(fbg);
+        bobbingBoats.push({ mesh: fbg, baseY: WATER_Y, phase: 2.3, amp: 0.12 });
+      }
+
+      // 5. Sailboats, Motor Yachts & Yellow Water Taxis moored in every slip and sailing across the harbour
+      function makeSailboat(sailColor, withOpenSail) {
+        const sg = new THREE.Group();
+        const hull = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.3, 10.5), hullWhite);
+        hull.position.y = 0.35;
+        sg.add(hull);
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.28, 10.6), hullBlue);
+        stripe.position.y = 0.65;
+        sg.add(stripe);
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.85, 4.2), hullWhite);
+        cabin.position.set(0, 1.2, -0.5);
+        sg.add(cabin);
+        const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, 13.5, 8), railSteelMat);
+        mast.position.set(0, 7.2, 0.8);
+        sg.add(mast);
+        if (withOpenSail) {
+          const sMat = sailColor ? new THREE.MeshStandardMaterial({ color: sailColor, roughness: 0.4, emissive: sailColor, emissiveIntensity: 0.2, side: THREE.DoubleSide }) : whiteFabricMat;
+          // Mainsail & Jib triangle planes
+          const mainSail = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 10.5), sMat);
+          mainSail.scale.set(1, 1, 28);
+          mainSail.position.set(0, 7.0, -1.5);
+          sg.add(mainSail);
+          const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 4.6, 6), railSteelMat);
+          boom.rotation.x = Math.PI / 2;
+          boom.position.set(0, 2.2, -1.5);
+          sg.add(boom);
+        }
+        return sg;
+      }
+      function makeWaterTaxi() {
+        const wg = new THREE.Group();
+        const hull = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.2, 9.2), hullYellow);
+        hull.position.y = 0.35;
+        wg.add(hull);
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.25, 6.2), hullWhite);
+        roof.position.y = 2.15;
+        wg.add(roof);
+        const win = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.0, 5.6), cabinLit);
+        win.position.y = 1.45;
+        wg.add(win);
+        return wg;
+      }
+
+      // Moored sailboats & yachts in Spadina Slip, Peter Basin, Rees Slip, Simcoe Slip, York Slip, Harbour Square & Yonge Slip
+      const mooredSpots = [
+        // Spadina Marina
+        [-662, 578, 0.1, false], [-652, 592, -0.1, false], [-638, 582, 0.05, true],
+        // Peter Basin
+        [-395, 592, 0.0, false], [-375, 602, 0.15, true],
+        // HTO Bay & Rees Slip
+        [-175, 608, 0.2, true], [-28, 548, -0.2, false], [-16, 566, -0.15, true],
+        // Simcoe Slip & York Slip
+        [152, 524, -0.22, false], [164, 545, -0.18, true], [298, 492, -0.22, false],
+        // Harbour Square Basin & Yonge Slip
+        [455, 442, -0.25, true], [482, 434, -0.28, false], [765, 272, -0.32, false], [782, 286, -0.30, true]
+      ];
+      const sailPalette = [0xf8fafc, 0x38bdf8, 0xfacc15, 0xf43f5e, 0xf97316];
+      mooredSpots.forEach(([bx, bz, rot, open], idx) => {
+        const sb = makeSailboat(sailPalette[idx % sailPalette.length], open);
+        sb.position.set(bx, WATER_Y, bz);
+        sb.rotation.y = rot;
+        scene.add(sb);
+        bobbingBoats.push({ mesh: sb, baseY: WATER_Y, phase: idx * 0.7, amp: 0.10 });
+      });
+
+      // Cruising Sailboats & Yellow Water Taxis moving smoothly across the Inner Harbour
+      const cruiseRoutes = [
+        { boat: makeSailboat(0xf8fafc, true), x0: -520, z0: 760, x1: 380, z1: 680, speed: 9.5, phase: 0.0 },
+        { boat: makeSailboat(0x38bdf8, true), x0: 620, z0: 540, x1: -280, z1: 790, speed: 8.2, phase: 0.35 },
+        { boat: makeSailboat(0xf43f5e, true), x0: -120, z0: 840, x1: 780, z1: 480, speed: 10.0, phase: 0.65 },
+        { boat: makeWaterTaxi(), x0: -18, z0: 585, x1: 280, z1: 960, speed: 18.0, phase: 0.15 },
+        { boat: makeWaterTaxi(), x0: 305, z0: 520, x1: -320, z1: 940, speed: 19.5, phase: 0.55 }
+      ];
+      cruiseRoutes.forEach(cr => {
+        cr.boat.position.set(cr.x0, WATER_Y, cr.z0);
+        scene.add(cr.boat);
+        cruisingBoats.push(cr);
+      });
+
+      // ---------- F. TORONTO ISLANDS IN THE DISTANCE (Billy Bishop Airport, Centre Island, Ward's Island) ----------
+      // Uses fog: false so the islands, trees, lighthouse, Ferris wheel & runway lights remain crisp across the harbour!
+      const islandLandMat = new THREE.MeshBasicMaterial({ color: 0x143824, fog: false });
+      const islandSandMat = new THREE.MeshBasicMaterial({ color: 0xd6bf90, fog: false });
+      const islandTreeMat1 = new THREE.MeshBasicMaterial({ color: 0x166534, fog: false });
+      const islandTreeMat2 = new THREE.MeshBasicMaterial({ color: 0x15803d, fog: false });
+      const islandStoneMat = new THREE.MeshBasicMaterial({ color: 0xf1f5f9, fog: false });
+      const islandRedMat = new THREE.MeshBasicMaterial({ color: 0xdc2626, fog: false });
+      const islandGoldMat = new THREE.MeshBasicMaterial({ color: 0xfacc15, fog: false });
+      const islandCyanMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, fog: false });
+      const runwayMat = new THREE.MeshBasicMaterial({ color: 0x1e293b, fog: false });
+
+      const islandsGroup = new THREE.Group();
+
+      // Helper to build an island landmass with sandy shore & tree canopy
+      function addIslandMass(cx, cz, rx, rz, rotY, treeCount) {
+        const ig = new THREE.Group();
+        const shore = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.04, 1.4, 28), islandSandMat);
+        shore.scale.set(rx + 14, 1, rz + 14);
+        shore.position.y = WATER_Y + 0.5;
+        ig.add(shore);
+
+        const turf = new THREE.Mesh(new THREE.CylinderGeometry(0.96, 1, 2.8, 28), islandLandMat);
+        turf.scale.set(rx, 1, rz);
+        turf.position.y = WATER_Y + 1.4;
+        ig.add(turf);
+
+        for (let i = 0; i < treeCount; i++) {
+          const a = hash(i * 3.1 + cx) * Math.PI * 2;
+          const r = (0.15 + 0.78 * Math.sqrt(hash(i * 7.7 + cz)));
+          const tx = Math.cos(a) * rx * r;
+          const tz = Math.sin(a) * rz * r;
+          const th = 11 + hash(i * 5.3) * 14;
+          const tr = 5.5 + hash(i * 2.9) * 5.5;
+          const crown = new THREE.Mesh(
+            new THREE.ConeGeometry(tr, th, 7),
+            i % 2 === 0 ? islandTreeMat1 : islandTreeMat2
+          );
+          crown.position.set(tx, WATER_Y + 2.5 + th / 2, tz);
+          ig.add(crown);
+        }
+        ig.position.set(cx, 0, cz);
+        ig.rotation.y = rotY;
+        islandsGroup.add(ig);
+        return ig;
+      }
+
+      // 1. West Island: Billy Bishop Toronto City Airport (YTZ) across the Western Gap (x = -880, z = 1160)
+      const ytzIsland = addIslandMass(-880, 1160, 390, 150, -0.22, 48);
+      {
+        // Runway 08/26 asphalt strip with glowing white/green edge lights
+        const rwy = new THREE.Mesh(new THREE.BoxGeometry(640, 0.5, 28), runwayMat);
+        rwy.position.set(0, 3.0, -18);
+        ytzIsland.add(rwy);
+        for (let rx = -290; rx <= 290; rx += 32) {
+          [-13, 13].forEach(rz => {
+            const rl = new THREE.Mesh(
+              new THREE.SphereGeometry(0.75, 6, 6),
+              Math.abs(rx) > 250 ? islandRedMat : (rx % 64 === 0 ? islandCyanMat : islandGoldMat)
+            );
+            rl.position.set(rx, 3.6, -18 + rz);
+            ytzIsland.add(rl);
+          });
+        }
+        // Airport Passenger Terminal & Control Tower with rotating green/white aerodrome beacon
+        const term = new THREE.Mesh(new THREE.BoxGeometry(68, 11, 24), islandStoneMat);
+        term.position.set(160, 7.5, -68);
+        ytzIsland.add(term);
+        const atcShaft = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 4.2, 34, 12), islandStoneMat);
+        atcShaft.position.set(110, 19, -58);
+        ytzIsland.add(atcShaft);
+        const atcCab = new THREE.Mesh(new THREE.CylinderGeometry(5.5, 4.2, 5.5, 12), islandCyanMat);
+        atcCab.position.set(110, 38, -58);
+        ytzIsland.add(atcCab);
+        airportBeacon = new THREE.Group();
+        const bBeam = new THREE.Mesh(new THREE.BoxGeometry(26, 1.4, 1.4), islandGoldMat);
+        airportBeacon.add(bBeam);
+        airportBeacon.position.set(110, 42.5, -58);
+        ytzIsland.add(airportBeacon);
+        const ytzSign = signMesh(['BILLY BISHOP TORONTO CITY AIRPORT • YTZ'], 44, 5.5, { bg: '#0f172a', fg: '#38bdf8', borderColor: '#0284c7', size: 64 });
+        ytzSign.material.forEach(m => { m.fog = false; });
+        ytzSign.position.set(160, 17, -82);
+        ytzSign.rotation.y = Math.PI;
+        ytzIsland.add(ytzSign);
+      }
+
+      // 2. Centre Island & Hanlan's Point (x = 180, z = 1220)
+      const centreIsland = addIslandMass(180, 1220, 520, 185, -0.26, 150);
+      {
+        // Centre Island Ferry Dock extending north toward the harbour
+        const cDock = new THREE.Mesh(new THREE.BoxGeometry(24, 2.2, 68), islandSandMat);
+        cDock.position.set(80, 1.8, -195);
+        centreIsland.add(cDock);
+        const cSign = signMesh(['CENTRE ISLAND • TORONTO ISLAND PARK'], 46, 5.8, { bg: '#064e3b', fg: '#fef08a', borderColor: '#10b981', size: 66 });
+        cSign.material.forEach(m => { m.fog = false; });
+        cSign.position.set(80, 12.5, -215);
+        cSign.rotation.y = Math.PI;
+        centreIsland.add(cSign);
+
+        // Iconic Centreville Amusement Park Ferris Wheel (illuminated & rotating!)
+        const fwGroup = new THREE.Group();
+        const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.9, 32, 8), islandStoneMat);
+        legL.position.set(-4, 15, 0);
+        const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.9, 32, 8), islandStoneMat);
+        legR.position.set(4, 15, 0);
+        fwGroup.add(legL, legR);
+
+        islandFerrisWheel = new THREE.Group();
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(20, 0.75, 10, 28), islandGoldMat);
+        islandFerrisWheel.add(rim);
+        for (let s = 0; s < 12; s++) {
+          const sa = (s / 12) * Math.PI * 2;
+          const spoke = new THREE.Mesh(new THREE.BoxGeometry(40, 0.35, 0.35), islandCyanMat);
+          spoke.rotation.z = sa;
+          islandFerrisWheel.add(spoke);
+          const gondola = new THREE.Mesh(new THREE.SphereGeometry(1.6, 8, 8), s % 2 === 0 ? islandRedMat : islandGoldMat);
+          gondola.position.set(Math.cos(sa) * 20, Math.sin(sa) * 20, 0);
+          islandFerrisWheel.add(gondola);
+        }
+        islandFerrisWheel.position.set(0, 26, 0);
+        fwGroup.add(islandFerrisWheel);
+        fwGroup.position.set(20, 2.5, -60);
+        centreIsland.add(fwGroup);
+
+        // Gibraltar Point Lighthouse (historic 1808 white stone octagonal tower with red lantern room & sweeping beam)
+        const lhGroup = new THREE.Group();
+        const lhTower = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 5.2, 34, 8), islandStoneMat);
+        lhTower.position.y = 17;
+        lhGroup.add(lhTower);
+        const lhLantern = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, 4.8, 10), islandRedMat);
+        lhLantern.position.y = 36;
+        lhGroup.add(lhLantern);
+        const lhRoof = new THREE.Mesh(new THREE.ConeGeometry(4.2, 3.5, 10), islandRedMat);
+        lhRoof.position.y = 40;
+        lhGroup.add(lhRoof);
+        lighthouseBeam = new THREE.Group();
+        const beamCone = new THREE.Mesh(
+          new THREE.ConeGeometry(9.5, 75, 12, 1, true),
+          new THREE.MeshBasicMaterial({ color: 0xfef08a, transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false, fog: false })
+        );
+        beamCone.rotation.z = Math.PI / 2;
+        beamCone.position.x = 38;
+        lighthouseBeam.add(beamCone);
+        lighthouseBeam.position.y = 36;
+        lhGroup.add(lighthouseBeam);
+        lhGroup.position.set(-220, 2.5, 25);
+        centreIsland.add(lhGroup);
+      }
+
+      // 3. East Island: Royal Canadian Yacht Club (RCYC) & Ward's Island (x = 980, z = 980)
+      const wardsIsland = addIslandMass(980, 980, 320, 140, -0.32, 95);
+      {
+        // Historic white RCYC Clubhouse with wraparound veranda & pitched red roof
+        const rcyc = new THREE.Mesh(new THREE.BoxGeometry(44, 12, 22), islandStoneMat);
+        rcyc.position.set(-110, 8.0, -70);
+        wardsIsland.add(rcyc);
+        const rcycRoof = new THREE.Mesh(new THREE.ConeGeometry(28, 7.5, 4), islandRedMat);
+        rcycRoof.rotation.y = Math.PI / 4;
+        rcycRoof.scale.set(1.3, 1, 0.7);
+        rcycRoof.position.set(-110, 17.5, -70);
+        wardsIsland.add(rcycRoof);
+        // Ward's Island colorful beach cottages
+        const cottageCols = [0xef4444, 0x3b82f6, 0xfacc15, 0x10b981, 0xf97316, 0xa855f7];
+        for (let ci = 0; ci < 12; ci++) {
+          const cMat = new THREE.MeshBasicMaterial({ color: cottageCols[ci % cottageCols.length], fog: false });
+          const cot = new THREE.Mesh(new THREE.BoxGeometry(10, 6.5, 9), cMat);
+          cot.position.set(20 + (ci % 6) * 26, 5.2, -55 + Math.floor(ci / 6) * 28);
+          wardsIsland.add(cot);
+        }
+        const wSign = signMesh(["WARD'S ISLAND & RCYC"], 36, 4.8, { bg: '#1e3a8a', fg: '#ffffff', borderColor: '#38bdf8', size: 62 });
+        wSign.material.forEach(m => { m.fog = false; });
+        wSign.position.set(45, 11.5, -125);
+        wSign.rotation.y = Math.PI;
+        wardsIsland.add(wSign);
+      }
+
+      scene.add(islandsGroup);
+    }
+
     // ---------- Minimap pre-render ----------
     const MM_SCALE = 0.6; // px per metre
     const mmCanvas = document.createElement('canvas');
@@ -7925,6 +8824,22 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       const tx = x => (x - minX) * MM_SCALE, tz = z => (z - minZ) * MM_SCALE;
       g.fillStyle = '#16181d';
       g.fillRect(0, 0, mmCanvas.width, mmCanvas.height);
+
+      // Draw Lake Ontario / Toronto Harbour water & slips on the minimap
+      g.fillStyle = '#0c2d48';
+      g.beginPath();
+      HARBOUR_SHORELINE.forEach(([sx, sz], idx) => {
+        if (idx === 0) g.moveTo(tx(sx), tz(sz));
+        else g.lineTo(tx(sx), tz(sz));
+      });
+      g.lineTo(tx(maxX + 400), tz(maxZ + 600));
+      g.lineTo(tx(minX - 400), tz(maxZ + 600));
+      g.closePath();
+      g.fill();
+      g.strokeStyle = '#38bdf8';
+      g.lineWidth = 2;
+      g.stroke();
+
       g.lineCap = 'round';
       MAP.rails.forEach(r => {
         const p = toPairs(r.p);
@@ -7956,6 +8871,41 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       // CN Tower colour-cycling LED lighting
       towerHue.setHSL((t * 0.02) % 1, 0.9, 0.5);
       towerMat.emissive.copy(towerHue);
+
+      // Gentle harbour water wave shimmer, bobbing boats, cruising Island Ferry & Toronto Islands beacons
+      if (waterTex && waterTex.offset) {
+        waterTex.offset.x = (t * 0.018) % 1;
+        waterTex.offset.y = (t * 0.012) % 1;
+      }
+      for (let bi = 0; bi < bobbingBoats.length; bi++) {
+        const b = bobbingBoats[bi];
+        b.mesh.position.y = b.baseY + Math.sin(t * 1.6 + b.phase) * b.amp;
+        b.mesh.rotation.z = Math.sin(t * 1.2 + b.phase) * 0.025;
+      }
+      if (cruisingFerry) {
+        // Sail smoothly between Jack Layton Ferry Terminal (660, 410) and Centre Island Dock (280, 960)
+        const u = 0.5 - 0.5 * Math.cos(t * 0.055);
+        const fx = 660 + (280 - 660) * u;
+        const fz = 410 + (960 - 410) * u;
+        cruisingFerry.position.set(fx, WATER_Y + Math.sin(t * 1.8) * 0.12, fz);
+        cruisingFerry.rotation.y = Math.atan2(280 - 660, 960 - 410);
+      }
+      for (let ci = 0; ci < cruisingBoats.length; ci++) {
+        const cr = cruisingBoats[ci];
+        const dist = Math.hypot(cr.x1 - cr.x0, cr.z1 - cr.z0) || 1;
+        const cycle = (t * (cr.speed / dist) + cr.phase) % 2;
+        const u = cycle <= 1 ? cycle : 2 - cycle;
+        const dir = cycle <= 1 ? 1 : -1;
+        cr.boat.position.set(
+          cr.x0 + (cr.x1 - cr.x0) * u,
+          WATER_Y + Math.sin(t * 2.1 + ci) * 0.09,
+          cr.z0 + (cr.z1 - cr.z0) * u
+        );
+        cr.boat.rotation.y = Math.atan2((cr.x1 - cr.x0) * dir, (cr.z1 - cr.z0) * dir);
+      }
+      if (islandFerrisWheel) islandFerrisWheel.rotation.z = t * 0.25;
+      if (lighthouseBeam) lighthouseBeam.rotation.y = t * 0.85;
+      if (airportBeacon) airportBeacon.rotation.y = t * 1.6;
 
       // Animate Articulated GO Transit Train down in the Sunken Rail Trench on Track 2
       if (goTrainCars.length) {
