@@ -5692,6 +5692,10 @@ function animate(now) {
       (Math.random() - 0.5) * state.screenShake * 0.012,
       0
     );
+    if (!canMoveTo(camera.position.x + shakeOffset.x, camera.position.z + shakeOffset.z)) {
+      shakeOffset.x = 0;
+      shakeOffset.z = 0;
+    }
     camera.position.add(shakeOffset);
     state.screenShake *= Math.pow(0.82, dt * 60);
     if (state.screenShake < 0.05) state.screenShake = 0;
@@ -5703,6 +5707,10 @@ function animate(now) {
     const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw);
     // forward = (-sin, 0, -cos), right = (cos, 0, -sin)
     const off = new THREE.Vector3(-sy * k.fwd + cy * k.side, k.drop, -cy * k.fwd - sy * k.side);
+    if (!canMoveTo(camera.position.x + off.x, camera.position.z + off.z)) {
+      off.x = 0;
+      off.z = 0;
+    }
     shakeOffset.add(off);
     camera.position.add(off);
     bodyRot.set(k.pitch, k.yaw, k.roll);
@@ -5891,7 +5899,7 @@ function canMoveTo(x, z) {
   }
 
   if (city) {
-    if (!city.canMoveTo(x, z, 0.70, pY)) return false;
+    if (!city.canMoveTo(x, z, 0.78, pY)) return false;
   } else {
     if (Math.abs(x) > 38 || Math.abs(z) > 38) return false;
 
@@ -6094,8 +6102,12 @@ function updateEnemies(dt) {
       const minSafeDist = city.peaceZone.radius + 3.0;
       if (edist < minSafeDist && edist > 0.05) {
         const push = (minSafeDist - edist);
-        enemy.rig.root.position.x += (edx / edist) * push;
-        enemy.rig.root.position.z += (edz / edist) * push;
+        const px = enemy.rig.root.position.x + (edx / edist) * push;
+        const pz = enemy.rig.root.position.z + (edz / edist) * push;
+        if (!city || city.canMoveTo(px, pz, 0.45, enemy.rig.root.position.y)) {
+          enemy.rig.root.position.x = px;
+          enemy.rig.root.position.z = pz;
+        }
         enemy.vx += (edx / edist) * 6.0;
         enemy.vz += (edz / edist) * 6.0;
       }
@@ -6294,8 +6306,12 @@ function updateEnemies(dt) {
           if (dAnchor > 6.0) {
             const gdx = (enemy.guardAnchor.x - enemy.rig.root.position.x) / dAnchor;
             const gdz = (enemy.guardAnchor.z - enemy.rig.root.position.z) / dAnchor;
-            enemy.rig.root.position.x += gdx * (enemy.speed * 0.6) * dt;
-            enemy.rig.root.position.z += gdz * (enemy.speed * 0.6) * dt;
+            const gx = enemy.rig.root.position.x + gdx * (enemy.speed * 0.6) * dt;
+            const gz = enemy.rig.root.position.z + gdz * (enemy.speed * 0.6) * dt;
+            if (!city || city.canMoveTo(gx, gz, 0.45, enemy.rig.root.position.y)) {
+              enemy.rig.root.position.x = gx;
+              enemy.rig.root.position.z = gz;
+            }
             enemy.rig.root.rotation.y = Math.atan2(gdx, gdz);
           }
         }
@@ -6396,10 +6412,14 @@ function updateEnemies(dt) {
         const push = (minSep - sepDist) * 0.5;
         const nx = sepDx / sepDist;
         const nz = sepDz / sepDist;
-        p2.x += nx * push;
-        p2.z += nz * push;
-        p1.x -= nx * push;
-        p1.z -= nz * push;
+        if (!city || city.canMoveTo(p2.x + nx * push, p2.z + nz * push, 0.45, p2.y)) {
+          p2.x += nx * push;
+          p2.z += nz * push;
+        }
+        if (!city || city.canMoveTo(p1.x - nx * push, p1.z - nz * push, 0.45, p1.y)) {
+          p1.x -= nx * push;
+          p1.z -= nz * push;
+        }
       }
     }
   }
@@ -6442,8 +6462,11 @@ const trafficHooks = {
       if (canMoveTo(player.pos.x + dx, player.pos.z)) player.pos.x += dx;
       if (canMoveTo(player.pos.x, player.pos.z + dz)) player.pos.z += dz;
     } else if (p.enemy && p.enemy.rig) {
-      p.enemy.rig.root.position.x += dx;
-      p.enemy.rig.root.position.z += dz;
+      const ep = p.enemy.rig.root.position;
+      if (!city || city.canMoveTo(ep.x + dx, ep.z + dz, 0.45, ep.y)) {
+        ep.x += dx;
+        ep.z += dz;
+      }
     }
   }
 };
