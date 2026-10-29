@@ -667,6 +667,7 @@
     const PLAY = { minX: Math.min(minX, -1120), maxX: Math.max(maxX, 1020), minZ: Math.min(minZ, -760), maxZ: Math.max(maxZ, 600) };
     const LM = Object.assign({}, MAP.landmarks);
     LM.hhof = [498.5, -327.9];
+    LM.dominionPublic = [466.2, -229.8];
 
     // ---------- CN Tower vertical walkables ----------
     const TWR = { x: LM.cnTower[0], z: LM.cnTower[1] };
@@ -2249,10 +2250,11 @@
             : name === 'Union Station' ? 'unionStation'
               : name === 'Scotiabank Arena' ? 'scotiabank'
                 : name.indexOf('Fairmont Royal York') >= 0 ? 'royalYork'
-                  : name.indexOf('Hockey Hall of Fame') >= 0 ? 'hhof' : null;
+                  : name.indexOf('Hockey Hall of Fame') >= 0 ? 'hhof'
+                    : name.indexOf('Dominion Public') >= 0 ? 'dominionPublic' : null;
       if (lmKey) {
         landmarkFeet[lmKey] = pts;
-        if (lmKey !== 'unionStation' && lmKey !== 'royalYork' && lmKey !== 'royThomson' && lmKey !== 'hhof') {
+        if (lmKey !== 'unionStation' && lmKey !== 'royalYork' && lmKey !== 'royThomson' && lmKey !== 'hhof' && lmKey !== 'dominionPublic') {
           addSolid({ type: 'poly', pts, h: b.h || 20, name });
         }
         return;
@@ -2984,7 +2986,7 @@
       MAP.buildings.forEach(b => {
         const nm = b.n || '';
         if (!nm) return;
-        if (/Fairmont Royal York|Hockey Hall of Fame/i.test(nm)) return; // Royal York and HHOF have dedicated historic marquees & monuments
+        if (/Fairmont Royal York|Hockey Hall of Fame|Union Station|Dominion Public/i.test(nm)) return; // Dedicated historic architecture & signs
         let pts = toPairs(b.p);
         if (pts.length < 3) return;
         if (polyArea(pts) < 0) pts = pts.reverse();
@@ -3055,7 +3057,7 @@
         // Strictly exclude Rogers Centre, CN Tower, arenas, stations, convention centres, parking, towers
         if (rogersPoly && Math.hypot(bcx - rogersPoly.cx, bcz - rogersPoly.cz) < 140) return;
         if (Math.hypot(bcx - LM.cnTower[0], bcz - LM.cnTower[1]) < 90) return;
-        if (/Rogers Centre|CN Tower|Arena|Stadium|Convention|Roundhouse|Union Station|Roy Thomson|parking|Impark|Green P|Garage/i.test(nm + ' ' + (b.k || ''))) return;
+        if (/Rogers Centre|CN Tower|Arena|Stadium|Convention|Roundhouse|Union Station|Roy Thomson|Dominion Public|parking|Impark|Green P|Garage/i.test(nm + ' ' + (b.k || ''))) return;
         if (h > 32) return; // office/condo skyscrapers don't get sloped cafe awnings
         if (pts.some(([x, z]) => isInsideTrench(x, z) || z > getShorelineZ(x) - 10)) return;
 
@@ -4985,7 +4987,13 @@
       scene.add(signGlow);
     }
 
-    // ---------------- 3b. Union Station: Setback Beaux-Arts Headhouse + Low Train Shed ----------------
+    // ---------------- 3b. Union Station: Beaux-Arts Railway Palace + Colonnade + Atrium to Scotiabank Arena ----------------
+    // Canada's finest monumental Beaux-Arts railway terminal (1927, John M. Lyle / Ross & Macdonald).
+    // Features the monumental 22-column Front Street Doric loggia with deeply incised Roman lettering,
+    // Guastavino barrel-vaulted Great Hall ticket lobby with glowing arched bronze portals,
+    // Sir John A. Macdonald Plaza with the historic sunken Moat and stone bridges,
+    // the soaring Zeidler steel-and-glass train shed canopy extending south, and the Bay & York Teamways
+    // connecting Union Station all the way back across the rail trench to Scotiabank Arena!
     if (landmarkFeet.unionStation) {
       const rawP = landmarkFeet.unionStation;
       const [ucx, ucz] = centroid(rawP);
@@ -4995,66 +5003,617 @@
       let sDir = [-fDir[1], fDir[0]];
       if (sDir[1] < 0) sDir = [-sDir[0], -sDir[1]];
 
-      // Build the recessed Headhouse (set back 16m south of Front St curb to form Sir John A. Macdonald Plaza)
-      const SETBACK = 16.0;
-      const HEAD_W = 246.0, HEAD_D = 36.0, HEAD_H = 26.0;
-      // Anchor on Front Street edge center (~262, -168) and push south by SETBACK
-      const frontAnchor = [262.0 + sDir[0] * SETBACK, -168.0 + sDir[1] * SETBACK];
-      const headPoly = [
-        [frontAnchor[0] - fDir[0] * (HEAD_W / 2), frontAnchor[1] - fDir[1] * (HEAD_W / 2)],
-        [frontAnchor[0] + fDir[0] * (HEAD_W / 2), frontAnchor[1] + fDir[1] * (HEAD_W / 2)],
-        [frontAnchor[0] + fDir[0] * (HEAD_W / 2) + sDir[0] * HEAD_D, frontAnchor[1] + fDir[1] * (HEAD_W / 2) + sDir[1] * HEAD_D],
-        [frontAnchor[0] - fDir[0] * (HEAD_W / 2) + sDir[0] * HEAD_D, frontAnchor[1] - fDir[1] * (HEAD_W / 2) + sDir[1] * HEAD_D]
-      ];
-      if (polyArea(headPoly) < 0) headPoly.reverse();
+      // Dedicated Queenston & Indiana Limestone Facade Textures
+      function makeUnionStationFacade() {
+        const SZ = 512, [c, ctx] = canvas2(SZ, SZ), [e, ectx] = canvas2(SZ, SZ), [r, rctx] = canvas2(SZ, SZ);
+        ectx.fillStyle = '#000'; ectx.fillRect(0, 0, SZ, SZ);
+        rctx.fillStyle = 'rgb(220,215,200)'; rctx.fillRect(0, 0, SZ, SZ);
+        ctx.fillStyle = '#cdbf9f'; ctx.fillRect(0, 0, SZ, SZ);
 
-      const uStone = new THREE.MeshStandardMaterial({ color: 0xcdbf9f, roughness: 0.72, envMapIntensity: 0.3, side: THREE.DoubleSide });
-      const headMesh = new THREE.Mesh(wallsGeo(headPoly, 0, () => HEAD_H, TILE_W, TILE_H), facadeMats.stone);
-      headMesh.castShadow = headMesh.receiveShadow = true;
-      scene.add(headMesh);
-      scene.add(new THREE.Mesh(capGeo(headPoly, () => HEAD_H), uStone));
-      addSolid({ type: 'poly', pts: headPoly, h: HEAD_H, name: 'Union Station' });
+        // Indiana limestone ashlar coursing
+        for (let y = 0; y < SZ; y += 12) {
+          for (let x = ((y / 12) % 2) ? 0 : 16; x < SZ; x += 32) {
+            ctx.fillStyle = `rgba(${hash(x * 5.1 + y * 7.3) > 0.5 ? '255,245,225' : '75,65,48'},${0.03 + hash(x * 3.3 + y * 8.9) * 0.07})`;
+            ctx.fillRect(x, y, 31, 11);
+          }
+        }
+        // Rusticated ground floor (y = 380..512)
+        ctx.fillStyle = '#bdae8c'; ctx.fillRect(0, 380, SZ, 132);
+        for (let y = 380; y < SZ; y += 16) {
+          ctx.fillStyle = '#8f8060'; ctx.fillRect(0, y, SZ, 3);
+          ctx.fillStyle = '#dfd3bc'; ctx.fillRect(0, y + 3, SZ, 2);
+        }
+        // 4 floors of classical windows
+        const NBAYS = 8, BAY_W = SZ / NBAYS;
+        for (let fy = 0; fy < 4; fy++) {
+          const sy = fy * 90 + 30;
+          // Beltcourses
+          ctx.fillStyle = '#baa988'; ctx.fillRect(0, sy - 6, SZ, 4);
+          ctx.fillStyle = '#dfd3bc'; ctx.fillRect(0, sy - 2, SZ, 2);
+          for (let b = 0; b < NBAYS; b++) {
+            const bx = b * BAY_W;
+            const wx = bx + 12, wy = sy + 10, ww = BAY_W - 24, wh = 55;
+            // Molded stone surround & keystone
+            ctx.fillStyle = '#bdae8c'; ctx.fillRect(wx - 2, wy - 3, ww + 4, wh + 6);
+            ctx.fillStyle = '#dfd3bc'; ctx.fillRect(wx + ww / 2 - 2, wy - 6, 4, 5);
+            ctx.fillStyle = '#dfd3bc'; ctx.fillRect(wx - 3, wy + wh, ww + 6, 3);
+            // Window glass
+            ctx.fillStyle = 'rgba(25,20,15,0.85)'; ctx.fillRect(wx, wy, ww, wh);
+            if (hash(b * 13.7 + fy * 29.3) < 0.65) {
+              const lit = ['#ffeaae', '#ffd685', '#ffc562'][Math.floor(hash(b * 7 + fy) * 3)];
+              [ctx, ectx].forEach((k, ki) => {
+                k.fillStyle = ki ? lit : '#ffe29e';
+                k.fillRect(wx + 2, wy + 2, ww - 4, wh - 4);
+              });
+              rctx.fillStyle = 'rgb(40,40,40)'; rctx.fillRect(wx, wy, ww, wh);
+            }
+          }
+        }
+        // Classical dentiled cornice at roofline
+        ctx.fillStyle = '#b5a480'; ctx.fillRect(0, 16, SZ, 8);
+        ctx.fillStyle = '#dcd0b5'; ctx.fillRect(0, 8, SZ, 8);
+        for (let dx = 4; dx < SZ; dx += 14) { ctx.fillStyle = '#8f8060'; ctx.fillRect(dx, 10, 7, 5); }
 
-      // Beaux-Arts Colonnade along the recessed North Facade (facing the Plaza & Royal York)
-      const span = 140, nCol = 22;
-      const cols = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.8, 0.9, 14.0, 14), uStone, nCol + 1);
-      const cm = new THREE.Matrix4();
-      for (let k = 0; k <= nCol; k++) {
-        const u = -span / 2 + (span * k) / nCol;
-        const cxCol = frontAnchor[0] + fDir[0] * u - sDir[0] * 2.8;
-        const czCol = frontAnchor[1] + fDir[1] * u - sDir[1] * 2.8;
-        cm.makeTranslation(cxCol, 7.0, czCol);
-        cols.setMatrixAt(k, cm);
-        if (k % 2 === 0) addCircle(cxCol, czCol, 0.9);
+        const tex = new THREE.CanvasTexture(c), etex = new THREE.CanvasTexture(e), rtex = new THREE.CanvasTexture(r);
+        [tex, etex, rtex].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; });
+        return new THREE.MeshStandardMaterial({
+          map: tex, emissive: 0xffffff, emissiveMap: etex, emissiveIntensity: 1.0, roughness: 0.82, roughnessMap: rtex, side: THREE.DoubleSide
+        });
       }
-      cols.castShadow = true;
-      scene.add(cols);
 
-      // Union Station Sign on the recessed entablature
-      const uSign = signMesh(['UNION STATION'], 36, 4.8, { bg: '#1b1b1b', fg: '#ffe9b8', borderColor: '#c9a35b', size: 74 });
-      uSign.position.set(frontAnchor[0] - sDir[0] * 3.2, 17.5, frontAnchor[1] - sDir[1] * 3.2);
-      uSign.rotation.y = Math.atan2(-sDir[0], -sDir[1]);
-      scene.add(uSign);
+      function makeUnionStationLoggiaFacade() {
+        const SZ = 512, [c, ctx] = canvas2(SZ, SZ), [e, ectx] = canvas2(SZ, SZ), [r, rctx] = canvas2(SZ, SZ);
+        ectx.fillStyle = '#000'; ectx.fillRect(0, 0, SZ, SZ);
+        rctx.fillStyle = 'rgb(215,210,195)'; rctx.fillRect(0, 0, SZ, SZ);
+        ctx.fillStyle = '#c7b897'; ctx.fillRect(0, 0, SZ, SZ);
 
-      // South Concourse Wing North of the Sunken GO Train Trench (SHED_D = 20m keeps the GO Train trench 100% open to the sky!)
-      const shedStart = [frontAnchor[0] + sDir[0] * (HEAD_D + 2), frontAnchor[1] + sDir[1] * (HEAD_D + 2)];
-      const SHED_W = 230.0, SHED_D = 20.0, SHED_H = 11.5;
-      const shedPoly = [
-        [shedStart[0] - fDir[0] * (SHED_W / 2), shedStart[1] - fDir[1] * (SHED_W / 2)],
-        [shedStart[0] + fDir[0] * (SHED_W / 2), shedStart[1] + fDir[1] * (SHED_W / 2)],
-        [shedStart[0] + fDir[0] * (SHED_W / 2) + sDir[0] * SHED_D, shedStart[1] + fDir[1] * (SHED_W / 2) + sDir[1] * SHED_D],
-        [shedStart[0] - fDir[0] * (SHED_W / 2) + sDir[0] * SHED_D, shedStart[1] - fDir[1] * (SHED_W / 2) + sDir[1] * SHED_D]
+        // Ashlar coursing
+        for (let y = 0; y < SZ; y += 14) {
+          for (let x = ((y / 14) % 2) ? 0 : 20; x < SZ; x += 40) {
+            ctx.fillStyle = `rgba(${hash(x * 6.3 + y * 9.1) > 0.5 ? '255,245,220' : '70,60,42'},${0.03 + hash(x * 4.1 + y * 7.7) * 0.06})`;
+            ctx.fillRect(x, y, 39, 13);
+          }
+        }
+        // 4 Monumental Arched Bays with grand bronze portals & Guastavino Great Hall glow
+        const NBAYS = 4, BAY_W = SZ / NBAYS;
+        for (let b = 0; b < NBAYS; b++) {
+          const bx = b * BAY_W;
+          const archW = 86, archX = bx + (BAY_W - archW) / 2;
+          const archTopY = 110, archH = 340, archR = archW / 2;
+
+          // Rusticated stone voussoirs
+          ctx.strokeStyle = '#bba986'; ctx.lineWidth = 8;
+          ctx.beginPath(); ctx.arc(archX + archR, archTopY + archR, archR + 4, Math.PI, 0); ctx.stroke();
+          ctx.fillStyle = '#dfd3bc'; ctx.fillRect(archX + archR - 7, archTopY - 12, 14, 18); // keystone
+
+          // Golden incandescent glow of the Great Hall ticket lobby
+          [ctx, ectx].forEach((k, ki) => {
+            const g = k.createLinearGradient(0, archTopY, 0, archTopY + archH);
+            g.addColorStop(0, '#fff6d6');
+            g.addColorStop(0.3, '#ffdf8c');
+            g.addColorStop(0.7, ki ? '#f59e0b' : '#c27803');
+            g.addColorStop(1, ki ? '#451a03' : '#2b1002');
+            k.fillStyle = g;
+            k.beginPath();
+            k.arc(archX + archR, archTopY + archR, archR, Math.PI, 0);
+            k.lineTo(archX + archW, archTopY + archH);
+            k.lineTo(archX, archTopY + archH);
+            k.closePath();
+            k.fill();
+
+            // Bronze arched grille & revolving doors
+            k.strokeStyle = 'rgba(25,18,10,0.85)'; k.lineWidth = 2.5;
+            k.beginPath();
+            k.moveTo(archX + archR, archTopY); k.lineTo(archX + archR, archTopY + archH);
+            k.moveTo(archX, archTopY + archR); k.lineTo(archX + archW, archTopY + archR);
+            k.moveTo(archX, archTopY + archR + 80); k.lineTo(archX + archW, archTopY + archR + 80);
+            k.stroke();
+            // Lower revolving portal frame
+            k.fillStyle = 'rgba(40,25,12,0.85)';
+            k.fillRect(archX + 8, archTopY + archH - 110, archW - 16, 110);
+            k.fillStyle = ki ? '#fff3c4' : '#ffe082';
+            k.fillRect(archX + 16, archTopY + archH - 95, archW - 32, 85);
+          });
+          rctx.fillStyle = 'rgb(35,35,35)'; rctx.fillRect(archX, archTopY, archW, archH);
+        }
+        const tex = new THREE.CanvasTexture(c), etex = new THREE.CanvasTexture(e), rtex = new THREE.CanvasTexture(r);
+        [tex, etex, rtex].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; });
+        return new THREE.MeshStandardMaterial({
+          map: tex, emissive: 0xffffff, emissiveMap: etex, emissiveIntensity: 1.0, roughness: 0.75, roughnessMap: rtex, side: THREE.DoubleSide
+        });
+      }
+
+      const uStoneMat = makeUnionStationFacade();
+      const uLoggiaMat = makeUnionStationLoggiaFacade();
+      const stoneCapMat = new THREE.MeshStandardMaterial({ color: 0xc8ba9a, roughness: 0.75, envMapIntensity: 0.3, side: THREE.DoubleSide });
+
+      // Layout coordinates:
+      const SETBACK = 16.0;
+      const HEAD_W = 246.0, HEAD_D = 36.0, WING_H = 22.0, LOGGIA_H = 18.2;
+      const frontAnchor = [262.0 + sDir[0] * SETBACK, -168.0 + sDir[1] * SETBACK];
+
+      // 1. Symmetrical East & West Wings (4-storey limestone ashlar)
+      const WING_W = 52.0;
+      const makeWingPoly = (uStart, uEnd) => [
+        [frontAnchor[0] + fDir[0] * uStart, frontAnchor[1] + fDir[1] * uStart],
+        [frontAnchor[0] + fDir[0] * uEnd, frontAnchor[1] + fDir[1] * uEnd],
+        [frontAnchor[0] + fDir[0] * uEnd + sDir[0] * HEAD_D, frontAnchor[1] + fDir[1] * uEnd + sDir[1] * HEAD_D],
+        [frontAnchor[0] + fDir[0] * uStart + sDir[0] * HEAD_D, frontAnchor[1] + fDir[1] * uStart + sDir[1] * HEAD_D]
       ];
-      if (polyArea(shedPoly) < 0) shedPoly.reverse();
-      const shedMat = new THREE.MeshStandardMaterial({ color: 0x3b4d44, roughness: 0.5, metalness: 0.4, envMapIntensity: 0.4, side: THREE.DoubleSide });
-      scene.add(new THREE.Mesh(wallsGeo(shedPoly, 0, () => SHED_H, 16, 12), shedMat));
-      scene.add(new THREE.Mesh(capGeo(shedPoly, () => SHED_H), shedMat));
-      const [scx, scz] = centroid(shedPoly);
-      const goUnionSign = signMesh(['UNION STATION • GO TRANSIT CONCOURSE', 'LAKESHORE WEST • LAKESHORE EAST • UP EXPRESS'], 34, 3.2, { bg: '#064e3b', fg: '#fef08a', borderColor: '#22c55e', size: 58 });
-      goUnionSign.position.set(scx + sDir[0] * (SHED_D / 2 + 0.4), SHED_H + 1.8, scz + sDir[1] * (SHED_D / 2 + 0.4));
-      goUnionSign.rotation.y = Math.atan2(sDir[0], sDir[1]);
-      scene.add(goUnionSign);
-      addSolid({ type: 'poly', pts: shedPoly, h: SHED_H, name: 'Union Station Train Shed' });
+      const westPoly = makeWingPoly(-HEAD_W / 2, -HEAD_W / 2 + WING_W);
+      const eastPoly = makeWingPoly(HEAD_W / 2 - WING_W, HEAD_W / 2);
+      if (polyArea(westPoly) < 0) westPoly.reverse();
+      if (polyArea(eastPoly) < 0) eastPoly.reverse();
+
+      [westPoly, eastPoly].forEach((wp, wi) => {
+        const wMesh = new THREE.Mesh(wallsGeo(wp, 0, () => WING_H, 16, 16), uStoneMat);
+        wMesh.castShadow = wMesh.receiveShadow = true;
+        scene.add(wMesh);
+        scene.add(new THREE.Mesh(capGeo(wp, () => WING_H), stoneCapMat));
+        addSolid({ type: 'poly', pts: wp, h: WING_H, name: wi ? 'Union Station East Wing' : 'Union Station West Wing' });
+
+        // Decorative stone urns along wing roof parapet
+        const bPts = subdividePoly(wp, 1);
+        for (let i = 0; i < bPts.length; i++) {
+          const bp = bPts[i];
+          const urn = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 1.2, 8), stoneCapMat);
+          urn.position.set(bp[0], WING_H + 0.6, bp[1]);
+          scene.add(urn);
+        }
+      });
+
+      // 2. Recessed North Wall of Great Hall (between wings)
+      const porticoU0 = -HEAD_W / 2 + WING_W, porticoU1 = HEAD_W / 2 - WING_W; // span 142m
+      const RECESS = 4.8;
+      const loggiaPoly = [
+        [frontAnchor[0] + fDir[0] * porticoU0 + sDir[0] * RECESS, frontAnchor[1] + fDir[1] * porticoU0 + sDir[1] * RECESS],
+        [frontAnchor[0] + fDir[0] * porticoU1 + sDir[0] * RECESS, frontAnchor[1] + fDir[1] * porticoU1 + sDir[1] * RECESS],
+        [frontAnchor[0] + fDir[0] * porticoU1 + sDir[0] * HEAD_D, frontAnchor[1] + fDir[1] * porticoU1 + sDir[1] * HEAD_D],
+        [frontAnchor[0] + fDir[0] * porticoU0 + sDir[0] * HEAD_D, frontAnchor[1] + fDir[1] * porticoU0 + sDir[1] * HEAD_D]
+      ];
+      if (polyArea(loggiaPoly) < 0) loggiaPoly.reverse();
+      const loggiaMesh = new THREE.Mesh(wallsGeo(loggiaPoly, 0, () => LOGGIA_H, 16, 16), uLoggiaMat);
+      loggiaMesh.castShadow = loggiaMesh.receiveShadow = true;
+      scene.add(loggiaMesh);
+      scene.add(new THREE.Mesh(capGeo(loggiaPoly, () => LOGGIA_H), stoneCapMat));
+      addSolid({ type: 'poly', pts: loggiaPoly, h: LOGGIA_H, name: 'Union Station Loggia' });
+
+      // 3. The Grand Colonnade: 22 Fluted Doric Columns along Front St
+      const span = 138.0, nCol = 22;
+      const colShaftGeo = new THREE.CylinderGeometry(0.72, 0.82, 13.0, 20);
+      const colBaseGeo = new THREE.BoxGeometry(2.0, 0.6, 2.0);
+      const colCapGeo = new THREE.BoxGeometry(2.3, 0.5, 2.3);
+      const colMat = new THREE.MeshStandardMaterial({ color: 0xd3c6a6, roughness: 0.72, envMapIntensity: 0.35 });
+
+      const colsMesh = new THREE.InstancedMesh(colShaftGeo, colMat, nCol);
+      const basesMesh = new THREE.InstancedMesh(colBaseGeo, colMat, nCol);
+      const capsMesh = new THREE.InstancedMesh(colCapGeo, colMat, nCol);
+      const cm = new THREE.Matrix4();
+
+      for (let k = 0; k < nCol; k++) {
+        const u = -span / 2 + (span * k) / (nCol - 1);
+        const cxCol = frontAnchor[0] + fDir[0] * u + sDir[0] * 0.8;
+        const czCol = frontAnchor[1] + fDir[1] * u + sDir[1] * 0.8;
+
+        // Shaft
+        cm.makeTranslation(cxCol, 7.1, czCol);
+        colsMesh.setMatrixAt(k, cm);
+        // Plinth Base
+        cm.makeTranslation(cxCol, 0.3, czCol);
+        basesMesh.setMatrixAt(k, cm);
+        // Doric Capital
+        cm.makeTranslation(cxCol, 13.6, czCol);
+        capsMesh.setMatrixAt(k, cm);
+
+        addCircle(cxCol, czCol, 0.95);
+      }
+      [colsMesh, basesMesh, capsMesh].forEach(m => { m.castShadow = true; scene.add(m); });
+
+      // 4. Monumental Classical Entablature & Inscribed Frieze
+      const entW = 142.0, entH = 4.6, entD = 4.2;
+      const entCenter = [frontAnchor[0] + sDir[0] * (RECESS / 2), frontAnchor[1] + sDir[1] * (RECESS / 2)];
+      const entMesh = new THREE.Mesh(new THREE.BoxGeometry(entW, entH, entD), colMat);
+      entMesh.position.set(entCenter[0], 13.6 + entH / 2, entCenter[1]);
+      entMesh.rotation.y = Math.atan2(fDir[0], fDir[1]) - Math.PI / 2;
+      entMesh.castShadow = true;
+      scene.add(entMesh);
+
+      // Classical Incised Roman Stone Frieze: "UNION STATION"
+      function makeUnionStationFrieze() {
+        const [c, ctx] = canvas2(1024, 128);
+        ctx.fillStyle = '#c7b897'; ctx.fillRect(0, 0, 1024, 128);
+        // Triglyph bands on ends
+        for (let x = 16; x < 120; x += 18) {
+          ctx.fillStyle = '#7a6a48'; ctx.fillRect(x, 10, 8, 108);
+          ctx.fillStyle = '#dfd3bc'; ctx.fillRect(x + 8, 10, 4, 108);
+        }
+        for (let x = 904; x < 1008; x += 18) {
+          ctx.fillStyle = '#7a6a48'; ctx.fillRect(x, 10, 8, 108);
+          ctx.fillStyle = '#dfd3bc'; ctx.fillRect(x + 8, 10, 4, 108);
+        }
+        // Shadowed deeply incised Roman capitals
+        ctx.font = '900 58px "Cinzel", "Times New Roman", Georgia, serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#5c4e33'; ctx.fillText('UNION   STATION', 512 + 2, 64 + 2);
+        ctx.fillStyle = '#fff4db'; ctx.fillText('UNION   STATION', 512, 64);
+        // Subtitle: CPR • CNR
+        ctx.font = '700 18px "Cinzel", "Times New Roman", Georgia, serif';
+        ctx.fillStyle = '#7a6a48'; ctx.fillText('CANADIAN PACIFIC  •  GRAND TRUNK  •  CANADIAN NATIONAL', 512, 106);
+
+        const tex = new THREE.CanvasTexture(c);
+        return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.75, envMapIntensity: 0.4 });
+      }
+      const friezeSign = new THREE.Mesh(new THREE.PlaneGeometry(36, 4.4), makeUnionStationFrieze());
+      friezeSign.position.set(entCenter[0] - sDir[0] * (entD / 2 + 0.05), 15.9, entCenter[1] - sDir[1] * (entD / 2 + 0.05));
+      friezeSign.rotation.y = Math.atan2(-sDir[0], -sDir[1]);
+      scene.add(friezeSign);
+
+      // 5. The Soaring Great Hall Barrel-Vaulted Clerestory Attic
+      const hallW = 88.0, hallD = 28.0, hallH = 27.5;
+      const hallPoly = [
+        [frontAnchor[0] - fDir[0] * (hallW / 2) + sDir[0] * 6.0, frontAnchor[1] - fDir[1] * (hallW / 2) + sDir[1] * 6.0],
+        [frontAnchor[0] + fDir[0] * (hallW / 2) + sDir[0] * 6.0, frontAnchor[1] + fDir[1] * (hallW / 2) + sDir[1] * 6.0],
+        [frontAnchor[0] + fDir[0] * (hallW / 2) + sDir[0] * (6.0 + hallD), frontAnchor[1] + fDir[1] * (hallW / 2) + sDir[1] * (6.0 + hallD)],
+        [frontAnchor[0] - fDir[0] * (hallW / 2) + sDir[0] * (6.0 + hallD), frontAnchor[1] - fDir[1] * (hallW / 2) + sDir[1] * (6.0 + hallD)]
+      ];
+      if (polyArea(hallPoly) < 0) hallPoly.reverse();
+      const hallMesh = new THREE.Mesh(wallsGeo(hallPoly, LOGGIA_H, () => hallH, 16, 8), uStoneMat);
+      hallMesh.castShadow = true; scene.add(hallMesh);
+      scene.add(new THREE.Mesh(capGeo(hallPoly, () => hallH), stoneCapMat));
+      addSolid({ type: 'poly', pts: hallPoly, h: hallH, name: 'Union Station Great Hall' });
+
+      // East & West Great Hall 4-storey Arched Windows (Diocletian thermal windows)
+      const eEndCenter = [frontAnchor[0] + fDir[0] * (hallW / 2 + 0.1) + sDir[0] * (6.0 + hallD / 2), frontAnchor[1] + fDir[1] * (hallW / 2 + 0.1) + sDir[1] * (6.0 + hallD / 2)];
+      const wEndCenter = [frontAnchor[0] - fDir[0] * (hallW / 2 + 0.1) + sDir[0] * (6.0 + hallD / 2), frontAnchor[1] - fDir[1] * (hallW / 2 + 0.1) + sDir[1] * (6.0 + hallD / 2)];
+      const diocletianMat = new THREE.MeshStandardMaterial({
+        color: 0xffdf88, emissive: 0xf59e0b, emissiveIntensity: 0.85, roughness: 0.2, metalness: 0.5, side: THREE.DoubleSide
+      });
+      [eEndCenter, wEndCenter].forEach((ep, ei) => {
+        const archMesh = new THREE.Mesh(new THREE.CylinderGeometry(10.0, 10.0, 0.4, 24, 1, false, 0, Math.PI), diocletianMat);
+        archMesh.rotation.z = Math.PI / 2;
+        archMesh.rotation.y = Math.atan2(fDir[0], fDir[1]) + (ei ? 0 : Math.PI);
+        archMesh.position.set(ep[0], 21.0, ep[1]);
+        scene.add(archMesh);
+      });
+
+      // 6. Sir John A. Macdonald Plaza, The Sunken Moat & 3 Monumental Pedestrian Bridges
+      // 3 Bridges spanning the moat directly into the Great Hall portals
+      const bridgeW = 8.0, bridgeL = 7.5;
+      const bridgeOffsets = [-36.0, 0.0, 36.0];
+      bridgeOffsets.forEach(bo => {
+        const brX = frontAnchor[0] + fDir[0] * bo - sDir[0] * (bridgeL / 2 - 0.5);
+        const brZ = frontAnchor[1] + fDir[1] * bo - sDir[1] * (bridgeL / 2 - 0.5);
+        const bridgeDeck = new THREE.Mesh(new THREE.BoxGeometry(bridgeW, 0.45, bridgeL), stoneCapMat);
+        bridgeDeck.position.set(brX, 0.1, brZ);
+        bridgeDeck.rotation.y = Math.atan2(fDir[0], fDir[1]) - Math.PI / 2;
+        bridgeDeck.receiveShadow = true;
+        scene.add(bridgeDeck);
+
+        // Ornate bronze heritage lamp posts flanking each bridge
+        [-bridgeW / 2 - 0.6, bridgeW / 2 + 0.6].forEach(ls => {
+          const lpX = brX + fDir[0] * ls;
+          const lpZ = brZ + fDir[1] * ls;
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 3.8, 10), new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.85, roughness: 0.2 }));
+          post.position.set(lpX, 1.9, lpZ);
+          scene.add(post);
+
+          const globe = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffdf88, emissiveIntensity: 1.2 }));
+          globe.position.set(lpX, 3.9, lpZ);
+          scene.add(globe);
+
+          const lampLight = new THREE.PointLight(0xffdf88, 1.2, 14);
+          lampLight.position.set(lpX, 3.9, lpZ);
+          scene.add(lampLight);
+        });
+      });
+
+      // East & West Concourse Porticoes
+      const bayCanopy = signMesh(['BAY STREET CONCOURSE', 'TO GO TRAINS • TTC • SCOTIABANK ARENA'], 18, 2.4, { bg: '#172554', fg: '#fef08a', borderColor: '#3b82f6', size: 54 });
+      bayCanopy.position.set(frontAnchor[0] + fDir[0] * (HEAD_W / 2 - 24.0) - sDir[0] * 2.5, 4.8, frontAnchor[1] + fDir[1] * (HEAD_W / 2 - 24.0) - sDir[1] * 2.5);
+      bayCanopy.rotation.y = Math.atan2(-sDir[0], -sDir[1]);
+      scene.add(bayCanopy);
+
+      const yorkCanopy = signMesh(['YORK STREET CONCOURSE', 'TO GO TRAINS • UP EXPRESS • PATH'], 18, 2.4, { bg: '#064e3b', fg: '#fef08a', borderColor: '#22c55e', size: 54 });
+      yorkCanopy.position.set(frontAnchor[0] - fDir[0] * (HEAD_W / 2 - 24.0) - sDir[0] * 2.5, 4.8, frontAnchor[1] - fDir[1] * (HEAD_W / 2 - 24.0) - sDir[1] * 2.5);
+      yorkCanopy.rotation.y = Math.atan2(-sDir[0], -sDir[1]);
+      scene.add(yorkCanopy);
+
+      // 7. South Concourse Extensions: Connecting ALL THE WAY BACK TO SCOTIABANK ARENA
+      // The distance from the south wall (v = 36) to Scotiabank Arena (z ~ -14) is ~102m.
+      const teamwayLen = 100.0;
+      const teamwayStart = [frontAnchor[0] + sDir[0] * HEAD_D, frontAnchor[1] + sDir[1] * HEAD_D];
+      const TEAMWAY_W = 14.0, TEAMWAY_H = 7.2;
+
+      const glassConcourseMat = new THREE.MeshStandardMaterial({
+        color: 0x93c5fd, roughness: 0.1, metalness: 0.7, transparent: true, opacity: 0.45, envMapIntensity: 0.9, side: THREE.DoubleSide
+      });
+      const steelFrameMat = new THREE.MeshStandardMaterial({
+        color: 0x334155, roughness: 0.4, metalness: 0.8, side: THREE.DoubleSide
+      });
+
+      // A. Bay South Teamway (East Concourse Bridge along Bay Street)
+      const bayTeamU = HEAD_W / 2 - 28.0; // u ~ +95
+      const bayTeamPoly = [
+        [teamwayStart[0] + fDir[0] * (bayTeamU - TEAMWAY_W / 2), teamwayStart[1] + fDir[1] * (bayTeamU - TEAMWAY_W / 2)],
+        [teamwayStart[0] + fDir[0] * (bayTeamU + TEAMWAY_W / 2), teamwayStart[1] + fDir[1] * (bayTeamU + TEAMWAY_W / 2)],
+        [teamwayStart[0] + fDir[0] * (bayTeamU + TEAMWAY_W / 2) + sDir[0] * teamwayLen, teamwayStart[1] + fDir[1] * (bayTeamU + TEAMWAY_W / 2) + sDir[1] * teamwayLen],
+        [teamwayStart[0] + fDir[0] * (bayTeamU - TEAMWAY_W / 2) + sDir[0] * teamwayLen, teamwayStart[1] + fDir[1] * (bayTeamU - TEAMWAY_W / 2) + sDir[1] * teamwayLen]
+      ];
+      if (polyArea(bayTeamPoly) < 0) bayTeamPoly.reverse();
+      scene.add(new THREE.Mesh(wallsGeo(bayTeamPoly, 0, () => TEAMWAY_H, 12, 10), glassConcourseMat));
+      scene.add(new THREE.Mesh(capGeo(bayTeamPoly, () => TEAMWAY_H), steelFrameMat));
+      addSolid({ type: 'poly', pts: bayTeamPoly, h: TEAMWAY_H, name: 'Bay South Teamway' });
+
+      // Illuminated signage at the Bay Teamway entrance & midspan
+      const [btcx, btcz] = centroid(bayTeamPoly);
+      const bayTeamSign = signMesh(['UNION STATION • BAY SOUTH TEAMWAY', 'DIRECT INDOOR ACCESS TO SCOTIABANK ARENA'], 28, 2.6, { bg: '#0f172a', fg: '#f8fafc', borderColor: '#38bdf8', size: 54 });
+      bayTeamSign.position.set(btcx - fDir[0] * (TEAMWAY_W / 2 + 0.4), TEAMWAY_H - 1.2, btcz - fDir[1] * (TEAMWAY_W / 2 + 0.4));
+      bayTeamSign.rotation.y = Math.atan2(-fDir[0], -fDir[1]);
+      scene.add(bayTeamSign);
+
+      // B. York South Teamway (West Concourse Bridge along York Street)
+      const yorkTeamU = -HEAD_W / 2 + 28.0; // u ~ -95
+      const yorkTeamPoly = [
+        [teamwayStart[0] + fDir[0] * (yorkTeamU - TEAMWAY_W / 2), teamwayStart[1] + fDir[1] * (yorkTeamU - TEAMWAY_W / 2)],
+        [teamwayStart[0] + fDir[0] * (yorkTeamU + TEAMWAY_W / 2), teamwayStart[1] + fDir[1] * (yorkTeamU + TEAMWAY_W / 2)],
+        [teamwayStart[0] + fDir[0] * (yorkTeamU + TEAMWAY_W / 2) + sDir[0] * teamwayLen, teamwayStart[1] + fDir[1] * (yorkTeamU + TEAMWAY_W / 2) + sDir[1] * teamwayLen],
+        [teamwayStart[0] + fDir[0] * (yorkTeamU - TEAMWAY_W / 2) + sDir[0] * teamwayLen, teamwayStart[1] + fDir[1] * (yorkTeamU - TEAMWAY_W / 2) + sDir[1] * teamwayLen]
+      ];
+      if (polyArea(yorkTeamPoly) < 0) yorkTeamPoly.reverse();
+      scene.add(new THREE.Mesh(wallsGeo(yorkTeamPoly, 0, () => TEAMWAY_H, 12, 10), glassConcourseMat));
+      scene.add(new THREE.Mesh(capGeo(yorkTeamPoly, () => TEAMWAY_H), steelFrameMat));
+      addSolid({ type: 'poly', pts: yorkTeamPoly, h: TEAMWAY_H, name: 'York South Teamway' });
+
+      // C. Soaring Zeidler Contemporary Steel & Glass Atrium Canopy
+      // Spans centrally across the passenger platforms between the Headhouse and Scotiabank Arena
+      // Elevated high above the rail trench so the GO trains and tracks below at Y = -8 are 100% visible!
+      const ATRIUM_W = 108.0, ATRIUM_L = 72.0, ATRIUM_Y = 12.0, ARCH_PEAK = 16.5;
+      const atriumCenter = [teamwayStart[0] + sDir[0] * (ATRIUM_L / 2 + 2.0), teamwayStart[1] + sDir[1] * (ATRIUM_L / 2 + 2.0)];
+      const atriumRotY = Math.atan2(fDir[0], fDir[1]) - Math.PI / 2;
+
+      // Vaulted glass canopy mesh (curved barrel arch)
+      const atriumGeo = new THREE.CylinderGeometry(ATRIUM_W / 2, ATRIUM_W / 2, ATRIUM_L, 24, 1, true, Math.PI * 0.15, Math.PI * 0.7);
+      const atriumGlassMat = new THREE.MeshStandardMaterial({
+        color: 0x93c5fd, roughness: 0.15, metalness: 0.5, transparent: true, opacity: 0.35, envMapIntensity: 0.85, side: THREE.DoubleSide
+      });
+      const atriumMesh = new THREE.Mesh(atriumGeo, atriumGlassMat);
+      atriumMesh.rotation.z = Math.PI / 2;
+      atriumMesh.rotation.y = atriumRotY;
+      atriumMesh.position.set(atriumCenter[0], ATRIUM_Y + (ARCH_PEAK - ATRIUM_Y) / 2, atriumCenter[1]);
+      scene.add(atriumMesh);
+
+      // Structural steel arches framing the glass atrium
+      const nArches = 7;
+      for (let ai = 0; ai < nArches; ai++) {
+        const al = -ATRIUM_L / 2 + (ATRIUM_L * ai) / (nArches - 1);
+        const archRib = new THREE.Mesh(new THREE.TorusGeometry(ATRIUM_W / 2, 0.45, 8, 20, Math.PI * 0.7), steelFrameMat);
+        archRib.rotation.z = Math.PI * 0.15;
+        archRib.rotation.y = atriumRotY;
+        archRib.position.set(atriumCenter[0] + sDir[0] * al, ATRIUM_Y + (ARCH_PEAK - ATRIUM_Y) / 2, atriumCenter[1] + sDir[1] * al);
+        scene.add(archRib);
+      }
+
+      // Bush Train Shed Low Industrial Canopies flanking the central glass atrium
+      const shedMat = new THREE.MeshStandardMaterial({ color: 0x2e3b33, roughness: 0.65, metalness: 0.35, side: THREE.DoubleSide });
+      [-1, 1].forEach(side => {
+        const swU = side * (ATRIUM_W / 2 + 18.0);
+        const shedPoly = [
+          [teamwayStart[0] + fDir[0] * (swU - 14.0), teamwayStart[1] + fDir[1] * (swU - 14.0)],
+          [teamwayStart[0] + fDir[0] * (swU + 14.0), teamwayStart[1] + fDir[1] * (swU + 14.0)],
+          [teamwayStart[0] + fDir[0] * (swU + 14.0) + sDir[0] * ATRIUM_L, teamwayStart[1] + fDir[1] * (swU + 14.0) + sDir[1] * ATRIUM_L],
+          [teamwayStart[0] + fDir[0] * (swU - 14.0) + sDir[0] * ATRIUM_L, teamwayStart[1] + fDir[1] * (swU - 14.0) + sDir[1] * ATRIUM_L]
+        ];
+        if (polyArea(shedPoly) < 0) shedPoly.reverse();
+        scene.add(new THREE.Mesh(wallsGeo(shedPoly, 0, () => 6.2, 8, 8), shedMat));
+        scene.add(new THREE.Mesh(capGeo(shedPoly, () => 6.2), shedMat));
+      });
+
+      // D. Direct Connection to Scotiabank Arena North Facade
+      // Connecting portal joining the Bay South Teamway into Scotiabank Arena's north galleria
+      const scotiaJoinPt = [teamwayStart[0] + fDir[0] * bayTeamU + sDir[0] * (teamwayLen + 0.5), teamwayStart[1] + fDir[1] * bayTeamU + sDir[1] * (teamwayLen + 0.5)];
+      const scotiaSign = signMesh(['SCOTIABANK ARENA • NORTH GALLERIA', 'GATE 1 • AIR CANADA CLUB • MAPLE LEAF SQUARE'], 26, 2.8, { bg: '#7f1d1d', fg: '#ffffff', borderColor: '#ef4444', size: 56 });
+      scotiaSign.position.set(scotiaJoinPt[0], 5.8, scotiaJoinPt[1]);
+      scotiaSign.rotation.y = Math.atan2(sDir[0], sDir[1]);
+      scene.add(scotiaSign);
+    }
+
+    // ---------------- 3c. Dominion Public Building: Beaux-Arts Curved Limestone Landmark ----------------
+    // 1 Front Street West (1926-1935, Thomas W. Fuller / James H. Craig).
+    // Renowned for its magnificent Beaux-Arts facade that gracefully curves along the natural sweep of Front Street,
+    // constructed in Queenston limestone to harmonize directly with Union Station.
+    // Features the monumental projecting central portico with colossal fluted columns,
+    // triple-arched grand entrance with carved lion heads, continuous classical modillion cornice,
+    // stone roof balustrade, and central Canadian flagstaff.
+    if (landmarkFeet.dominionPublic) {
+      const rawP = landmarkFeet.dominionPublic;
+      let P = subdividePoly(rawP, 1);
+      if (polyArea(P) < 0) P.reverse();
+      const [dcx, dcz] = centroid(P);
+      LM.dominionPublic = [dcx, dcz];
+      const H = 25.0; // 5 storeys
+
+      // Matching Queenston Limestone Ashlar Facade Texture
+      function makeDominionPublicFacade() {
+        const SZ = 512, [c, ctx] = canvas2(SZ, SZ), [e, ectx] = canvas2(SZ, SZ), [r, rctx] = canvas2(SZ, SZ);
+        ectx.fillStyle = '#000'; ectx.fillRect(0, 0, SZ, SZ);
+        rctx.fillStyle = 'rgb(222,217,205)'; rctx.fillRect(0, 0, SZ, SZ);
+        ctx.fillStyle = '#eedfcc'; ctx.fillRect(0, 0, SZ, SZ); // Matching Queenston limestone tone
+
+        // Ashlar stone blocks
+        for (let y = 0; y < SZ; y += 12) {
+          for (let x = ((y / 12) % 2) ? 0 : 16; x < SZ; x += 32) {
+            ctx.fillStyle = `rgba(${hash(x * 6.7 + y * 4.9) > 0.5 ? '255,250,238' : '80,70,55'},${0.03 + hash(x * 4.9 + y * 8.3) * 0.06})`;
+            ctx.fillRect(x, y, 31, 11);
+          }
+        }
+        // Rusticated base on lower storeys (y = 360..512)
+        ctx.fillStyle = '#d8c8b2'; ctx.fillRect(0, 360, SZ, 152);
+        for (let y = 360; y < SZ; y += 15) {
+          ctx.fillStyle = '#9e8d75'; ctx.fillRect(0, y, SZ, 3);
+          ctx.fillStyle = '#f5ede0'; ctx.fillRect(0, y + 3, SZ, 2);
+        }
+        // 5 storeys of classical window bays with bronze spandrels
+        const NBAYS = 8, BAY_W = SZ / NBAYS;
+        for (let fy = 0; fy < 5; fy++) {
+          const sy = fy * 72 + 25;
+          // Beltcourses
+          ctx.fillStyle = '#d0bfab'; ctx.fillRect(0, sy - 5, SZ, 3);
+          ctx.fillStyle = '#f7efe2'; ctx.fillRect(0, sy - 2, SZ, 2);
+          for (let b = 0; b < NBAYS; b++) {
+            const bx = b * BAY_W;
+            const wx = bx + 10, wy = sy + 8, ww = BAY_W - 20, wh = 45;
+            // Classical stone frame & bronze spandrel
+            ctx.fillStyle = '#d2c2ad'; ctx.fillRect(wx - 2, wy - 3, ww + 4, wh + 6);
+            ctx.fillStyle = '#453828'; ctx.fillRect(wx, wy + wh - 10, ww, 10);
+            ctx.fillStyle = 'rgba(25,20,15,0.85)'; ctx.fillRect(wx, wy, ww, wh - 12);
+            if (hash(b * 19.3 + fy * 31.7) < 0.6) {
+              const lit = ['#ffeaae', '#ffd685', '#ffc562'][Math.floor(hash(b * 5 + fy) * 3)];
+              [ctx, ectx].forEach((k, ki) => {
+                k.fillStyle = ki ? lit : '#ffe29e';
+                k.fillRect(wx + 2, wy + 2, ww - 4, wh - 16);
+              });
+              rctx.fillStyle = 'rgb(40,40,40)'; rctx.fillRect(wx, wy, ww, wh);
+            }
+          }
+        }
+        // Continuous classical dentiled cornice at roofline
+        ctx.fillStyle = '#c7b69f'; ctx.fillRect(0, 14, SZ, 8);
+        ctx.fillStyle = '#f7efe2'; ctx.fillRect(0, 6, SZ, 8);
+        for (let dx = 4; dx < SZ; dx += 14) { ctx.fillStyle = '#8f7e68'; ctx.fillRect(dx, 8, 7, 5); }
+
+        const tex = new THREE.CanvasTexture(c), etex = new THREE.CanvasTexture(e), rtex = new THREE.CanvasTexture(r);
+        [tex, etex, rtex].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; });
+        return new THREE.MeshStandardMaterial({
+          map: tex, emissive: 0xffffff, emissiveMap: etex, emissiveIntensity: 1.0, roughness: 0.8, roughnessMap: rtex, side: THREE.DoubleSide
+        });
+      }
+
+      const dpMat = makeDominionPublicFacade();
+      const dpStoneCapMat = new THREE.MeshStandardMaterial({ color: 0xe0d2bd, roughness: 0.72, envMapIntensity: 0.35, side: THREE.DoubleSide });
+
+      // 1. Main Curved Crescent Massing (following OSM footprint)
+      const dpWalls = new THREE.Mesh(wallsGeo(P, 0, () => H, 16, 16), dpMat);
+      dpWalls.castShadow = dpWalls.receiveShadow = true;
+      scene.add(dpWalls);
+      scene.add(new THREE.Mesh(capGeo(P, () => H), dpStoneCapMat));
+      addSolid({ type: 'poly', pts: P, h: H, name: 'Dominion Public Building' });
+
+      // Stepped mechanical attic penthouse on roof
+      const innerP = P.map(p => [dcx + (p[0] - dcx) * 0.72, dcz + (p[1] - dcz) * 0.72]);
+      if (polyArea(innerP) < 0) innerP.reverse();
+      const atticWalls = new THREE.Mesh(wallsGeo(innerP, H, () => H + 3.8, 16, 8), dpStoneCapMat);
+      atticWalls.castShadow = true; scene.add(atticWalls);
+      scene.add(new THREE.Mesh(capGeo(innerP, () => H + 3.8), dpStoneCapMat));
+
+      // Continuous stone balustrade along the curved roof perimeter
+      const balPts = subdividePoly(P, 1);
+      for (let i = 0; i < balPts.length; i += 2) {
+        const bp = balPts[i];
+        const urn = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 1.0, 8), dpStoneCapMat);
+        urn.position.set(bp[0], H + 0.5, bp[1]);
+        scene.add(urn);
+      }
+
+      // 2. Monumental Projecting Central Portico (facing Front Street curve around [455, -241])
+      const porticoPos = [455.0, -241.5];
+      // Tangent and outward normal along the curve at this location
+      const pNorm = unit(-0.45, -0.89); // pointing out toward Front Street
+      const pTan = [pNorm[1], -pNorm[0]]; // pointing along Front Street
+
+      const PORT_W = 24.0, PORT_PROJ = 3.2, COL_H = 15.0;
+      const porticoCenter = [porticoPos[0] + pNorm[0] * (PORT_PROJ / 2), porticoPos[1] + pNorm[1] * (PORT_PROJ / 2)];
+      const portRotY = Math.atan2(pNorm[0], pNorm[1]);
+
+      // 4 Colossal Classical Columns across the portico
+      const nPCols = 4;
+      const pColsMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.65, 0.75, COL_H, 18), dpStoneCapMat, nPCols);
+      const pcm = new THREE.Matrix4();
+      for (let k = 0; k < nPCols; k++) {
+        const u = -PORT_W / 2 + 3.5 + (k * (PORT_W - 7.0)) / (nPCols - 1);
+        const colX = porticoPos[0] + pTan[0] * u + pNorm[0] * PORT_PROJ;
+        const colZ = porticoPos[1] + pTan[1] * u + pNorm[1] * PORT_PROJ;
+        pcm.makeTranslation(colX, 8.5 + COL_H / 2, colZ);
+        pColsMesh.setMatrixAt(k, pcm);
+        addCircle(colX, colZ, 0.85);
+      }
+      pColsMesh.castShadow = true;
+      scene.add(pColsMesh);
+
+      // Portico Classical Entablature & Stepped Attic
+      const pEntMesh = new THREE.Mesh(new THREE.BoxGeometry(PORT_W, 3.5, PORT_PROJ + 1.0), dpStoneCapMat);
+      pEntMesh.position.set(porticoCenter[0] + pNorm[0] * 1.0, 8.5 + COL_H + 1.75, porticoCenter[1] + pNorm[1] * 1.0);
+      pEntMesh.rotation.y = portRotY;
+      pEntMesh.castShadow = true;
+      scene.add(pEntMesh);
+
+      // Stepped attic with carved Canadian Coat of Arms shield
+      const pAtticMesh = new THREE.Mesh(new THREE.BoxGeometry(PORT_W - 4.0, 3.2, PORT_PROJ), dpStoneCapMat);
+      pAtticMesh.position.set(porticoCenter[0] + pNorm[0] * 0.8, 8.5 + COL_H + 4.8, porticoCenter[1] + pNorm[1] * 0.8);
+      pAtticMesh.rotation.y = portRotY;
+      scene.add(pAtticMesh);
+
+      // Inscribed Classical Stone Sign: "DOMINION PUBLIC BUILDING"
+      function makeDominionFrieze() {
+        const [c, ctx] = canvas2(1024, 128);
+        ctx.fillStyle = '#e4d6c2'; ctx.fillRect(0, 0, 1024, 128);
+        ctx.font = '900 52px "Cinzel", "Times New Roman", Georgia, serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#6b5c46'; ctx.fillText('DOMINION  PUBLIC  BUILDING', 512 + 2, 54 + 2);
+        ctx.fillStyle = '#ffffff'; ctx.fillText('DOMINION  PUBLIC  BUILDING', 512, 54);
+        ctx.font = '700 20px "Cinzel", "Times New Roman", Georgia, serif';
+        ctx.fillStyle = '#8a7860'; ctx.fillText('GOUVERNEMENT DU CANADA  •  1 FRONT STREET WEST  •  EST. 1935', 512, 98);
+        const tex = new THREE.CanvasTexture(c);
+        return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.72, envMapIntensity: 0.35 });
+      }
+      const dpFrieze = new THREE.Mesh(new THREE.PlaneGeometry(PORT_W - 2.0, 3.0), makeDominionFrieze());
+      dpFrieze.position.set(porticoCenter[0] + pNorm[0] * (PORT_PROJ + 1.55), 8.5 + COL_H + 1.75, porticoCenter[1] + pNorm[1] * (PORT_PROJ + 1.55));
+      dpFrieze.rotation.y = portRotY;
+      scene.add(dpFrieze);
+
+      // Triple-Arched Grand Entrance at Street Level with warm portal lighting
+      for (let ai = -1; ai <= 1; ai++) {
+        const archU = ai * 6.2;
+        const archX = porticoPos[0] + pTan[0] * archU + pNorm[0] * 0.2;
+        const archZ = porticoPos[1] + pTan[1] * archU + pNorm[1] * 0.2;
+        const archPortal = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 6.5), new THREE.MeshStandardMaterial({
+          color: 0x3d2817, emissive: 0xffdf88, emissiveIntensity: 0.8, roughness: 0.3, side: THREE.DoubleSide
+        }));
+        archPortal.position.set(archX, 3.25, archZ);
+        archPortal.rotation.y = portRotY;
+        scene.add(archPortal);
+
+        const pLight = new THREE.PointLight(0xffdf88, 1.1, 12);
+        pLight.position.set(archX + pNorm[0] * 1.5, 3.5, archZ + pNorm[1] * 1.5);
+        scene.add(pLight);
+      }
+
+      // Rooftop Canadian Flagstaff (flying Canadian Maple Leaf flag)
+      const mastHeight = 9.0;
+      const mastCenter = [porticoCenter[0] + pNorm[0] * 0.8, H + 7.0, porticoCenter[1] + pNorm[1] * 0.8];
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, mastHeight, 10), new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.9, roughness: 0.15 }));
+      mast.position.set(mastCenter[0], mastCenter[1] + mastHeight / 2, mastCenter[1]);
+      scene.add(mast);
+
+      // Canadian Flag Canvas Texture
+      function makeCanadianFlag() {
+        const [c, ctx] = canvas2(256, 128);
+        ctx.fillStyle = '#dc2626'; ctx.fillRect(0, 0, 64, 128);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(64, 0, 128, 128);
+        ctx.fillStyle = '#dc2626'; ctx.fillRect(192, 0, 64, 128);
+        // Stylized 11-point maple leaf
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath();
+        ctx.moveTo(128, 25); ctx.lineTo(134, 45); ctx.lineTo(152, 42); ctx.lineTo(142, 58);
+        ctx.lineTo(158, 68); ctx.lineTo(138, 76); ctx.lineTo(142, 92); ctx.lineTo(130, 84);
+        ctx.lineTo(130, 105); ctx.lineTo(126, 105); ctx.lineTo(126, 84); ctx.lineTo(114, 92);
+        ctx.lineTo(118, 76); ctx.lineTo(98, 68); ctx.lineTo(114, 58); ctx.lineTo(104, 42);
+        ctx.lineTo(122, 45); ctx.closePath(); ctx.fill();
+        const tex = new THREE.CanvasTexture(c);
+        return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4, side: THREE.DoubleSide });
+      }
+      const flagMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.8), makeCanadianFlag());
+      flagMesh.position.set(mastCenter[0] + 1.8, mastCenter[1] + mastHeight - 1.2, mastCenter[1]);
+      scene.add(flagMesh);
     }
 
     // ---------------- 3c. Scotiabank Arena: Modern Curved Glass/Cladding Bowl + Domed Roof ----------------
