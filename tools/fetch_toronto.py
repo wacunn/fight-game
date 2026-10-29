@@ -48,11 +48,40 @@ QUERY = f"""
 (
   way["building"]({S},{W},{N},{E});
   relation["building"]({S},{W},{N},{E});
+  way["building:part"]({S},{W},{N},{E});
+  relation["building:part"]({S},{W},{N},{E});
+  node["shop"]({S},{W},{N},{E});
+  node["amenity"]({S},{W},{N},{E});
+  node["tourism"]({S},{W},{N},{E});
   way["highway"]({S},{W},{N},{E});
   way["railway"="rail"]({S},{W},{N},{E});
 );
 out geom tags;
 """
+
+# Authoritative heights (metres) for major Toronto buildings where OSM either
+# lacks a height tag or only tagged the ground-floor podium.
+KNOWN_BUILDING_HEIGHTS = {
+    "Scotia Plaza": 275.0,
+    "The St. Regis": 277.0,
+    "TD Canada Trust Tower": 261.0,
+    "Prestige at Pinnacle One Yonge": 217.0,
+    "L Tower": 205.0,
+    "EY Tower": 188.0,
+    "Maple Leaf Square": 186.0,
+    "Nobu": 157.0,
+    "PJ Condos": 156.0,
+    "Simcoe Place": 148.0,
+    "Commerce Court North": 145.0,
+    "Picasso Condos": 136.0,
+    "Sun Life Centre": 125.0,
+    "Tableau Condominiums": 122.0,
+    "Market Wharf Condominiums": 110.0,
+    "25 The Esplanade": 102.0,
+    "Sixty Colborne": 82.0,
+    "Queen Richmond Centre West": 73.0,
+    "North St. Lawrence Market": 18.0,
+}
 
 ROAD_WIDTHS = {
     "motorway": 14, "motorway_link": 7, "trunk": 14, "trunk_link": 7,
@@ -84,19 +113,44 @@ def proj(lat, lon):
 
 
 def parse_height(tags):
+    name = tags.get("name", "")
+    if name in KNOWN_BUILDING_HEIGHTS:
+        return KNOWN_BUILDING_HEIGHTS[name]
+    h_val = None
     h = tags.get("height") or tags.get("building:height")
     if h:
         try:
-            return float(str(h).replace("m", "").split(";")[0].strip())
+            h_val = float(str(h).replace("m", "").split(";")[0].strip())
         except ValueError:
             pass
+    lv_val = None
     lv = tags.get("building:levels")
     if lv:
         try:
-            return float(str(lv).split(";")[0]) * 3.6 + 2
+            lv_val = float(str(lv).split(";")[0]) * 3.6 + 2
         except ValueError:
             pass
-    return None
+    # In OSM, some skyscrapers have a placeholder height=1 or podium height=8 alongside
+    # their true building:levels (e.g. The St. Regis h=1 lv=57, L Tower h=1 lv=58, EY Tower h=1 lv=40)
+    if h_val is not None and lv_val is not None:
+        return max(h_val, lv_val) if h_val < lv_val * 0.6 else h_val
+    return h_val if h_val is not None else lv_val
+
+
+def parse_min_height(tags):
+    mh = tags.get("min_height") or tags.get("building:min_height")
+    if mh:
+        try:
+            return float(str(mh).replace("m", "").split(";")[0].strip())
+        except ValueError:
+            pass
+    ml = tags.get("building:min_level")
+    if ml:
+        try:
+            return float(str(ml).split(";")[0]) * 3.6
+        except ValueError:
+            pass
+    return 0.0
 
 
 def flat(coords):
@@ -149,7 +203,7 @@ def main():
             with open(args.save_raw, "w", encoding="utf-8") as f:
                 json.dump(raw, f)
 
-    buildings, roads, rails = [], [], []
+    buildings, parts, pois, roads, rails = [], [], [], [], []
     named_feet = []  # (name, centroid, area) for landmark lookup
 
     for el in raw.get("elements", []):
@@ -164,6 +218,12 @@ def main():
 
         if "building" in tags:
             h = parse_height(tags)
+            mat = tags.get("building:material")
+            col = tags.get("building:colour")
+            rcol = tags.get("roof:colour")
+            rshape = tags.get("roof:shape")
+            kind = tags.get("amenity") or tags.get("tourism") or tags.get("shop") or tags.get("historic")
+            brand = tags.get("brand")
             for g in polys:
                 pts = [proj(p["lat"], p["lon"]) for p in g]
                 if len(pts) > 1 and pts[0] == pts[-1]:
@@ -177,7 +237,50 @@ def main():
                 if name:
                     b["n"] = name
                     named_feet.append((name, centroid(pts), area(pts)))
+                if mat:
+                    b["m"] = mat
+                if col:
+                    b["c"] = col
+                if rcol:
+                    b["rc"] = rcol
+                if rshape:
+                    b["rs"] = rshape
+                if kind and kind != "yes":
+                    b["k"] = kind
+                if brand:
+                    b["br"] = brand
                 buildings.append(b)
+
+        elif "building:part" in tags and polys:
+            h = parse_height(tags)
+            mh = parse_min_height(tags)
+            if h and h > 6:
+                mat = tags.get("building:material")
+                col = tags.get("building:colour")
+                for g in polys:
+                    pts = [proj(p["lat"], p["lon"]) for p in g]
+                    if len(pts) > 1 and pts[0] == pts[-1]:
+                        pts = pts[:-1]
+                    if len(pts) < 3:
+                        continue
+                    pt = {"p": flat(pts), "h": round(h, 1)}
+                    if mh > 0:
+                        pt["mh"] = round(mh, 1)
+                    if mat:
+                        pt["m"] = mat
+                    if col:
+                        pt["c"] = col
+                    parts.append(pt)
+
+        elif el["type"] == "node" and "lat" in el and "lon" in el:
+            name = tags.get("name") or tags.get("brand")
+            kind = tags.get("shop") or tags.get("amenity") or tags.get("tourism")
+            if name and kind and kind not in ("bench", "waste_basket", "bicycle_parking", "recycling", "post_box", "telephone", "toilets", "parking", "parking_entrance", "vending_machine", "atm", "fountain", "clock", "information"):
+                px, pz = proj(el["lat"], el["lon"])
+                poi = {"x": px, "z": pz, "n": name, "k": kind}
+                if tags.get("brand"):
+                    poi["br"] = tags["brand"]
+                pois.append(poi)
 
         elif "highway" in tags and el["type"] == "way":
             hw = tags["highway"]
@@ -227,6 +330,8 @@ def main():
         "dataBounds": [proj(N, W), proj(S, E)],
         "landmarks": landmarks,
         "buildings": buildings,
+        "parts": parts,
+        "pois": pois,
         "roads": roads,
         "rails": rails,
     }
@@ -241,7 +346,7 @@ def main():
         f.write(";\n")
 
     with_h = sum(1 for b in buildings if "h" in b)
-    print(f"buildings={len(buildings)} (with real height: {with_h}) roads={len(roads)} rails={len(rails)} "
+    print(f"buildings={len(buildings)} (with real height: {with_h}) parts={len(parts)} pois={len(pois)} roads={len(roads)} rails={len(rails)} "
           f"size={os.path.getsize(target)//1024}KB", file=sys.stderr)
     print("landmarks:\n  " + "\n  ".join(report), file=sys.stderr)
 

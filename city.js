@@ -2220,6 +2220,32 @@
 
       h = Math.max(4, Math.min(h, 320));
 
+      // Convert real OpenStreetMap building:colour tag (b.c) into a vertex-color tint multiplier
+      function osmColourToTint(colStr) {
+        if (!colStr) return null;
+        const NAMED_COLS = {
+          red: [1.38, 0.62, 0.48], maroon: [1.22, 0.48, 0.44], brown: [1.18, 0.82, 0.62],
+          beige: [1.22, 1.14, 0.96], ivory: [1.26, 1.22, 1.08], white: [1.25, 1.25, 1.28],
+          black: [0.42, 0.45, 0.50], grey: [0.92, 0.95, 0.98], gray: [0.92, 0.95, 0.98],
+          orange: [1.38, 0.85, 0.48]
+        };
+        const lc = colStr.toLowerCase().trim();
+        if (NAMED_COLS[lc]) return NAMED_COLS[lc];
+        if (lc[0] === '#' && (lc.length === 7 || lc.length === 4)) {
+          const hex = lc.length === 4
+            ? '#' + lc[1] + lc[1] + lc[2] + lc[2] + lc[3] + lc[3]
+            : lc;
+          const r = parseInt(hex.slice(1, 3), 16) / 255;
+          const g = parseInt(hex.slice(3, 5), 16) / 255;
+          const bVal = parseInt(hex.slice(5, 7), 16) / 255;
+          if (!isNaN(r) && !isNaN(g) && !isNaN(bVal)) {
+            // Normalize into [0.42 .. 1.42] tint multiplier range so facade window detail stays crisp
+            return [0.45 + r * 0.95, 0.45 + g * 0.95, 0.45 + bVal * 0.95];
+          }
+        }
+        return null;
+      }
+
       let style, namedTint = null;
       const look = NAMED_LOOK.find(([re]) => re.test(name));
       if (look) { style = look[1]; namedTint = look[2]; }
@@ -2227,7 +2253,7 @@
         style = 'warehouse';
         namedTint = isRedpathTower ? [1.22, 0.58, 0.44] : [1.36, 0.64, 0.48];
       } else if (isHarbourfrontMain) {
-        style = 'Victorian' in facadeGB ? 'victorian' : 'brick';
+        style = 'victorian';
         namedTint = [1.28, 0.78, 0.56];
       } else if (isWaterclub || isIceCondos || isTenYork || isCanadaHouse) {
         style = 'condo';
@@ -2237,7 +2263,21 @@
         namedTint = [1.05, 1.02, 0.96];
       } else if (name.indexOf('Hockey Hall') >= 0) style = 'stone';
       else if (name.indexOf('Rogers Centre') === 0) style = 'concrete';
-      else style = districtStyle(cx, cz, h, bi);
+      else if (b.m) {
+        // Real OpenStreetMap building:material tag!
+        const mTag = b.m.toLowerCase();
+        if (mTag === 'brick') style = h < 28 ? 'victorian' : 'brick';
+        else if (mTag === 'stone' || mTag === 'limestone' || mTag === 'sandstone') style = 'stone';
+        else if (mTag === 'concrete') style = 'concrete';
+        else if (mTag === 'metal') style = 'dark';
+        else if (mTag === 'glass') style = (b.c === 'black' || b.c === '#000000') ? 'dark' : (h > 65 ? 'glass' : 'condo');
+        else style = districtStyle(cx, cz, h, bi);
+      } else {
+        style = districtStyle(cx, cz, h, bi);
+      }
+      if (!namedTint && b.c) {
+        namedTint = osmColourToTint(b.c);
+      }
 
       if (name.indexOf('Rogers Centre') === 0) {
         rogersPoly = { pts, cx, cz };
@@ -2747,16 +2787,44 @@
         { match: /^Gooderham Building$/, lines: ['GOODERHAM FLATIRON • 1892'], bg: '#450a0a', fg: '#fde68a', border: '#b45309', w: 13, h: 1.9, y: 5.4 },
         { match: /^Queen's Quay Terminal$/, lines: ["QUEEN'S QUAY TERMINAL", 'HARBOURFRONT MARKET & SHOPS'], bg: '#0f766e', fg: '#fef08a', border: '#2dd4bf', w: 22, h: 3.0, y: 7.0 }
       ];
+      const KIND_SIGN_THEME = {
+        hotel:             { bg: '#1e1b4b', fg: '#fde68a', border: '#f59e0b', sub: 'HOTEL & RESIDENCES' },
+        restaurant:        { bg: '#450a0a', fg: '#fef08a', border: '#ef4444', sub: 'DINING • BAR • PATIO' },
+        theatre:           { bg: '#3b0764', fg: '#fde047', border: '#c084fc', sub: 'PERFORMING ARTS' },
+        cinema:            { bg: '#7c2d12', fg: '#ffffff', border: '#fb923c', sub: 'CINEMA & FILM' },
+        studio:            { bg: '#0f172a', fg: '#38bdf8', border: '#0284c7', sub: 'BROADCAST STUDIOS' },
+        museum:            { bg: '#064e3b', fg: '#fde68a', border: '#10b981', sub: 'MUSEUM & GALLERY' },
+        bank:              { bg: '#064e3b', fg: '#ffffff', border: '#22c55e', sub: 'FINANCIAL SERVICES' },
+        fire_station:      { bg: '#7f1d1d', fg: '#fde047', border: '#ef4444', sub: 'TORONTO FIRE SERVICES' },
+        convention_centre: { bg: '#0c4a6e', fg: '#ffffff', border: '#38bdf8', sub: 'CONVENTION CENTRE' },
+        private_club:      { bg: '#14532d', fg: '#fde68a', border: '#d97706', sub: 'HISTORIC CLUB' },
+        place_of_worship:  { bg: '#1e293b', fg: '#fde68a', border: '#94a3b8', sub: 'HERITAGE LANDMARK' }
+      };
       MAP.buildings.forEach(b => {
         const nm = b.n || '';
-        const spec = NAMED_SIGNS.find(s => s.match.test(nm));
-        if (!spec) return;
+        if (!nm) return;
         let pts = toPairs(b.p);
         if (pts.length < 3) return;
         if (polyArea(pts) < 0) pts = pts.reverse();
         const [bcx, bcz] = centroid(pts);
-        const sMesh = signMesh(spec.lines, spec.w, spec.h, { bg: spec.bg, fg: spec.fg, borderColor: spec.border, size: 62 });
-        signOnEdge(pts, [bcx, bcz + 80], sMesh, spec.y, 10);
+        const spec = NAMED_SIGNS.find(s => s.match.test(nm));
+        if (spec) {
+          const sMesh = signMesh(spec.lines, spec.w, spec.h, { bg: spec.bg, fg: spec.fg, borderColor: spec.border, size: 62 });
+          signOnEdge(pts, [bcx, bcz + 80], sMesh, spec.y, 10);
+          return;
+        }
+        // Automatically mount real-world signage for every named hotel, restaurant, theatre, studio, bank, fire station, or iconic tower in OSM!
+        const kTheme = b.k && KIND_SIGN_THEME[b.k];
+        const isFamousTower = /^(Scotia Plaza|First Canadian Place|Commerce Court|Royal Bank Plaza|Brookfield Place|TD Canada Trust|The St\. Regis|Shangri-La|The Ritz-Carlton|Bisha Hotel|Nobu|L Tower|EY Tower|Simcoe Place|TELUS Harbour|Market Wharf|Queen Live Fresh Food Market|MuchMusic|CHUM 104\.5|The Keg|The Works|Tom Jones|Bymark|Meridian Hall|Hockey Hall of Fame)/.test(nm);
+        if (kTheme || isFamousTower) {
+          const th = kTheme || { bg: '#0f172a', fg: '#f8fafc', border: '#38bdf8', sub: 'DOWNTOWN TORONTO' };
+          const title = nm.toUpperCase();
+          const lines = th.sub ? [title, th.sub] : [title];
+          const sMesh = signMesh(lines, Math.min(18, Math.max(9.5, title.length * 0.62)), 2.2, {
+            bg: th.bg, fg: th.fg, borderColor: th.border, size: 58
+          });
+          signOnEdge(pts, [bcx, bcz + 60], sMesh, 5.8, 9);
+        }
       });
 
       // 2. Colorful 3D Striped Restaurant Awnings, Glowing Signs & Patio Umbrellas
