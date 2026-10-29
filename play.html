@@ -2724,7 +2724,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
 
     const S = {
       glass: { base: '#152433', frame: '#2c3e50', glass: ['#253d54', '#152433'], lit: ['#cfe6ff', '#ffe9c2', '#b8dcff'], litP: 0.38, full: true, wallRough: 120, metal: 0.4 },
-      office: { base: '#464c56', frame: '#5a626e', glass: ['#222a35', '#12161c'], lit: ['#ffe6b5', '#fff5dc', '#d7ecff'], litP: 0.32, full: false, wallRough: 215, metal: 0.0 },
+      office: { base: '#363b44', frame: '#454c56', glass: ['#1c222b', '#10141a'], lit: ['#ffe6b5', '#fff5dc', '#d7ecff'], litP: 0.32, full: false, wallRough: 215, metal: 0.0 },
       brick: { base: '#7c2e20', frame: '#98543e', glass: ['#221d19', '#100c0a'], lit: ['#ffc77a', '#ffd9a3', '#ffb35c', '#ff9e5e'], litP: 0.45, full: false, wallRough: 235, metal: 0.0 },
       dark: { base: '#12151b', frame: '#262c36', glass: ['#1c2836', '#0a0e14'], lit: ['#a6dcff', '#ffffff', '#ffd59a'], litP: 0.22, full: true, wallRough: 110, metal: 0.5 },
       stone: { base: '#9c8e76', frame: '#b8a896', glass: ['#26221c', '#12100d'], lit: ['#ffd38a', '#ffe6bb', '#fff2d6'], litP: 0.52, full: false, wallRough: 230, metal: 0.0 },
@@ -2739,8 +2739,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         base: '#883a24', frame: '#dfd2b5', glass: ['#241e1a', '#100c0a'], lit: ['#ffc77a', '#ffd9a3', '#ffb35c', '#ffe4b5'], litP: 0.50, full: false, wallRough: 235, metal: 0.0,
         masonry: true, win: { ox: Math.round(CELL * 0.29), oy: 13, w: Math.round(CELL * 0.42), h: CELL - 21 }, lintel: true, panes: [1, 2]
       },
-      // South Core / CityPlace / waterfront condos: twilight charcoal-blue window wall with clean white balcony slabs
-      condo: { base: '#1a2936', frame: '#98a8b8', glass: ['#2d485e', '#172734'], lit: ['#cfe6ff', '#ffe9c2', '#ffd9b0'], litP: 0.42, full: true, wallRough: 110, metal: 0.35, balcony: true }
+      // South Core / CityPlace / waterfront condos: twilight charcoal-blue window wall with sleek dark frames
+      condo: { base: '#15212b', frame: '#2f3b47', glass: ['#1c2e3d', '#101a24'], lit: ['#cfe6ff', '#ffe9c2', '#ffd9b0'], litP: 0.42, full: true, wallRough: 110, metal: 0.35, balcony: true }
     }[style];
 
     ctx.fillStyle = S.base; ctx.fillRect(0, 0, SZ, SZ);
@@ -2854,15 +2854,15 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     }
 
     if (S.balcony) {
-      // white balcony slab at every floor, with a pale glass railing above it
+      // dark architectural charcoal concrete slab at every floor, with a tinted glass railing
       for (let fy = 0; fy < 8; fy++) {
         const by = fy * CELL + CELL - 9;
-        ctx.fillStyle = 'rgba(205,228,238,0.22)'; ctx.fillRect(0, by - 13, SZ, 13);
-        ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(0, by - 13, SZ, 1);
-        ctx.fillStyle = '#e4e8eb'; ctx.fillRect(0, by, SZ, 6);
-        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, by + 6, SZ, 2);
+        ctx.fillStyle = 'rgba(20,32,44,0.45)'; ctx.fillRect(0, by - 13, SZ, 13);
+        ctx.fillStyle = 'rgba(160,180,200,0.25)'; ctx.fillRect(0, by - 13, SZ, 1);
+        ctx.fillStyle = '#2c3540'; ctx.fillRect(0, by, SZ, 6);
+        ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, by + 6, SZ, 2);
         ectx.fillStyle = '#000'; ectx.fillRect(0, by, SZ, 8);
-        rctx.fillStyle = 'rgb(200,200,200)'; rctx.fillRect(0, by, SZ, 8);
+        rctx.fillStyle = 'rgb(120,120,120)'; rctx.fillRect(0, by, SZ, 8);
       }
     }
 
@@ -2892,24 +2892,24 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     ectx.fillStyle = '#000'; ectx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#2d2622'; ctx.fillRect(0, 0, W, H);
 
-    // 16 distinct Toronto restaurant, pub, cafe, bakery & shop themes
+    // 16 distinct authentic Toronto restaurant, pub, cafe, bakery & shop themes (grounded architectural tones)
     const SHOPS = [
-      { name: 'PAI THAI KITCHEN', wall: '#7f1d1d', fascia: '#450a0a', sign: '#fde047', awning: ['#dc2626', '#fef2f2'], warm: '#ffcc80', neon: '#f43f5e' },
-      { name: 'GUSTO 101 TRATTORIA', wall: '#1e3a8a', fascia: '#172554', sign: '#ffffff', awning: ['#2563eb', '#f8fafc'], warm: '#ffe0a3', neon: '#38bdf8' },
-      { name: 'CAROUSEL BAKERY', wall: '#9a3412', fascia: '#431407', sign: '#fef08a', awning: ['#ea580c', '#fffbeb'], warm: '#ffd584', neon: '#fb923c' },
-      { name: "C'EST WHAT BREWPUB", wall: '#065f46', fascia: '#022c22', sign: '#fcd34d', awning: ['#059669', '#fef3c7'], warm: '#ffc870', neon: '#34d399' },
-      { name: 'LA CARNITA TACOS', wall: '#831843', fascia: '#500724', sign: '#f472b6', awning: ['#db2777', '#fdf2f8'], warm: '#ffbfa0', neon: '#ec4899' },
-      { name: 'BYBLOS EASTERN MED', wall: '#0f766e', fascia: '#134e4a', sign: '#fde68a', awning: ['#0d9488', '#f0fdfa'], warm: '#ffe6b0', neon: '#2dd4bf' },
-      { name: 'KINKA IZAKAYA', wall: '#7c2d12', fascia: '#1c1917', sign: '#fb7185', awning: ['#b91c1c', '#1c1917'], warm: '#ffbe78', neon: '#fb7185' },
-      { name: 'ST. LAWRENCE CAFE', wall: '#b45309', fascia: '#451a03', sign: '#fffbeb', awning: ['#d97706', '#fef3c7'], warm: '#ffe29e', neon: '#fbbf24' },
-      { name: 'WILBUR MEXICANA', wall: '#991b1b', fascia: '#450a0a', sign: '#38bdf8', awning: ['#ef4444', '#fef08a'], warm: '#ffd08a', neon: '#ef4444' },
-      { name: "BUSTER'S SEA COVE", wall: '#155e75', fascia: '#083344', sign: '#67e8f9', awning: ['#0284c7', '#f0f9ff'], warm: '#d9f2ff', neon: '#22d3ee' },
-      { name: 'BAR RAVAL TAPAS', wall: '#581c87', fascia: '#3b0764', sign: '#f5d0fe', awning: ['#7e22ce', '#fae8ff'], warm: '#ffc499', neon: '#c084fc' },
-      { name: 'THE FLATIRON PUB', wall: '#14532d', fascia: '#052e16', sign: '#fde047', awning: ['#16a34a', '#dcfce7'], warm: '#ffca7a', neon: '#4ade80' },
-      { name: 'GELATO & ESPRESSO', wall: '#a21caf', fascia: '#4a044e', sign: '#fdf4ff', awning: ['#d946ef', '#fdf4ff'], warm: '#ffe0f0', neon: '#e879f9' },
-      { name: 'BUCA OSTERIA', wall: '#78350f', fascia: '#292524', sign: '#fcd34d', awning: ['#b45309', '#f5f5f4'], warm: '#ffd899', neon: '#f59e0b' },
-      { name: "TIMMY'S COFFEE", wall: '#881337', fascia: '#4c0519', sign: '#fecdd3', awning: ['#e11d48', '#fff1f2'], warm: '#ffe4b8', neon: '#fb7185' },
-      { name: 'OLD TOWN MARKET', wall: '#3f6212', fascia: '#1a2e05', sign: '#bef264', awning: ['#65a30d', '#f7fee7'], warm: '#ffe5a3', neon: '#a3e635' }
+      { name: 'PAI THAI KITCHEN', wall: '#4a120e', fascia: '#2c0806', sign: '#fde047', awning: ['#8c2016', '#fdfbf7'], warm: '#ffcc80', neon: '#dc2626' },
+      { name: 'GUSTO 101 TRATTORIA', wall: '#111d33', fascia: '#0a101d', sign: '#ffffff', awning: ['#1d3258', '#f8fafc'], warm: '#ffe0a3', neon: '#38bdf8' },
+      { name: 'CAROUSEL BAKERY', wall: '#5a2216', fascia: '#38140c', sign: '#fef08a', awning: ['#8c3b28', '#fff7ed'], warm: '#ffd584', neon: '#ea580c' },
+      { name: "C'EST WHAT BREWPUB", wall: '#0c2e1c', fascia: '#061a10', sign: '#fcd34d', awning: ['#0f3822', '#f3eedb'], warm: '#ffc870', neon: '#10b981' },
+      { name: 'LA CARNITA TACOS', wall: '#382014', fascia: '#22130c', sign: '#fef3c7', awning: ['#54301e', '#fef9c3'], warm: '#ffbfa0', neon: '#f59e0b' },
+      { name: 'BYBLOS EASTERN MED', wall: '#0f3833', fascia: '#071f1c', sign: '#fde68a', awning: ['#134e48', '#f0fdfa'], warm: '#ffe6b0', neon: '#14b8a6' },
+      { name: 'KINKA IZAKAYA', wall: '#1c1f24', fascia: '#121417', sign: '#fef08a', awning: ['#2e333b', '#f4f4f5'], warm: '#ffbe78', neon: '#e11d48' },
+      { name: 'ST. LAWRENCE CAFE', wall: '#451a03', fascia: '#260e02', sign: '#fffbeb', awning: ['#78350f', '#fef3c7'], warm: '#ffe29e', neon: '#d97706' },
+      { name: 'WILBUR MEXICANA', wall: '#5c1912', fascia: '#330c08', sign: '#fde047', awning: ['#7f1d1d', '#fef08a'], warm: '#ffd08a', neon: '#ef4444' },
+      { name: "BUSTER'S SEA COVE", wall: '#0e3340', fascia: '#061b24', sign: '#67e8f9', awning: ['#155e75', '#f0f9ff'], warm: '#d9f2ff', neon: '#06b6d4' },
+      { name: 'BAR RAVAL TAPAS', wall: '#261a12', fascia: '#18100a', sign: '#f6d89b', awning: ['#3b2619', '#fbf7ee'], warm: '#ffc499', neon: '#f59e0b' },
+      { name: 'THE FLATIRON PUB', wall: '#133822', fascia: '#081f12', sign: '#fde047', awning: ['#166534', '#dcfce7'], warm: '#ffca7a', neon: '#22c55e' },
+      { name: 'GELATO & ESPRESSO', wall: '#1f2937', fascia: '#111827', sign: '#f3f4f6', awning: ['#374151', '#f9fafb'], warm: '#fffbeb', neon: '#38bdf8' },
+      { name: 'BUCA OSTERIA', wall: '#38251a', fascia: '#1f130b', sign: '#fcd34d', awning: ['#523624', '#f5f5f4'], warm: '#ffd899', neon: '#d97706' },
+      { name: "TIMMY'S COFFEE", wall: '#4a1215', fascia: '#2e0a0c', sign: '#ffffff', awning: ['#7f1d1d', '#ffffff'], warm: '#ffe4b8', neon: '#dc2626' },
+      { name: 'OLD TOWN MARKET', wall: '#2d3714', fascia: '#191f08', sign: '#fef08a', awning: ['#3f4e1c', '#f7fee7'], warm: '#ffe5a3', neon: '#84cc16' }
     ];
 
     for (let b = 0; b < NBAYS; b++) {
@@ -2919,14 +2919,14 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       // Painted wood / masonry shopfront surround
       ctx.fillStyle = shop.wall;
       ctx.fillRect(x, 0, BAY, H);
-      // Decorative heritage pilaster columns between storefronts
-      ctx.fillStyle = '#d6c7b2';
+      // Decorative heritage cast-iron pilaster columns between storefronts
+      ctx.fillStyle = '#3c3834';
       ctx.fillRect(x, 0, 8, H);
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
       ctx.fillRect(x + 8, 0, 2, H);
 
-      // Top cornice molding + colorful backlit fascia board
-      ctx.fillStyle = '#e5dac9';
+      // Top cornice molding + backlit fascia board
+      ctx.fillStyle = '#302c28';
       ctx.fillRect(x + 8, 0, BAY - 8, 4);
       ctx.fillStyle = shop.fascia;
       ctx.fillRect(x + 10, 4, BAY - 12, 28);
@@ -4720,33 +4720,33 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     // without ever washing buildings into flat pastels or weird pinks.
     const BRICK_PALETTE = [
       [1.00, 1.00, 1.00], // classic Toronto red pressed brick (majority)
-      [1.08, 0.92, 0.84], // rich warm russet / terracotta brick
+      [0.96, 0.88, 0.82], // rich warm russet / terracotta brick
       [0.65, 0.60, 0.58], // soot-weathered 19th-century railway brick (dark charcoal brown)
-      [1.38, 1.25, 0.75], // Don Valley "Toronto Yellow" buff brick (golden ochre)
-      [0.85, 0.78, 0.72], // weathered brown heritage brick
-      [1.15, 0.85, 0.75], // warm heritage orange-red brick
-      [0.72, 0.52, 0.50], // deep dark plum / oxblood brick
-      [0.55, 0.56, 0.60]  // dark industrial soot brick
+      [1.20, 1.06, 0.65], // Don Valley "Toronto Yellow" buff brick (golden ochre)
+      [0.78, 0.72, 0.66], // weathered dark brown heritage brick
+      [0.92, 0.78, 0.70], // warm heritage red-brown brick
+      [0.68, 0.50, 0.48], // deep dark oxblood / plum brick
+      [0.52, 0.52, 0.55]  // dark industrial soot brick
     ];
     const STONE_PALETTE = [
-      [1.16, 1.12, 1.02], // warm Indiana limestone (Royal York, Bank of Nova Scotia)
-      [1.24, 1.10, 0.88], // Berea honey sandstone
-      [1.02, 1.04, 1.06], // light grey Canadian granite (Brookfield Place)
-      [0.72, 0.74, 0.78], // dark charcoal polished granite
-      [0.95, 0.96, 0.98]  // Queenston fossil stone
+      [1.08, 1.04, 0.95], // warm Indiana limestone (Royal York, Bank of Nova Scotia)
+      [1.12, 1.02, 0.85], // Berea honey sandstone
+      [0.98, 1.00, 1.02], // light grey Canadian granite (Brookfield Place)
+      [0.68, 0.70, 0.74], // dark charcoal polished granite
+      [0.90, 0.92, 0.94]  // Queenston fossil stone
     ];
     const GLASS_PALETTE = [
-      [0.85, 1.08, 1.28], // deep cyan-blue reflective curtain wall
-      [0.78, 1.20, 1.15], // emerald / aquamarine sea glass
-      [0.82, 0.95, 1.32], // twilight sapphire glass
-      [0.68, 0.72, 0.78], // sleek charcoal / smoke tinted glass
-      [1.15, 1.06, 0.82], // warm bronze / champagne tinted glass
-      [0.96, 1.02, 1.12]  // crisp silver-blue window wall
+      [0.65, 0.80, 1.02], // deep reflective midnight blue curtain wall
+      [0.56, 0.78, 0.82], // dark oceanic aquamarine glass
+      [0.52, 0.66, 0.92], // twilight sapphire glass
+      [0.58, 0.62, 0.68], // sleek charcoal / smoke tinted glass
+      [0.95, 0.88, 0.72], // warm bronze / champagne tinted glass
+      [0.82, 0.85, 0.88]  // crisp silver-blue window wall
     ];
     const CONCRETE_PALETTE = [
-      [0.95, 0.95, 0.95], // standard civic architectural concrete
-      [1.05, 1.02, 0.96], // warm limestone-aggregate concrete
-      [0.82, 0.84, 0.86]  // weathered / dark industrial concrete
+      [0.90, 0.90, 0.90], // standard civic architectural concrete
+      [0.98, 0.95, 0.90], // warm limestone-aggregate concrete
+      [0.76, 0.78, 0.80]  // weathered / dark industrial concrete
     ];
 
     function buildingColorTint(style, cx, cz, seed) {
@@ -4754,7 +4754,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       const v = 0.92 + hash(seed * 2.3) * 0.16; // subtle per-building illumination variation
       let p;
       if (style === 'victorian' || style === 'brick') p = BRICK_PALETTE;
-      else if (style === 'warehouse') p = [[1.0, 0.95, 0.9], [0.72, 0.65, 0.6], [1.12, 0.88, 0.72], [0.55, 0.58, 0.62], [1.35, 1.22, 0.75]];
+      else if (style === 'warehouse') p = [[1.0, 0.95, 0.9], [0.72, 0.65, 0.6], [0.90, 0.82, 0.75], [0.55, 0.58, 0.62], [1.18, 1.05, 0.68]];
       else if (style === 'stone') p = STONE_PALETTE;
       else if (style === 'concrete' || style === 'office') p = CONCRETE_PALETTE;
       else if (style === 'dark') p = [[0.75, 0.76, 0.80], [0.65, 0.66, 0.70], [0.85, 0.86, 0.90]];
@@ -5035,10 +5035,10 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     // ---------- Real storefront signage from OSM business POIs ----------
     {
       const POI_COL = {
-        restaurant: ['#7f1d1d', '#fde68a'], cafe: ['#78350f', '#fef3c7'], bar: ['#3b0764', '#f5d0fe'], pub: ['#14532d', '#fde68a'],
-        fast_food: ['#b91c1c', '#facc15'], pharmacy: ['#dc2626', '#ffffff'], bank: ['#0c4a6e', '#ffffff'], hotel: ['#1e1b4b', '#fde68a'],
-        theatre: ['#581c87', '#fde047'], cinema: ['#7c2d12', '#ffffff'], supermarket: ['#166534', '#ffffff'], convenience: ['#15803d', '#ffffff'],
-        alcohol: ['#14532d', '#fde047'], clothes: ['#111827', '#f9fafb'], nightclub: ['#4c1d95', '#f0abfc']
+        restaurant: ['#591212', '#fde68a'], cafe: ['#3d2110', '#fef3c7'], bar: ['#1c1a17', '#fde68a'], pub: ['#0d2b1a', '#fde68a'],
+        fast_food: ['#7f1d1d', '#facc15'], pharmacy: ['#881c1c', '#ffffff'], bank: ['#0c2a42', '#ffffff'], hotel: ['#12182b', '#fde68a'],
+        theatre: ['#2e1534', '#fde047'], cinema: ['#3b180d', '#ffffff'], supermarket: ['#0e381e', '#ffffff'], convenience: ['#114526', '#ffffff'],
+        alcohol: ['#0d2b1a', '#fde047'], clothes: ['#111827', '#f9fafb'], nightclub: ['#0f172a', '#38bdf8']
       };
       const SKIP = new Set(['bench', 'atm', 'bicycle_rental', 'parking', 'parking_entrance', 'taxi', 'charging_station', 'post_box', 'waste_basket', 'toilets', 'drinking_water', 'information', 'artwork', 'attraction', 'viewpoint', 'bicycle_parking', 'car_sharing', 'fountain', 'clock']);
       const edges = [];
@@ -5407,7 +5407,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
                 if (r1 > 0.97) { h = 60 + hash(seed * 2.2) * 50; style = hash(seed) > 0.5 ? 'condo' : 'glass'; }
                 else if (r1 > 0.85 || row) { h = 14 + hash(seed * 4.4) * 18; style = ['victorian', 'warehouse', 'brick', 'stone'][Math.floor(hash(seed * 6.6) * 4)]; }
                 else { h = 9 + hash(seed * 8.8) * 14; style = ['victorian', 'brick', 'warehouse', 'stone'][Math.floor(hash(seed * 1.9) * 4)]; }
-                addLot(rect, h, style, seed + row * 31, { shops: row === 0 });
+                addLot(rect, h, style, seed + row * 31, { shops: row === 0 && hash(seed * 2.7) < 0.30 });
                 lots++;
                 off += depth + 1.5;
               }
@@ -5539,20 +5539,20 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       // VIBRANT TORONTO STREET LIFE: KING STREET RESTAURANT ROW, THEATRE
       // DISTRICT MARQUEES & ST. LAWRENCE MARKET / OLD TOWN AWNINGS & PATIOS
       // ========================================================================
-      // 12 Authentic, sophisticated restaurant canopy colorways
+      // 12 Authentic, sophisticated restaurant canopy colorways (grounded architectural tones)
       const AWNING_STYLES = [
-        { bg: '#450a0a', fg: '#fde047', border: '#b91c1c', c1: 0x991b1b, c2: 0xfef2f2, umb: 0x991b1b }, // Burgundy & Cream
-        { bg: '#172554', fg: '#ffffff', border: '#38bdf8', c1: 0x1d4ed8, c2: 0xf8fafc, umb: 0x1d4ed8 }, // French Navy & White
-        { bg: '#064e3b', fg: '#fef08a', border: '#10b981', c1: 0x047857, c2: 0xfef9c3, umb: 0x047857 }, // Forest Green & Warm Cream
-        { bg: '#451a03', fg: '#fed7aa', border: '#f97316', c1: 0xc2410c, c2: 0xffedd5, umb: 0xc2410c }, // Terracotta & Linen
-        { bg: '#2e1065', fg: '#f5d0fe', border: '#c084fc', c1: 0x6b21a8, c2: 0xfae8ff, umb: 0x6b21a8 }, // Plum & Rose Ivory
-        { bg: '#18181b', fg: '#f4f4f5', border: '#71717a', c1: 0x3f3f46, c2: 0xf4f4f5, umb: 0x3f3f46 }, // Charcoal & Crisp Linen
-        { bg: '#134e4a', fg: '#ccfbf1', border: '#2dd4bf', c1: 0x0f766e, c2: 0xf0fdfa, umb: 0x0f766e }, // Heritage Teal & Pearl
-        { bg: '#78350f', fg: '#fef3c7', border: '#f59e0b', c1: 0xb45309, c2: 0xfef3c7, umb: 0xb45309 }, // Espresso & Golden Amber
-        { bg: '#831843', fg: '#fce7f3', border: '#f472b6', c1: 0xbe185d, c2: 0xfdf2f8, umb: 0xbe185d }, // Wine Red & Butter
-        { bg: '#1e3a8a', fg: '#93c5fd', border: '#60a5fa', c1: 0x2563eb, c2: 0xeff6ff, umb: 0x2563eb }, // Royal Blue & Soft White
-        { bg: '#14532d', fg: '#bbf7d0', border: '#4ade80', c1: 0x15803d, c2: 0xf0fdf4, umb: 0x15803d }, // Hunter Green & Pale Sage
-        { bg: '#365314', fg: '#fef08a', border: '#a3e635', c1: 0x4d7c0f, c2: 0xfefce8, umb: 0x4d7c0f }  // Olive & Warm Buttermilk
+        { bg: '#360c0c', fg: '#fde047', border: '#7f1d1d', c1: 0x591212, c2: 0xf5eee4, umb: 0x591212 }, // Deep Oxblood & Linen
+        { bg: '#0f172a', fg: '#ffffff', border: '#1e3a8a', c1: 0x172554, c2: 0xf1f5f9, umb: 0x172554 }, // Oxford Navy & Chalk
+        { bg: '#062c1d', fg: '#fef08a', border: '#065f46', c1: 0x0c3b28, c2: 0xf4eedb, umb: 0x0c3b28 }, // British Racing Green & Cream
+        { bg: '#331908', fg: '#fed7aa', border: '#7c2d12', c1: 0x54260e, c2: 0xf8f1e5, umb: 0x54260e }, // Burnt Terracotta & Sand
+        { bg: '#18191c', fg: '#f3f4f6', border: '#3f4246', c1: 0x27292d, c2: 0xe5e7eb, umb: 0x27292d }, // Cast-Iron Charcoal & Off-White
+        { bg: '#22160d', fg: '#fef3c7', border: '#54301a', c1: 0x3d2314, c2: 0xfbf6ee, umb: 0x3d2314 }, // Roasted Espresso & Amber
+        { bg: '#0e2927', fg: '#ccfbf1', border: '#134e4a', c1: 0x143c3a, c2: 0xf0fdfa, umb: 0x143c3a }, // Slate Teal & Soft White
+        { bg: '#2b1a0e', fg: '#fed7aa', border: '#542e13', c1: 0x482914, c2: 0xfef3c7, umb: 0x482914 }, // Dark Walnut & Butter
+        { bg: '#1c1524', fg: '#f3f4f6', border: '#392d47', c1: 0x2b2138, c2: 0xe2e8f0, umb: 0x2b2138 }, // Dark Slate Charcoal
+        { bg: '#0c1d2e', fg: '#bfdbfe', border: '#1e3a5f', c1: 0x122a42, c2: 0xf0f4f8, umb: 0x122a42 }, // Midnight Blue & Light Gray
+        { bg: '#0e2617', fg: '#dcfce7', border: '#166534', c1: 0x143b22, c2: 0xf0fdf4, umb: 0x143b22 }, // Dark Cypress Green
+        { bg: '#202910', fg: '#fef08a', border: '#3f6212', c1: 0x2e3b16, c2: 0xfefce8, umb: 0x2e3b16 }  // Deep Olive Drab
       ];
 
       // 24 Authentic, diverse Toronto restaurant & bistro names (no repeating single brands)
@@ -5586,7 +5586,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       // 1. Signature Marquees on Real Cultural, Theatre & Market Landmarks
       const NAMED_SIGNS = [
         { match: /^Royal Alexandra Theatre$/, lines: ['ROYAL ALEXANDRA THEATRE', 'KING WEST • EST. 1907'], bg: '#7f1d1d', fg: '#fde047', border: '#f59e0b', w: 18, h: 2.8, y: 6.2 },
-        { match: /^Princess of Wales Theatre$/, lines: ['PRINCESS OF WALES THEATRE'], bg: '#3b0764', fg: '#fef08a', border: '#c084fc', w: 20, h: 2.8, y: 6.2 },
+        { match: /^Princess of Wales Theatre$/, lines: ['PRINCESS OF WALES THEATRE'], bg: '#2d0b1a', fg: '#fef08a', border: '#d97706', w: 20, h: 2.8, y: 6.2 },
         { match: /^Bell Lightbox$/, lines: ['TIFF BELL LIGHTBOX'], bg: '#9a3412', fg: '#ffffff', border: '#fb923c', w: 18, h: 2.6, y: 6.5 },
         { match: /^Canadian Broadcasting Centre$/, lines: ['CBC • RADIO-CANADA', 'BROADCASTING CENTRE'], bg: '#991b1b', fg: '#ffffff', border: '#ef4444', w: 22, h: 3.2, y: 7.5 },
         { match: /^St\. Lawrence Hall$/, lines: ['ST. LAWRENCE HALL • 1850'], bg: '#064e3b', fg: '#fde68a', border: '#d97706', w: 16, h: 2.4, y: 6.2 },
@@ -5596,9 +5596,9 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         { match: /^Queen's Quay Terminal$/, lines: ["QUEEN'S QUAY TERMINAL", 'HARBOURFRONT MARKET & SHOPS'], bg: '#0f766e', fg: '#fef08a', border: '#2dd4bf', w: 22, h: 3.0, y: 7.0 }
       ];
       const KIND_SIGN_THEME = {
-        hotel:             { bg: '#1e1b4b', fg: '#fde68a', border: '#f59e0b', sub: 'HOTEL & RESIDENCES' },
+        hotel:             { bg: '#0f172a', fg: '#fde68a', border: '#d97706', sub: 'HOTEL' },
         restaurant:        { bg: '#450a0a', fg: '#fef08a', border: '#ef4444', sub: 'DINING • BAR • PATIO' },
-        theatre:           { bg: '#3b0764', fg: '#fde047', border: '#c084fc', sub: 'PERFORMING ARTS' },
+        theatre:           { bg: '#2b1022', fg: '#fde047', border: '#d97706', sub: 'PERFORMING ARTS' },
         cinema:            { bg: '#7c2d12', fg: '#ffffff', border: '#fb923c', sub: 'CINEMA & FILM' },
         studio:            { bg: '#0f172a', fg: '#38bdf8', border: '#0284c7', sub: 'BROADCAST STUDIOS' },
         museum:            { bg: '#064e3b', fg: '#fde68a', border: '#10b981', sub: 'MUSEUM & GALLERY' },
@@ -5611,6 +5611,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       MAP.buildings.forEach(b => {
         const nm = b.n || '';
         if (!nm) return;
+        if (/Fairmont Royal York/i.test(nm)) return; // Royal York has dedicated historic CPR grand hotel marquees and vintage neon rooftop sign
         let pts = toPairs(b.p);
         if (pts.length < 3) return;
         if (polyArea(pts) < 0) pts = pts.reverse();
@@ -5663,7 +5664,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         const atex = new THREE.CanvasTexture(ac);
         atex.wrapS = atex.wrapT = THREE.RepeatWrapping;
         return new THREE.MeshStandardMaterial({
-          map: atex, roughness: 0.55, emissive: th.c1, emissiveIntensity: 0.28, side: THREE.DoubleSide
+          map: atex, roughness: 0.75, emissive: th.c1, emissiveIntensity: 0.04, side: THREE.DoubleSide
         });
       });
       const patioWoodMat = new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.8 });
@@ -5752,7 +5753,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
           // 3. Sidewalk Bistro Patio Umbrellas on wide frontages
           if (awW >= 7.5 && hash(bi * 3.1 + i) > 0.35) {
             const umbMat = new THREE.MeshStandardMaterial({
-              color: th.umb, roughness: 0.5, emissive: th.umb, emissiveIntensity: 0.22, side: THREE.DoubleSide
+              color: th.umb, roughness: 0.75, emissive: 0x000000, emissiveIntensity: 0.0, side: THREE.DoubleSide
             });
             [-awW * 0.28, awW * 0.28].forEach(ux => {
               const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 6), patioWoodMat);
@@ -5844,18 +5845,18 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         [148, 442, 15, 13.5, 118],
         [192, 396, 15, 12.5, 94]
       ].forEach(([tx, tz, rx, rz, th]) => {
-        addBuilding(ellipPoly(tx, tz, rx, rz, 14), th, 'condo', 16.5, { tint: [0.80, 1.05, 1.22], shops: false });
+        addBuilding(ellipPoly(tx, tz, rx, rz, 14), th, 'condo', 16.5, { tint: [0.65, 0.78, 0.95], shops: false });
         roofLights.push(new THREE.Vector3(tx, th + 1.5, tz));
       });
 
       // 2. Queen's Quay Terminal (207 Queens Quay W): stepped upper glass atrium terraces (35.4m -> 49m) + SE clock tower
-      addBuilding(rotRect(243, 496, 23, 34), 48.5, 'glass', 35.4, { tint: [0.85, 1.12, 1.15], shops: false });
+      addBuilding(rotRect(243, 496, 23, 34), 48.5, 'glass', 35.4, { tint: [0.68, 0.76, 0.88], shops: false });
       addBuilding(rotRect(262, 526, 8.5, 8.5), 57.0, 'brick', 35.4, { tint: [1.0, 1.0, 1.0], shops: false });
 
       // 3. Westin Harbour Castle (1 Harbour Square): North rectangular tower (108m) & South cylindrical harbour tower (114m)
-      addBuilding(rotRect(618, 314, 21, 13), 108, 'concrete', 14.5, { tint: [1.08, 1.04, 0.96], shops: false });
-      addBuilding(ellipPoly(636, 366, 17.5, 17.5, 16), 114, 'concrete', 14.5, { tint: [1.10, 1.05, 0.98], shops: false });
-      addBuilding(ellipPoly(636, 366, 13.5, 13.5, 16), 121, 'glass', 114, { tint: [1.15, 1.10, 0.85], shops: false });
+      addBuilding(rotRect(618, 314, 21, 13), 108, 'concrete', 14.5, { tint: [1.02, 0.98, 0.92], shops: false });
+      addBuilding(ellipPoly(636, 366, 17.5, 17.5, 16), 114, 'concrete', 14.5, { tint: [1.04, 1.00, 0.94], shops: false });
+      addBuilding(ellipPoly(636, 366, 13.5, 13.5, 16), 121, 'glass', 114, { tint: [0.92, 0.88, 0.75], shops: false });
       roofLights.push(new THREE.Vector3(636, 122.5, 366));
 
       // 4. Waterlink at Pier 27 (29-39 Queens Quay E): iconic 3-storey cantilevered skybridge (42m -> 53.5m)
@@ -5863,11 +5864,11 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         [868, 272], [936, 246], [942, 260], [874, 286]
       ];
       if (polyArea(bridgePoly) < 0) bridgePoly.reverse();
-      addBuilding(bridgePoly, 53.5, 'glass', 42.0, { tint: [0.95, 1.12, 1.24], shops: false });
+      addBuilding(bridgePoly, 53.5, 'glass', 42.0, { tint: [0.65, 0.78, 0.92], shops: false });
 
       // 5. Ice Condominiums at York Centre (12 & 14 York St): 202m & 234m curved towers
-      addBuilding(ellipPoly(118, 252, 15.5, 13.5, 16), 202, 'glass', 18.0, { tint: [0.88, 1.10, 1.22], shops: false });
-      addBuilding(ellipPoly(148, 224, 15.5, 13.5, 16), 234, 'glass', 18.0, { tint: [0.88, 1.10, 1.22], shops: false });
+      addBuilding(ellipPoly(118, 252, 15.5, 13.5, 16), 202, 'glass', 18.0, { tint: [0.62, 0.76, 0.94], shops: false });
+      addBuilding(ellipPoly(148, 224, 15.5, 13.5, 16), 234, 'glass', 18.0, { tint: [0.62, 0.76, 0.94], shops: false });
       roofLights.push(new THREE.Vector3(118, 204, 252), new THREE.Vector3(148, 236, 224));
 
       // 6. Ten York (10 York St): 224m wedge glass skyscraper above 16m podium
@@ -5875,12 +5876,12 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         [132, 316], [194, 306], [198, 326], [142, 342]
       ];
       if (polyArea(tenYorkPoly) < 0) tenYorkPoly.reverse();
-      addBuilding(tenYorkPoly, 224, 'glass', 16.0, { tint: [0.84, 1.04, 1.20], shops: false });
+      addBuilding(tenYorkPoly, 224, 'glass', 16.0, { tint: [0.60, 0.75, 0.92], shops: false });
       roofLights.push(new THREE.Vector3(165, 226, 322));
 
       // 7. Concord Canada House (23 Spadina Ave): twin 230m & 255m towers above 20m podium
-      addBuilding(rotRect(-738, 316, 16, 16), 230, 'condo', 20.0, { tint: [0.95, 1.02, 1.12], shops: false });
-      addBuilding(rotRect(-694, 316, 16, 16), 255, 'condo', 20.0, { tint: [0.95, 1.02, 1.12], shops: false });
+      addBuilding(rotRect(-738, 316, 16, 16), 230, 'condo', 20.0, { tint: [0.75, 0.78, 0.85], shops: false });
+      addBuilding(rotRect(-694, 316, 16, 16), 255, 'condo', 20.0, { tint: [0.75, 0.78, 0.85], shops: false });
       roofLights.push(new THREE.Vector3(-738, 232, 316), new THREE.Vector3(-694, 257, 316));
 
       // 8. Amsterdam Brewhouse on the Water (245 Queens Quay W pier)
@@ -7263,15 +7264,188 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       }
     }
 
-    // ---------------- 3. Fairmont Royal York: stepped limestone massing + copper chateau roof ----------------
+    // ---------------- 3. Fairmont Royal York: Authentic Canadian Pacific Railway Chateau ----------------
+    // 100 Front Street West (Ross & Macdonald with Sproatt & Rolph, 1929)
+    // 28 storeys, 128m - 134m tall. Authentic CPR Chateauesque / Beaux-Arts grand hotel.
+    // E-plan massing with pavilion wings, deep south light courts, Indiana limestone ashlar facade,
+    // 2-storey monumental ballroom & grand lobby arched windows with glowing chandeliers,
+    // Front Street porte-cochère with fluted brass columns & gold-lettered CPR marquee,
+    // steep 68° verdigris copper mansard roof with two tiers of authentic 3D copper dormers,
+    // copper mechanical cupola, 8m pinnacle spire with amber beacon, and the famous glowing
+    // gold vintage rooftop neon sign facing Union Station and the railway cut.
     if (landmarkFeet.royalYork) {
       const P = landmarkFeet.royalYork;
       const [cx, cz] = centroid(P);
-      const ax = principalDir(P); // East-West direction along Front St
-      const nx = -ax[1], nz = ax[0]; // North-South perpendicular
-      const stoneMat = facadeMats.stone;
-      const trimStone = new THREE.MeshStandardMaterial({ color: 0xc8bba0, roughness: 0.75, envMapIntensity: 0.25, side: THREE.DoubleSide });
-      const copper = new THREE.MeshStandardMaterial({ color: 0x437c66, roughness: 0.45, metalness: 0.45, envMapIntensity: 0.6, side: THREE.DoubleSide });
+      const ax = principalDir(P); // East-West direction along Front St (East = +ax)
+      const nx = -ax[1], nz = ax[0]; // Perpendicular pointing South toward Front St & Union Station (+nx, +nz)
+
+      // Dedicated Indiana Limestone Chateau Facade Textures
+      function makeRoyalYorkPodiumFacade() {
+        const SZ = 512, [c, ctx] = canvas2(SZ, SZ), [e, ectx] = canvas2(SZ, SZ), [r, rctx] = canvas2(SZ, SZ);
+        ectx.fillStyle = '#000'; ectx.fillRect(0, 0, SZ, SZ);
+        rctx.fillStyle = 'rgb(225,220,210)'; rctx.fillRect(0, 0, SZ, SZ);
+        // Indiana limestone buff ashlar
+        ctx.fillStyle = '#cbbe9f'; ctx.fillRect(0, 0, SZ, SZ);
+        for (let y = 0; y < SZ; y += 14) {
+          for (let x = ((y / 14) % 2) ? 0 : 18; x < SZ; x += 36) {
+            ctx.fillStyle = `rgba(${hash(x * 3.3 + y * 7.7) > 0.5 ? '255,245,230' : '75,65,50'},${0.03 + hash(x * 5.1 + y * 11.3) * 0.08})`;
+            ctx.fillRect(x, y, 35, 13);
+          }
+        }
+        // Lower 2 storeys: Monumental Beaux-Arts / Romanesque grand ballroom and lobby arched windows
+        const NBAYS = 4, BAY_W = SZ / NBAYS;
+        for (let b = 0; b < NBAYS; b++) {
+          const bx = b * BAY_W;
+          const archW = 76, archX = bx + (BAY_W - archW) / 2;
+          const archTopY = 270, archH = 200, archRadius = archW / 2;
+          // Deep stone shadow reveal
+          ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(archX - 4, archTopY - 4, archW + 8, archH + 6);
+          // Impost piers and monumental voussoirs around the arch
+          ctx.strokeStyle = '#b8a988'; ctx.lineWidth = 6;
+          ctx.beginPath(); ctx.arc(archX + archRadius, archTopY + archRadius, archRadius + 3, Math.PI, 0); ctx.stroke();
+          // Keystone
+          ctx.fillStyle = '#dcd0b8'; ctx.fillRect(archX + archRadius - 5, archTopY - 8, 10, 14);
+
+          // Warm golden ballroom interior with glowing chandelier
+          [ctx, ectx].forEach((k, ki) => {
+            const g = k.createLinearGradient(0, archTopY, 0, archTopY + archH);
+            g.addColorStop(0, '#fff4cc');
+            g.addColorStop(0.35, '#ffdc88');
+            g.addColorStop(0.75, ki ? '#f59e0b' : '#c27803');
+            g.addColorStop(1, ki ? '#3d2208' : '#2b1805');
+            k.fillStyle = g;
+            k.beginPath();
+            k.arc(archX + archRadius, archTopY + archRadius, archRadius, Math.PI, 0);
+            k.lineTo(archX + archW, archTopY + archH);
+            k.lineTo(archX, archTopY + archH);
+            k.closePath();
+            k.fill();
+
+            // Bronze arched window tracery & muntins
+            k.strokeStyle = 'rgba(30,22,12,0.85)'; k.lineWidth = 2;
+            k.beginPath();
+            k.moveTo(archX + archRadius, archTopY); k.lineTo(archX + archRadius, archTopY + archH);
+            k.moveTo(archX, archTopY + archRadius); k.lineTo(archX + archW, archTopY + archRadius);
+            k.moveTo(archX, archTopY + archRadius + 50); k.lineTo(archX + archW, archTopY + archRadius + 50);
+            k.moveTo(archX, archTopY + archRadius + 100); k.lineTo(archX + archW, archTopY + archRadius + 100);
+            k.stroke();
+
+            // Grand brass chandelier silhouette and warm radial glow
+            k.fillStyle = ki ? 'rgba(255,248,220,0.95)' : 'rgba(255,240,180,0.9)';
+            k.beginPath(); k.arc(archX + archRadius, archTopY + archRadius + 22, 11, 0, Math.PI * 2); k.fill();
+            k.fillStyle = 'rgba(20,15,10,0.9)';
+            k.fillRect(archX + archRadius - 1, archTopY + 8, 2, 14);
+            k.fillRect(archX + archRadius - 12, archTopY + archRadius + 22, 24, 3);
+          });
+          rctx.fillStyle = 'rgb(35,35,35)'; rctx.fillRect(archX, archTopY, archW, archH);
+
+          // Upper storeys (floors 3-5): Classical paired hotel casements with stone surrounds & keystones
+          for (let fy = 0; fy < 3; fy++) {
+            const wy = 52 + fy * 68;
+            for (let wx = archX + 6; wx < archX + archW - 14; wx += 34) {
+              const winW = 24, winH = 46;
+              ctx.fillStyle = '#b8aa90'; ctx.fillRect(wx - 2, wy - 5, winW + 4, winH + 8); // stone frame
+              ctx.fillStyle = '#ded3be'; ctx.fillRect(wx + winW / 2 - 3, wy - 7, 6, 6);   // keystone
+              ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(wx, wy, winW, winH);
+              // warm guestroom glow
+              [ctx, ectx].forEach((k, ki) => {
+                k.fillStyle = ki ? '#ffd88d' : '#f5c368';
+                k.fillRect(wx + 2, wy + 2, winW - 4, winH - 4);
+                // half drawn curtains
+                k.fillStyle = ki ? 'rgba(0,0,0,0.5)' : 'rgba(40,25,15,0.7)';
+                k.fillRect(wx + 2, wy + 2, 6, winH - 4);
+                k.fillRect(wx + winW - 8, wy + 2, 6, winH - 4);
+              });
+              rctx.fillStyle = 'rgb(40,40,40)'; rctx.fillRect(wx, wy, winW, winH);
+            }
+          }
+        }
+        // Classical dentil cornice at top (y = 0..20)
+        ctx.fillStyle = '#b5a482'; ctx.fillRect(0, 16, SZ, 6);
+        ctx.fillStyle = '#dcd0b8'; ctx.fillRect(0, 10, SZ, 6);
+        for (let dx = 4; dx < SZ; dx += 12) { ctx.fillStyle = '#9c8c6d'; ctx.fillRect(dx, 12, 6, 4); }
+
+        const tex = new THREE.CanvasTexture(c), etex = new THREE.CanvasTexture(e), rtex = new THREE.CanvasTexture(r);
+        [tex, etex, rtex].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; });
+        return new THREE.MeshStandardMaterial({
+          map: tex, emissive: 0xffffff, emissiveMap: etex, emissiveIntensity: 1.0, roughness: 0.9, roughnessMap: rtex, side: THREE.DoubleSide
+        });
+      }
+
+      function makeRoyalYorkShaftFacade() {
+        const SZ = 512, [c, ctx] = canvas2(SZ, SZ), [e, ectx] = canvas2(SZ, SZ), [r, rctx] = canvas2(SZ, SZ);
+        ectx.fillStyle = '#000'; ectx.fillRect(0, 0, SZ, SZ);
+        rctx.fillStyle = 'rgb(225,220,210)'; rctx.fillRect(0, 0, SZ, SZ);
+        ctx.fillStyle = '#cbbe9f'; ctx.fillRect(0, 0, SZ, SZ);
+        // Limestone coursing
+        for (let y = 0; y < SZ; y += 10) {
+          for (let x = ((y / 10) % 2) ? 0 : 16; x < SZ; x += 32) {
+            ctx.fillStyle = `rgba(${hash(x * 7.1 + y * 3.7) > 0.5 ? '255,245,230' : '75,65,50'},${0.025 + hash(x * 2.3 + y * 9.1) * 0.06})`;
+            ctx.fillRect(x, y, 31, 9);
+          }
+        }
+        // 8 floors x 8 bays of paired hotel casement windows
+        const CELL_W = SZ / 8, CELL_H = SZ / 8;
+        for (let fy = 0; fy < 8; fy++) {
+          const sy = fy * CELL_H;
+          // Limestone beltcourse separating floors
+          ctx.fillStyle = '#bdae90'; ctx.fillRect(0, sy, SZ, 4);
+          ctx.fillStyle = '#dfd3bc'; ctx.fillRect(0, sy + 4, SZ, 2);
+
+          for (let fx = 0; fx < 8; fx++) {
+            const sx = fx * CELL_W;
+            const wx = sx + 12, wy = sy + 14, ww = CELL_W - 24, wh = CELL_H - 22;
+            const rnd = hash(fx * 17.3 + fy * 43.1);
+
+            // Molded limestone surround, keystone & projecting sill
+            ctx.fillStyle = '#bdae90'; ctx.fillRect(wx - 2, wy - 3, ww + 4, wh + 6);
+            ctx.fillStyle = '#ded3be'; ctx.fillRect(wx + ww / 2 - 2, wy - 5, 4, 4);
+            ctx.fillStyle = '#ded3be'; ctx.fillRect(wx - 3, wy + wh + 1, ww + 6, 3);
+
+            if (rnd < 0.58) {
+              // Lit hotel guestroom: warm amber glow, bedside lamps, draperies
+              const warmCols = ['#ffe8b8', '#ffd584', '#ffbe66', '#ffdf99'];
+              const col = warmCols[Math.floor(hash(rnd * 31) * warmCols.length)];
+              [ctx, ectx].forEach((k, ki) => {
+                const g = k.createLinearGradient(0, wy, 0, wy + wh);
+                g.addColorStop(0, col);
+                g.addColorStop(0.65, ki ? col : '#c99042');
+                g.addColorStop(1, ki ? '#2b1806' : '#1e1104');
+                k.fillStyle = g; k.fillRect(wx, wy, ww, wh);
+                // Silk drapes on sides
+                k.fillStyle = ki ? 'rgba(0,0,0,0.55)' : 'rgba(50,30,20,0.75)';
+                const dw = 4 + Math.floor(hash(rnd * 67) * 5);
+                k.fillRect(wx, wy, dw, wh);
+                k.fillRect(wx + ww - dw, wy, dw, wh);
+                // Casement central mullion
+                k.fillStyle = '#261c14'; k.fillRect(wx + ww / 2 - 1, wy, 2, wh);
+              });
+              rctx.fillStyle = 'rgb(40,40,40)'; rctx.fillRect(wx, wy, ww, wh);
+            } else {
+              // Dark window reflecting night sky
+              const g = ctx.createLinearGradient(0, wy, 0, wy + wh);
+              g.addColorStop(0, '#1c2229'); g.addColorStop(1, '#0e1217');
+              ctx.fillStyle = g; ctx.fillRect(wx, wy, ww, wh);
+              ctx.fillStyle = '#261c14'; ctx.fillRect(wx + ww / 2 - 1, wy, 2, wh);
+              rctx.fillStyle = 'rgb(20,20,20)'; rctx.fillRect(wx, wy, ww, wh);
+            }
+          }
+        }
+        const tex = new THREE.CanvasTexture(c), etex = new THREE.CanvasTexture(e), rtex = new THREE.CanvasTexture(r);
+        [tex, etex, rtex].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; });
+        return new THREE.MeshStandardMaterial({
+          map: tex, emissive: 0xffffff, emissiveMap: etex, emissiveIntensity: 1.0, roughness: 0.9, roughnessMap: rtex, side: THREE.DoubleSide
+        });
+      }
+
+      const ryPodiumMat = makeRoyalYorkPodiumFacade();
+      const ryShaftMat = makeRoyalYorkShaftFacade();
+      const trimStone = new THREE.MeshStandardMaterial({ color: 0xc8bba0, roughness: 0.8, envMapIntensity: 0.25, side: THREE.DoubleSide });
+      const copper = new THREE.MeshStandardMaterial({ color: 0x3d7a64, roughness: 0.52, metalness: 0.40, envMapIntensity: 0.75, side: THREE.DoubleSide });
+      const copperDark = new THREE.MeshStandardMaterial({ color: 0x2b5747, roughness: 0.65, metalness: 0.45, side: THREE.DoubleSide });
+      const brassMat = new THREE.MeshStandardMaterial({ color: 0xa0854c, roughness: 0.25, metalness: 0.85, envMapIntensity: 0.9 });
+      const canopyGlass = new THREE.MeshStandardMaterial({ color: 0x111c22, roughness: 0.2, metalness: 0.8, opacity: 0.85, transparent: true });
+      const dormerWinMat = new THREE.MeshBasicMaterial({ color: 0xffdb8b, toneMapped: false });
 
       // Helper to build an oriented box footprint centered at (ox, oz) in Royal York local coords
       const makeBoxPoly = (uOff, vOff, w, d) => {
@@ -7284,44 +7458,158 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         return pts;
       };
 
-      // 1. Grand Beaux-Arts Podium Base (0 -> 18m)
-      const basePoly = makeBoxPoly(0, 0, 128, 56);
-      const baseWalls = new THREE.Mesh(wallsGeo(basePoly, 0, () => 18, TILE_W, TILE_H), stoneMat);
+      // 1. Grand Beaux-Arts Indiana Limestone Podium (0m -> 24m)
+      const basePoly = makeBoxPoly(-18, -1.5, 146, 64);
+      const baseWalls = new THREE.Mesh(wallsGeo(basePoly, 0, () => 24, TILE_W, 24), ryPodiumMat);
       baseWalls.castShadow = baseWalls.receiveShadow = true;
       scene.add(baseWalls);
-      scene.add(new THREE.Mesh(capGeo(basePoly, () => 18), trimStone));
-      addSolid({ type: 'poly', pts: basePoly, h: 52, name: 'Fairmont Royal York' });
+      scene.add(new THREE.Mesh(capGeo(basePoly, () => 24), trimStone));
 
-      // 2. Stepped-back Main Hotel Block + East/West Chateau Wings (18m -> 52m)
-      const midMain = makeBoxPoly(0, 0, 118, 44);
-      const midWalls = new THREE.Mesh(wallsGeo(midMain, 18, () => 52, TILE_W, TILE_H), stoneMat);
-      midWalls.castShadow = midWalls.receiveShadow = true;
-      scene.add(midWalls);
-      scene.add(new THREE.Mesh(capGeo(midMain, () => 52), trimStone));
+      // Balustrade ring atop the 24m podium terrace
+      const balMesh = new THREE.Mesh(wallsGeo(basePoly, 24, () => 25.2, 12, 1.2), trimStone);
+      scene.add(balMesh);
+      addSolid({ type: 'poly', pts: basePoly, h: 106, name: 'Fairmont Royal York' });
 
-      // 3. Central Chateau Tower (52m -> 74m) + Steep Copper Mansard Roof (74m -> 88m)
-      const towerPoly = makeBoxPoly(0, 0, 68, 28);
-      const towerWalls = new THREE.Mesh(wallsGeo(towerPoly, 52, () => 74, TILE_W, TILE_H), stoneMat);
-      towerWalls.castShadow = towerWalls.receiveShadow = true;
-      scene.add(towerWalls);
+      // 2. Front Street Grand Porte-Cochère & Loggia (0m -> 7.8m)
+      // Centered at u = 2.5, projecting south toward Front St & Union Station
+      const pcWidth = 18, pcDepth = 8.5;
+      const pcCenterU = 2.5, pcCenterV = 32.5;
+      const pcRoofPoly = makeBoxPoly(pcCenterU, pcCenterV, pcWidth, pcDepth);
+      const pcRoof = new THREE.Mesh(capGeo(pcRoofPoly, () => 7.6), canopyGlass);
+      scene.add(pcRoof);
+      const pcFascia = new THREE.Mesh(wallsGeo(pcRoofPoly, 6.9, () => 7.6, 6, 0.7), brassMat);
+      scene.add(pcFascia);
 
-      const mRoof = mansardGeo(towerPoly, 74, 88, 0.55);
-      const roofMeshRY = new THREE.Mesh(mRoof.geo, copper);
-      roofMeshRY.castShadow = true;
-      scene.add(roofMeshRY);
-      scene.add(new THREE.Mesh(capGeo(mRoof.top, () => 88), copper));
-
-      // Two smaller copper hip roofs on the East & West wings
-      [-42, 42].forEach(uWing => {
-        const wingPoly = makeBoxPoly(uWing, 0, 28, 40);
-        const wm = mansardGeo(wingPoly, 52, 60, 0.65);
-        scene.add(new THREE.Mesh(wm.geo, copper));
-        scene.add(new THREE.Mesh(capGeo(wm.top, () => 60), copper));
+      // 6 Fluted Brass Columns supporting the Porte-Cochère
+      [-7, 0, 7].forEach(colU => {
+        [28.8, 36.2].forEach(colV => {
+          const colMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.42, 7.2, 12), brassMat);
+          colMesh.position.set(cx + (colU + pcCenterU) * ax[0] + colV * nx, 3.6, cz + (colU + pcCenterU) * ax[1] + colV * nz);
+          colMesh.castShadow = true;
+          scene.add(colMesh);
+        });
       });
 
-      // Illuminated "FAIRMONT ROYAL YORK" rooftop & entrance signage facing Union Station
-      const rySign = signMesh(['FAIRMONT ROYAL YORK'], 28, 3.6, { bg: '#16241f', fg: '#fde68a', borderColor: '#437c66', size: 64 });
-      signOnEdge(basePoly, LM.unionStation, rySign, 19.8, 30);
+      // Warm golden chandelier lighting under the porte-cochère
+      const pcLight = new THREE.PointLight(0xffe29a, 2.0, 24);
+      pcLight.position.set(cx + pcCenterU * ax[0] + pcCenterV * nx, 5.6, cz + pcCenterU * ax[1] + pcCenterV * nz);
+      scene.add(pcLight);
+
+      // Grand Historic CPR Gold-Lettered Marquee Sign facing Union Station
+      const marqueeSign = signMesh(['FAIRMONT ROYAL YORK', 'A CANADIAN PACIFIC CHATEAU • EST. 1929'], 16.5, 2.2, {
+        bg: '#081c14', fg: '#fef08a', borderColor: '#d4af37', size: 54
+      });
+      marqueeSign.position.set(cx + pcCenterU * ax[0] + (pcCenterV + pcDepth / 2 + 0.12) * nx, 6.3, cz + pcCenterU * ax[1] + (pcCenterV + pcDepth / 2 + 0.12) * nz);
+      marqueeSign.rotation.y = Math.atan2(nx, nz);
+      scene.add(marqueeSign);
+
+      // 3. Authentic CPR Chateau E-Plan Wings & Hotel Shaft (24m -> 84m)
+      const westWingPoly = makeBoxPoly(-75, 4, 30, 48);
+      const eastWingPoly = makeBoxPoly(39, 4, 30, 48);
+      const northSpinePoly = makeBoxPoly(-18, -18, 140, 28);
+      const centerPavPoly = makeBoxPoly(2, 6, 24, 36);
+
+      [westWingPoly, eastWingPoly, northSpinePoly, centerPavPoly].forEach(poly => {
+        const wMesh = new THREE.Mesh(wallsGeo(poly, 24, () => 84, TILE_W, TILE_H), ryShaftMat);
+        wMesh.castShadow = wMesh.receiveShadow = true;
+        scene.add(wMesh);
+        scene.add(new THREE.Mesh(capGeo(poly, () => 84), trimStone));
+        // Stringcourses at 52m and 74m
+        scene.add(new THREE.Mesh(wallsGeo(poly, 52, () => 53.2, 16, 1.2), trimStone));
+        scene.add(new THREE.Mesh(wallsGeo(poly, 74, () => 75.2, 16, 1.2), trimStone));
+      });
+
+      // 4. East & West Wing Copper Hipped Roofs (84m -> 96m)
+      const wwRoofPoly = makeBoxPoly(-75, 4, 28, 46);
+      const ewRoofPoly = makeBoxPoly(39, 4, 28, 46);
+      [wwRoofPoly, ewRoofPoly].forEach(poly => {
+        const m = mansardGeo(poly, 84, 96, 0.48);
+        const rm = new THREE.Mesh(m.geo, copper);
+        rm.castShadow = true;
+        scene.add(rm);
+        scene.add(new THREE.Mesh(capGeo(m.top, () => 96), copper));
+      });
+
+      // 5. Central Chateau Tower (84m -> 106m)
+      const centerTowerPoly = makeBoxPoly(-18, -6, 68, 42);
+      const towerMesh = new THREE.Mesh(wallsGeo(centerTowerPoly, 84, () => 106, TILE_W, TILE_H), ryShaftMat);
+      towerMesh.castShadow = towerMesh.receiveShadow = true;
+      scene.add(towerMesh);
+      scene.add(new THREE.Mesh(capGeo(centerTowerPoly, () => 106), trimStone));
+      // Parapet balustrade atop 106m terrace
+      scene.add(new THREE.Mesh(wallsGeo(centerTowerPoly, 106, () => 107.2, 12, 1.2), trimStone));
+
+      // 6. Towering Steep Verdigris Copper Mansard Roof (106m -> 124m)
+      // Steep 68-degree chateau mansard pitch
+      const mainRoofPoly = makeBoxPoly(-18, -6, 62, 36);
+      const mainMansard = mansardGeo(mainRoofPoly, 106, 124, 0.46);
+      const mainRoofMesh = new THREE.Mesh(mainMansard.geo, copper);
+      mainRoofMesh.castShadow = true;
+      scene.add(mainRoofMesh);
+      scene.add(new THREE.Mesh(capGeo(mainMansard.top, () => 124), copper));
+
+      // 7. Authentic 3D Verdigris Copper Dormers (Lucarnes) on the steep mansard roof
+      // Lower tier (y = 111m) & Upper tier (y = 117m) on South (Front St) & North (Wellington St) slopes
+      const addDormer = (uOff, vOff, y, facingSouth) => {
+        const dGroup = new THREE.Group();
+        const dBody = new THREE.Mesh(new THREE.BoxGeometry(2.4, 3.4, 2.8), copperDark);
+        dGroup.add(dBody);
+        const dWin = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 2.2), dormerWinMat);
+        dWin.position.set(0, 0, 1.42);
+        dGroup.add(dWin);
+        const dGable = new THREE.Mesh(new THREE.ConeGeometry(1.65, 1.6, 4), copper);
+        dGable.rotation.y = Math.PI / 4;
+        dGable.position.set(0, 2.3, 0);
+        dGroup.add(dGable);
+
+        const wx = cx + (uOff - 18) * ax[0] + (vOff - 6) * nx;
+        const wz = cz + (uOff - 18) * ax[1] + (vOff - 6) * nz;
+        dGroup.position.set(wx, y, wz);
+        dGroup.rotation.y = Math.atan2(facingSouth ? nx : -nx, facingSouth ? nz : -nz);
+        scene.add(dGroup);
+      };
+
+      // South-facing dormers (facing Front St & Union Station)
+      [-24, -14, -4, 6, 16, 24].forEach(u => addDormer(u, 14.8, 111, true));
+      [-18, -8, 2, 14].forEach(u => addDormer(u, 11.2, 117, true));
+      // North-facing dormers (facing Wellington St)
+      [-24, -14, -4, 6, 16, 24].forEach(u => addDormer(u, -14.8, 111, false));
+      [-18, -8, 2, 14].forEach(u => addDormer(u, -11.2, 117, false));
+
+      // 8. Mechanical Chateau Cupola / Lantern (124m -> 130m)
+      const cupolaPoly = makeBoxPoly(-18, -6, 18, 12);
+      const cupolaWalls = new THREE.Mesh(wallsGeo(cupolaPoly, 124, () => 130, 18, 6), copperDark);
+      scene.add(cupolaWalls);
+      scene.add(new THREE.Mesh(capGeo(cupolaPoly, () => 130), copper));
+
+      // 9. 8m Pinnacle Spire & Flashing Aeronautical Beacon (130m -> 136m)
+      const spireMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 1.8, 6.0, 8), copper);
+      const spireX = cx - 18 * ax[0] - 6 * nx;
+      const spireZ = cz - 18 * ax[1] - 6 * nz;
+      spireMesh.position.set(spireX, 133, spireZ);
+      scene.add(spireMesh);
+
+      const beaconSphere = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffb300, toneMapped: false }));
+      beaconSphere.position.set(spireX, 136.2, spireZ);
+      scene.add(beaconSphere);
+      const beaconLight = new THREE.PointLight(0xffb300, 2.5, 45);
+      beaconLight.position.set(spireX, 136.2, spireZ);
+      scene.add(beaconLight);
+
+      // 10. Iconic World-Famous Illuminated Vintage Rooftop Neon Sign
+      // High on the South slope of the steep copper mansard roof, facing Union Station & the lake
+      const ryRoofSign = signMesh(['FAIRMONT ROYAL YORK'], 26, 3.8, {
+        bg: '#0a1612', fg: '#ffaa33', borderColor: '#ff4d26', size: 68
+      });
+      const signX = cx - 18 * ax[0] + 8.5 * nx;
+      const signZ = cz - 18 * ax[1] + 8.5 * nz;
+      ryRoofSign.position.set(signX, 113.5, signZ);
+      ryRoofSign.rotation.y = Math.atan2(nx, nz);
+      scene.add(ryRoofSign);
+
+      const signGlow = new THREE.PointLight(0xff7733, 1.8, 20);
+      signGlow.position.set(signX + 1.2 * nx, 114, signZ + 1.2 * nz);
+      scene.add(signGlow);
     }
 
     // ---------------- 3b. Union Station: Setback Beaux-Arts Headhouse + Low Train Shed ----------------
