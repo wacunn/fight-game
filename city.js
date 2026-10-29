@@ -2322,6 +2322,98 @@
       coverCutUnder(pts);
     });
 
+    // ---------- Real OSM 3D building:parts (podiums, setbacks, twin towers, crowns) ----------
+    {
+      const partTint = c => {
+        if (!c) return null;
+        const NC = { red: [1.38, 0.62, 0.48], brown: [1.18, 0.82, 0.62], white: [1.25, 1.25, 1.28], black: [0.42, 0.45, 0.5], grey: [0.92, 0.95, 0.98], gray: [0.92, 0.95, 0.98], lightgrey: [1.1, 1.12, 1.15], silver: [1.15, 1.18, 1.22], navy: [0.5, 0.6, 1.0], beige: [1.22, 1.14, 0.96] };
+        const lc = c.toLowerCase().trim();
+        if (NC[lc]) return NC[lc];
+        if (lc[0] === '#' && lc.length === 7) {
+          const r = parseInt(lc.slice(1, 3), 16) / 255, g = parseInt(lc.slice(3, 5), 16) / 255, b = parseInt(lc.slice(5, 7), 16) / 255;
+          if (!isNaN(r + g + b)) return [0.45 + r * 0.95, 0.45 + g * 0.95, 0.45 + b * 0.95];
+        }
+        return null;
+      };
+      let nParts = 0;
+      (MAP.parts || []).forEach((pt, pi) => {
+        let pts = toPairs(pt.p);
+        if (pts.length < 3) return;
+        if (polyArea(pts) < 0) pts = pts.reverse();
+        if (Math.abs(polyArea(pts)) < 4) return;
+        if (pts.some(([x, z]) => isInsideTrench(x, z))) return;   // keep the GO rail cut open to the sky
+        const [cx, cz] = centroid(pts);
+        const mh = pt.mh || 0, h = Math.min(pt.h, 320);
+        if (h - mh < 0.8) return;
+        const m = (pt.m || '').toLowerCase();
+        let style;
+        if (m === 'brick') style = h < 28 ? 'victorian' : 'brick';
+        else if (m === 'stone' || m === 'limestone' || m === 'sandstone') style = 'stone';
+        else if (m === 'concrete') style = 'concrete';
+        else if (m === 'metal' || m === 'copper') style = 'dark';
+        else if (m === 'glass') style = (pt.c === 'black' || pt.c === '#333333') ? 'dark' : (h > 65 ? 'glass' : 'condo');
+        else style = districtStyle(cx, cz, h, pi + 900);
+        addBuilding(pts, h, style, mh, {
+          tint: partTint(pt.c) || buildingColorTint(style, cx, cz, pi + 900),
+          uOff: hash(pi * 3.3) * TILE_W, shops: mh === 0, roof: h - mh > 20
+        });
+        if (mh < 2.5) addSolid({ type: 'poly', pts, h, name: pt.n || 'Building part' });
+        if (h > 70 && roofLights.length < 90) roofLights.push(new THREE.Vector3(cx, h + 1.5, cz));
+        nParts++;
+      });
+      console.info('[city] OSM building parts rendered:', nParts);
+    }
+
+    // ---------- Real storefront signage from OSM business POIs ----------
+    {
+      const POI_COL = {
+        restaurant: ['#7f1d1d', '#fde68a'], cafe: ['#78350f', '#fef3c7'], bar: ['#3b0764', '#f5d0fe'], pub: ['#14532d', '#fde68a'],
+        fast_food: ['#b91c1c', '#facc15'], pharmacy: ['#dc2626', '#ffffff'], bank: ['#0c4a6e', '#ffffff'], hotel: ['#1e1b4b', '#fde68a'],
+        theatre: ['#581c87', '#fde047'], cinema: ['#7c2d12', '#ffffff'], supermarket: ['#166534', '#ffffff'], convenience: ['#15803d', '#ffffff'],
+        alcohol: ['#14532d', '#fde047'], clothes: ['#111827', '#f9fafb'], nightclub: ['#4c1d95', '#f0abfc']
+      };
+      const SKIP = new Set(['bench', 'atm', 'bicycle_rental', 'parking', 'parking_entrance', 'taxi', 'charging_station', 'post_box', 'waste_basket', 'toilets', 'drinking_water', 'information', 'artwork', 'attraction', 'viewpoint', 'bicycle_parking', 'car_sharing', 'fountain', 'clock']);
+      const edges = [];
+      MAP.buildings.forEach(b => {
+        let pts = toPairs(b.p); if (pts.length < 3) return;
+        if (polyArea(pts) < 0) pts = pts.reverse();
+        for (let i = 0; i < pts.length; i++) {
+          const a = pts[i], c = pts[(i + 1) % pts.length], L = Math.hypot(c[0] - a[0], c[1] - a[1]);
+          if (L >= 5) edges.push([a, c, L]);
+        }
+      });
+      const placed = [];
+      let nSigns = 0;
+      (MAP.pois || []).forEach(p => {
+        if (nSigns >= 320 || SKIP.has(p.k)) return;
+        let best = null;
+        edges.forEach(([a, c, L]) => {
+          if (Math.abs(a[0] - p.x) > 40 || Math.abs(a[1] - p.z) > 40) return;
+          const dx = c[0] - a[0], dz = c[1] - a[1];
+          const t = Math.max(2.2 / L, Math.min(1 - 2.2 / L, ((p.x - a[0]) * dx + (p.z - a[1]) * dz) / (L * L)));
+          const qx = a[0] + dx * t, qz = a[1] + dz * t, d = Math.hypot(qx - p.x, qz - p.z);
+          const nx = dz / L, nz = -dx / L;
+          // outward side must be open street (not inside another building / the rail cut)
+          if (!canMoveTo(qx + nx * 2.5, qz + nz * 2.5, 0.3) || isInsideTrench(qx + nx * 2.5, qz + nz * 2.5)) return;
+          if (!best || d < best.d) best = { d, x: qx, z: qz, nx, nz, L };
+        });
+        if (!best || best.d > 25) return;
+        if (placed.some(q => Math.hypot(q[0] - best.x, q[1] - best.z) < 6.5)) return;
+        placed.push([best.x, best.z]);
+        const [bg, fg] = POI_COL[p.k] || ['#1f2937', '#f8fafc'];
+        const title = p.n.toUpperCase();
+        const w = Math.min(Math.max(3.2, title.length * 0.34), Math.min(9, best.L - 1));
+        const g = new THREE.Group();
+        const s = signMesh([title], w, 0.75, { bg, fg, borderColor: fg, size: 60 });
+        s.position.set(0, 3.35, 0.14); g.add(s);
+        g.position.set(best.x + best.nx * 0.06, 0, best.z + best.nz * 0.06);
+        g.rotation.y = Math.atan2(best.nx, best.nz);
+        scene.add(g);
+        nSigns++;
+      });
+      console.info('[city] real storefront signs:', nSigns);
+    }
+
     // ==========================================================================
     // OLD TOWN / EXTENDED-MAP INFILL
     // The map bounds were extended past the OSM building data, which left bare

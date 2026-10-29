@@ -203,6 +203,15 @@ def main():
             with open(args.save_raw, "w", encoding="utf-8") as f:
                 json.dump(raw, f)
 
+    # Merge the building:part / business-POI extras file if present (offline)
+    extras_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "osm_extras.json")
+    if os.path.exists(extras_path):
+        with open(extras_path, encoding="utf-8") as f:
+            ext = json.load(f)
+        seen = {(e["type"], e["id"]) for e in raw.get("elements", [])}
+        raw["elements"] = raw.get("elements", []) + [e for e in ext.get("elements", []) if (e["type"], e["id"]) not in seen]
+        print(f"merged {extras_path}", file=sys.stderr)
+
     buildings, parts, pois, roads, rails = [], [], [], [], []
     named_feet = []  # (name, centroid, area) for landmark lookup
 
@@ -249,13 +258,24 @@ def main():
                     b["k"] = kind
                 if brand:
                     b["br"] = brand
+                addr = (tags.get("addr:housenumber", "") + " " + tags.get("addr:street", "")).strip()
+                if addr:
+                    b["a"] = addr
+                if not name:
+                    alt = tags.get("old_name") or tags.get("addr:housename")
+                    if alt:
+                        b["tn"] = alt
+                b["_pts"] = pts
+                b["_t"] = tags.get("building")
                 buildings.append(b)
 
         elif "building:part" in tags and polys:
             h = parse_height(tags)
             mh = parse_min_height(tags)
-            if h and h > 6:
+            if h and h > 2.5:
                 mat = tags.get("building:material")
+                if mat == "flass":
+                    mat = "glass"
                 col = tags.get("building:colour")
                 for g in polys:
                     pts = [proj(p["lat"], p["lon"]) for p in g]
@@ -304,6 +324,57 @@ def main():
                 continue
             pts = [proj(p["lat"], p["lon"]) for p in el["geometry"]]
             rails.append({"p": flat(pts)})
+
+    # ---- Building-by-building audit: attach parts + POIs to their host footprint ----
+    def pip(x, z, poly):
+        inside, j = False, len(poly) - 1
+        for i in range(len(poly)):
+            xi, zi = poly[i]; xj, zj = poly[j]
+            if (zi > z) != (zj > z) and x < (xj - xi) * (z - zi) / (zj - zi + 1e-12) + xi:
+                inside = not inside
+            j = i
+        return inside
+
+    # Hand-modelled landmarks / towers: their OSM parts would double up with city.js models
+    HAND = ("CN Tower", "Union Station", "Rogers Centre", "Ripley", "John Street Roundhouse",
+            "Fairmont Royal York", "Scotiabank Arena", "Roy Thomson", "Waterclub", "Ice Condomin",
+            "Ten York", "Canada House", "Westin Harbour", "Gooderham", "St. Lawrence Market South",
+            "Queen's Quay Terminal")
+    hand_polys = [b["_pts"] for b in buildings if any(k in b.get("n", "") for k in HAND)]
+    kept_parts = []
+    for pt in parts:
+        ppts = list(zip(pt["p"][0::2], pt["p"][1::2]))
+        cx, cz = centroid(ppts)
+        if any(pip(cx, cz, hp) for hp in hand_polys):
+            continue
+        host = next((b for b in buildings if pip(cx, cz, b["_pts"])), None)
+        if host is None:
+            continue
+        host.setdefault("_parts", []).append(pt)
+        kept_parts.append(pt)
+    parts = kept_parts
+
+    for b in buildings:
+        bp = b.pop("_parts", None)
+        if bp:
+            # Parts carry the real 3D massing: drop the host box to its podium so it
+            # doesn't swallow setbacks/towers. Podium = tallest ground part covering >=25% of footprint.
+            barea = area(b["_pts"]) or 1
+            ground = [p for p in bp if not p.get("mh")]
+            big = [p["h"] for p in ground if area(list(zip(p["p"][0::2], p["p"][1::2]))) >= 0.25 * barea]
+            podium = max(big) if big else min([p["h"] for p in ground] or [b.get("h", 6)])
+            b["h"] = round(min(b.get("h", podium), podium) if b.get("h") else podium, 1)
+            b["hp"] = 1
+        # Name unnamed footprints after their real tenant(s)
+        inside = [p for p in pois if pip(p["x"], p["z"], b["_pts"])]
+        if inside:
+            if "n" not in b and b["_t"] not in ("roof", "bridge"):
+                b["tn"] = inside[0]["n"]   # tenant name (kept separate: city.js skip rules key off b.n)
+            for p in inside:
+                p["b"] = 1
+        b.pop("_pts", None); b.pop("_t", None)
+    # Only keep POIs that actually sit on a real building (street-level storefronts)
+    pois = [dict((k, v) for k, v in p.items() if k != "b") for p in pois if p.get("b")]
 
     # Landmarks: centroid of the largest real footprint whose name matches
     landmarks, report = {}, []
