@@ -2151,17 +2151,29 @@
       if (name === 'CN Tower tickets' || name === 'Skywalk' || name === 'Canadian Pacific Railcar') return;
       // Skip the unnamed OSM CN Tower base plaza polygon & small pod that seal off the CN Tower / Aquarium passage
       if (!name && cx > -365 && cx < -245 && cz > 100 && cz < 190) return;
-      // Skip the unnamed elevated Skywalk, air-rights canopies, and pedestrian bridges over the mainline rail cut
+      // Skip the unnamed elevated Skywalk, air-rights canopies, CIBC Square over-track bus deck (#566/#585), and pedestrian bridges over the mainline rail cut
       if (!name && (
         (cx > -185 && cx < -50 && cz > -15 && cz < 110 && area < 3500) ||
         (cx > -155 && cx < -120 && cz > 20 && cz < 85) ||
         (cx > -385 && cx < -350 && cz > 85 && cz < 140) ||
-        (cx > 380 && cx < 500 && cz > -165 && cz < -80 && area < 4000)
+        (cx > 380 && cx < 505 && cz > -165 && cz < -80) ||
+        isInsideTrench(cx, cz)
       )) return;
       // Skip the duplicate unnamed podium polygon that Z-fights with Fairmont Royal York Hotel
       if (!name && Math.hypot(cx - LM.royalYork[0], cz - LM.royalYork[1]) < 35) return;
       // Skip the unnamed northern attachment on Scotiabank Arena so the rail corridor gap is clean
       if (!name && cx > 340 && cx < 410 && cz > -35 && cz < 15) return;
+      // Ensure no building polygon north or south of the rail trench overhangs into the open GO Train trench
+      if (name !== 'Union Station') {
+        const northOfCut = cz < getUsrcZ(cx);
+        pts = pts.map(([px, pz]) => {
+          if (px < TRENCH_X0 - 10 || px > TRENCH_X1 + 10) return [px, pz];
+          const uz = getUsrcZ(px);
+          if (northOfCut && pz > uz - (TRENCH_HALF_W + 3.5)) return [px, uz - (TRENCH_HALF_W + 3.5)];
+          if (!northOfCut && pz < uz + (TRENCH_HALF_W + 3.5)) return [px, uz + (TRENCH_HALF_W + 3.5)];
+          return [px, pz];
+        });
+      }
 
       // 2. Shrink Ripley's Aquarium & Rogers Centre footprints slightly to guarantee a wide, walkable
       // eastern passage between CN Tower and Ripley's Aquarium and around Rogers Centre
@@ -2344,7 +2356,7 @@
       }
       const [cx, cz] = centroid(rect);
       probes.push([cx, cz]);
-      return probes.every(([x, z]) => !onRoad(x, z, -1.2, -1) && canMoveTo(x, z, 0.8) && !nearSanctuary(x, z));
+      return probes.every(([x, z]) => !onRoad(x, z, -1.2, -1) && canMoveTo(x, z, 0.8) && !nearSanctuary(x, z) && (x < TRENCH_X0 - 20 || x > TRENCH_X1 + 20 || Math.abs(z - getUsrcZ(x)) > TRENCH_HALF_W + 6));
     }
     function addLot(rect, h, style, seed, opts) {
       if (polyArea(rect) < 0) rect.reverse();
@@ -4488,9 +4500,9 @@
       uSign.rotation.y = Math.atan2(-sDir[0], -sDir[1]);
       scene.add(uSign);
 
-      // Low Train Shed + Glass Atrium South of the Headhouse (leaves a clear 25m corridor before Scotiabank Arena)
+      // South Concourse Wing North of the Sunken GO Train Trench (SHED_D = 20m keeps the GO Train trench 100% open to the sky!)
       const shedStart = [frontAnchor[0] + sDir[0] * (HEAD_D + 2), frontAnchor[1] + sDir[1] * (HEAD_D + 2)];
-      const SHED_W = 230.0, SHED_D = 72.0, SHED_H = 11.5;
+      const SHED_W = 230.0, SHED_D = 20.0, SHED_H = 11.5;
       const shedPoly = [
         [shedStart[0] - fDir[0] * (SHED_W / 2), shedStart[1] - fDir[1] * (SHED_W / 2)],
         [shedStart[0] + fDir[0] * (SHED_W / 2), shedStart[1] + fDir[1] * (SHED_W / 2)],
@@ -4501,15 +4513,11 @@
       const shedMat = new THREE.MeshStandardMaterial({ color: 0x3b4d44, roughness: 0.5, metalness: 0.4, envMapIntensity: 0.4, side: THREE.DoubleSide });
       scene.add(new THREE.Mesh(wallsGeo(shedPoly, 0, () => SHED_H, 16, 12), shedMat));
       scene.add(new THREE.Mesh(capGeo(shedPoly, () => SHED_H), shedMat));
-      // Glass atrium skylight crown over the train shed
       const [scx, scz] = centroid(shedPoly);
-      const atrium = new THREE.Mesh(
-        new THREE.BoxGeometry(110, 5.5, 28),
-        new THREE.MeshStandardMaterial({ color: 0x88ccee, emissive: 0x1e4e68, emissiveIntensity: 0.7, roughness: 0.2, metalness: 0.6 })
-      );
-      atrium.position.set(scx, SHED_H + 2.75, scz);
-      atrium.rotation.y = Math.atan2(fDir[0], fDir[1]) + Math.PI / 2;
-      scene.add(atrium);
+      const goUnionSign = signMesh(['UNION STATION • GO TRANSIT CONCOURSE', 'LAKESHORE WEST • LAKESHORE EAST • UP EXPRESS'], 34, 3.2, { bg: '#064e3b', fg: '#fef08a', borderColor: '#22c55e', size: 58 });
+      goUnionSign.position.set(scx + sDir[0] * (SHED_D / 2 + 0.4), SHED_H + 1.8, scz + sDir[1] * (SHED_D / 2 + 0.4));
+      goUnionSign.rotation.y = Math.atan2(sDir[0], sDir[1]);
+      scene.add(goUnionSign);
       addSolid({ type: 'poly', pts: shedPoly, h: SHED_H, name: 'Union Station Train Shed' });
     }
 
@@ -5367,89 +5375,323 @@
       return carGroup;
     }
 
-    // ---------- 3. Green & White Bi-Level GO Transit Train in Sunken Corridor ----------
-    const goTrainCars = [];
-    let goTrainDist = 550.0;
-    // runs portal to portal: every car is fully inside a tunnel when it wraps around
-    const GO_X0 = TRENCH_X0 - 30;
-    const USRC_SPAN = (TRENCH_X1 + 30) - GO_X0;
+    // ---------- 3. Green & White Bi-Level GO Transit Fleet in Open Sunken Corridor ----------
+    const goTrains = [];
+    // Extend portal-to-portal span so an entire 7-car consist is inside the tunnel before wrapping
+    const GO_X0 = TRENCH_X0 - 190;
+    const USRC_SPAN = (TRENCH_X1 + 190) - GO_X0;
 
     {
-      const goGreen = new THREE.MeshStandardMaterial({ color: 0x136f38, roughness: 0.4, metalness: 0.3 });
-      const goWhite = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.45, metalness: 0.15 });
-      const winMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1, metalness: 0.8 });
-      const roofMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.6 });
-      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6, metalness: 0.7 });
+      const goDarkGreen = new THREE.MeshStandardMaterial({ color: 0x0f5e2e, roughness: 0.35, metalness: 0.35 });
+      const goLimeGreen = new THREE.MeshStandardMaterial({ color: 0x4db848, roughness: 0.38, metalness: 0.25 });
+      const goWhite = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4, metalness: 0.15 });
+      const roofMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.5, metalness: 0.45 });
+      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.55, metalness: 0.75 });
+      const bellowMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.85, metalness: 0.1 });
+      const glassMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.08, metalness: 0.88 });
+      const warmWinMat = new THREE.MeshBasicMaterial({ color: 0xffe8a3 });
+      const headLightMat = new THREE.MeshBasicMaterial({ color: 0xfffbeb });
+      const tailLightMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
 
-      function buildBiLevelCoach(carLength, isCabCar = false) {
+      // Rich canvas side texture for Bombardier BiLevel coach (Metrolinx two-tone green/lime/white livery + GO logo)
+      const [gsc, gsctx] = canvas2(1024, 256);
+      gsctx.fillStyle = '#0f5e2e';
+      gsctx.fillRect(0, 0, 1024, 256);
+      // Diagonal Metrolinx lime-green swoop panels
+      gsctx.fillStyle = '#4db848';
+      gsctx.beginPath();
+      gsctx.moveTo(0, 145); gsctx.lineTo(310, 145); gsctx.lineTo(380, 256); gsctx.lineTo(0, 256);
+      gsctx.closePath(); gsctx.fill();
+      gsctx.beginPath();
+      gsctx.moveTo(680, 0); gsctx.lineTo(1024, 0); gsctx.lineTo(1024, 145); gsctx.lineTo(610, 145);
+      gsctx.closePath(); gsctx.fill();
+      // Crisp white waist stripe & sill trim
+      gsctx.fillStyle = '#f8fafc';
+      gsctx.fillRect(0, 118, 1024, 34);
+      gsctx.fillRect(0, 238, 1024, 10);
+      // Iconic white GO Transit geometric emblem in center
+      function drawGoLogo(ctx, cx, cy, r) {
+        ctx.save();
+        ctx.strokeStyle = '#ffffff';
+        ctx.fillStyle = '#ffffff';
+        ctx.lineWidth = r * 0.24;
+        // 'G' circle + horizontal bar + vertical leg
+        ctx.beginPath();
+        ctx.arc(cx - r * 1.08, cy, r, 0.35, Math.PI * 1.88);
+        ctx.stroke();
+        ctx.fillRect(cx - r * 1.08, cy - r * 0.12, r * 1.08, r * 0.24);
+        ctx.fillRect(cx - r * 0.22, cy, r * 0.24, r * 1.02);
+        // 'O' circle
+        ctx.beginPath();
+        ctx.arc(cx + r * 1.08, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      drawGoLogo(gsctx, 512, 185, 30);
+
+      // Upper & lower level passenger windows (warm interior glow + dark frames)
+      for (let wi = 0; wi < 10; wi++) {
+        if (wi === 2 || wi === 7) continue; // door bays
+        const wx = 44 + wi * 94;
+        // Upper deck window
+        gsctx.fillStyle = '#0f172a';
+        gsctx.fillRect(wx - 3, 24, 68, 52);
+        gsctx.fillStyle = '#fde68a';
+        gsctx.fillRect(wx, 27, 62, 46);
+        // Lower deck window
+        if (wi >= 1 && wi <= 8) {
+          gsctx.fillStyle = '#0f172a';
+          gsctx.fillRect(wx - 3, 162, 68, 50);
+          gsctx.fillStyle = '#fde68a';
+          gsctx.fillRect(wx, 165, 62, 44);
+        }
+      }
+      // Sliding bi-parting doors with narrow windows
+      [44 + 2 * 94, 44 + 7 * 94].forEach(dx => {
+        gsctx.fillStyle = '#14532d';
+        gsctx.fillRect(dx - 4, 96, 72, 138);
+        gsctx.strokeStyle = '#e2e8f0';
+        gsctx.lineWidth = 3;
+        gsctx.strokeRect(dx - 4, 96, 72, 138);
+        gsctx.beginPath(); gsctx.moveTo(dx + 32, 96); gsctx.lineTo(dx + 32, 234); gsctx.stroke();
+        gsctx.fillStyle = '#fde68a';
+        gsctx.fillRect(dx + 4, 110, 20, 48);
+        gsctx.fillRect(dx + 40, 110, 20, 48);
+      });
+      const goSideTex = new THREE.CanvasTexture(gsc);
+      goSideTex.colorSpace = THREE.SRGBColorSpace;
+      const goSideMat = new THREE.MeshStandardMaterial({
+        map: goSideTex,
+        roughness: 0.35,
+        metalness: 0.2,
+        emissive: new THREE.Color(0xffe082),
+        emissiveMap: goSideTex,
+        emissiveIntensity: 0.22
+      });
+
+      // True octagonal cross-section shape for Bombardier BiLevel Coach (width = 3.05m, height = 4.35m)
+      const octShape = new THREE.Shape();
+      octShape.moveTo(-1.22, 0.35);
+      octShape.lineTo( 1.22, 0.35);
+      octShape.lineTo( 1.54, 0.95);
+      octShape.lineTo( 1.54, 3.05);
+      octShape.lineTo( 1.18, 3.95);
+      octShape.lineTo( 0.72, 4.32);
+      octShape.lineTo(-0.72, 4.32);
+      octShape.lineTo(-1.18, 3.95);
+      octShape.lineTo(-1.54, 3.05);
+      octShape.lineTo(-1.54, 0.95);
+      octShape.closePath();
+
+      function buildBogie(zPos) {
+        const bg = new THREE.Group();
+        bg.position.set(0, 0.32, zPos);
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.32, 3.1), wheelMat);
+        bg.add(frame);
+        [-0.95, 0.95].forEach(az => {
+          const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 2.52, 14), wheelMat);
+          axle.rotation.z = Math.PI / 2;
+          axle.position.set(0, -0.04, az);
+          bg.add(axle);
+        });
+        return bg;
+      }
+
+      // Bombardier BiLevel Coach / Cab Control Car
+      function buildBiLevelCoach(carLength, isTrailingCab = false) {
         const car = new THREE.Group();
-        // Lower wheels/bogies on the track
-        [-carLength * 0.35, carLength * 0.35].forEach(wz => {
-          const bogie = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.4, 3.2), wheelMat);
-          bogie.position.set(0, 0.25, wz);
-          car.add(bogie);
+        [-carLength * 0.34, carLength * 0.34].forEach(wz => car.add(buildBogie(wz)));
+
+        // Extruded octagonal shell centered along Z
+        const extrudeGeo = new THREE.ExtrudeGeometry(octShape, {
+          depth: carLength - 0.6,
+          bevelEnabled: false
         });
+        extrudeGeo.translate(0, 0, -(carLength - 0.6) / 2);
+        const hull = new THREE.Mesh(extrudeGeo, goDarkGreen);
+        hull.castShadow = true;
+        hull.receiveShadow = true;
+        car.add(hull);
 
-        // Octagonal bi-level double-deck body (W = 3.1m, H = 3.9m from track)
-        const lowerBody = new THREE.Mesh(new THREE.BoxGeometry(3.1, 1.4, carLength), goGreen);
-        lowerBody.position.y = 1.15;
-        car.add(lowerBody);
-
-        const midWaist = new THREE.Mesh(new THREE.BoxGeometry(3.12, 0.9, carLength), goWhite);
-        midWaist.position.y = 2.3;
-        car.add(midWaist);
-
-        const upperBody = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.0, carLength), goGreen);
-        upperBody.position.y = 3.25;
-        car.add(upperBody);
-
-        // Curved roof (top reaches y = 3.9m)
-        const roof = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.35, carLength), roofMat);
-        roof.position.y = 3.9;
-        car.add(roof);
-
-        // Double-decker window bands
+        // Textured side skins with two-tone green/lime/white livery, GO logo, and glowing double-deck windows
         [-1, 1].forEach(side => {
-          const lowWins = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.5, carLength * 0.85), winMat);
-          lowWins.position.set(side * 1.57, 1.45, 0);
-          car.add(lowWins);
-          const upWins = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, carLength * 0.85), winMat);
-          upWins.position.set(side * 1.52, 3.15, 0);
-          car.add(upWins);
+          const sidePlane = new THREE.Mesh(new THREE.PlaneGeometry(carLength - 0.7, 2.75), goSideMat);
+          sidePlane.position.set(side * 1.55, 2.02, 0);
+          sidePlane.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+          car.add(sidePlane);
+
+          // Upper sloped crown window band
+          const crownBand = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, carLength - 2.4), warmWinMat);
+          crownBand.position.set(side * 1.35, 3.45, 0);
+          crownBand.rotation.z = side * 0.38;
+          car.add(crownBand);
+
+          // White waist molding bar along the hull
+          const waistBar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, carLength - 0.55), goWhite);
+          waistBar.position.set(side * 1.56, 2.25, 0);
+          car.add(waistBar);
         });
 
-        if (isCabCar) {
-          const cabNose = new THREE.Mesh(new THREE.BoxGeometry(3.05, 2.6, 2.2), goGreen);
-          cabNose.position.set(0, 1.8, carLength / 2 + 1.1);
-          car.add(cabNose);
-          const fGlass = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.9, 0.1), winMat);
-          fGlass.position.set(0, 2.7, carLength / 2 + 2.22);
-          car.add(fGlass);
-          const lightMat = new THREE.MeshBasicMaterial({ color: 0xfffbeb });
-          [-0.9, 0.9].forEach(lx => {
-            const ditch = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.1, 12), lightMat);
-            ditch.rotation.x = Math.PI / 2;
-            ditch.position.set(lx, 1.0, carLength / 2 + 2.22);
-            car.add(ditch);
+        // Corrugated stainless roof crown & twin HVAC pods
+        const roofCrown = new THREE.Mesh(new THREE.BoxGeometry(1.48, 0.16, carLength - 0.7), roofMat);
+        roofCrown.position.y = 4.35;
+        car.add(roofCrown);
+        [-carLength * 0.24, carLength * 0.24].forEach(hz => {
+          const hvac = new THREE.Mesh(new THREE.BoxGeometry(1.32, 0.22, 3.2), roofMat);
+          hvac.position.set(0, 4.46, hz);
+          car.add(hvac);
+        });
+
+        // Flexible rubber inter-car diaphragm bellows at both ends
+        [-1, 1].forEach(endDir => {
+          const bellow = new THREE.Mesh(new THREE.BoxGeometry(2.1, 2.85, 0.65), bellowMat);
+          bellow.position.set(0, 2.15, endDir * (carLength / 2 - 0.15));
+          car.add(bellow);
+        });
+
+        // Trailing Cab Control Car gets operator windows and red marker tail lights on the rear end (-Z)
+        if (isTrailingCab) {
+          const endFace = new THREE.Mesh(new THREE.BoxGeometry(2.45, 0.85, 0.12), glassMat);
+          endFace.position.set(0, 2.85, -carLength / 2 - 0.15);
+          car.add(endFace);
+          const endStripe = new THREE.Mesh(new THREE.BoxGeometry(2.95, 0.35, 0.12), goLimeGreen);
+          endStripe.position.set(0, 1.55, -carLength / 2 - 0.15);
+          car.add(endStripe);
+          [-0.95, 0.95].forEach(lx => {
+            const marker = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.12, 12), tailLightMat);
+            marker.rotation.x = Math.PI / 2;
+            marker.position.set(lx, 1.15, -carLength / 2 - 0.18);
+            car.add(marker);
           });
-          const topHead = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.1, 12), lightMat);
-          topHead.rotation.x = Math.PI / 2;
-          topHead.position.set(0, 3.5, carLength / 2 + 2.15);
-          car.add(topHead);
         }
         return car;
       }
 
-      const carLen = 22.0;
-      const cab = buildBiLevelCoach(carLen, true);
-      scene.add(cab);
-      goTrainCars.push(cab);
+      // Streamlined MPI MP40PH-3C Diesel-Electric GO Transit Locomotive
+      function buildGoLocomotive(locoLen) {
+        const loco = new THREE.Group();
+        [-locoLen * 0.32, locoLen * 0.32].forEach(wz => loco.add(buildBogie(wz)));
 
-      for (let ci = 0; ci < 3; ci++) {
-        const coach = buildBiLevelCoach(carLen, false);
-        scene.add(coach);
-        goTrainCars.push(coach);
+        // Heavy underframe & central fuel tank
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(3.05, 0.45, locoLen - 0.8), wheelMat);
+        frame.position.y = 0.72;
+        loco.add(frame);
+        const fuelTank = new THREE.Mesh(new THREE.BoxGeometry(2.75, 0.58, locoLen * 0.42), bellowMat);
+        fuelTank.position.set(0, 0.42, -0.5);
+        loco.add(fuelTank);
+
+        // Main engine hood (two-tone dark green + lime green + white waist stripe)
+        const lowerHood = new THREE.Mesh(new THREE.BoxGeometry(3.08, 1.45, locoLen - 3.6), goDarkGreen);
+        lowerHood.position.set(0, 1.65, -1.2);
+        lowerHood.castShadow = true;
+        loco.add(lowerHood);
+
+        const whiteBand = new THREE.Mesh(new THREE.BoxGeometry(3.12, 0.32, locoLen - 2.6), goWhite);
+        whiteBand.position.set(0, 2.48, -0.8);
+        loco.add(whiteBand);
+
+        const upperHood = new THREE.Mesh(new THREE.BoxGeometry(2.98, 1.28, locoLen - 3.8), goLimeGreen);
+        upperHood.position.set(0, 3.25, -1.3);
+        upperHood.castShadow = true;
+        loco.add(upperHood);
+
+        // Flared radiator roof section & dynamic brake fan housings
+        const locoRoof = new THREE.Mesh(new THREE.BoxGeometry(2.75, 0.32, locoLen - 4.0), roofMat);
+        locoRoof.position.set(0, 4.02, -1.4);
+        loco.add(locoRoof);
+        [-4.5, -1.5, 1.5].forEach(fz => {
+          const fan = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.68, 0.18, 16), bellowMat);
+          fan.position.set(0, 4.22, fz);
+          loco.add(fan);
+        });
+
+        // Streamlined raked aerodynamic cab & nose at front (+Z)
+        const cabBox = new THREE.Mesh(new THREE.BoxGeometry(3.08, 2.65, 4.2), goDarkGreen);
+        cabBox.position.set(0, 2.35, locoLen / 2 - 3.2);
+        loco.add(cabBox);
+
+        const noseLower = new THREE.Mesh(new THREE.BoxGeometry(2.96, 1.55, 2.4), goLimeGreen);
+        noseLower.position.set(0, 1.65, locoLen / 2 - 0.9);
+        noseLower.rotation.x = 0.18;
+        loco.add(noseLower);
+
+        const noseSlant = new THREE.Mesh(new THREE.BoxGeometry(2.85, 1.15, 2.2), goWhite);
+        noseSlant.position.set(0, 2.52, locoLen / 2 - 1.35);
+        noseSlant.rotation.x = 0.48;
+        loco.add(noseSlant);
+
+        // Twin teardrop wrap-around windshields
+        [-0.68, 0.68].forEach(wx => {
+          const ws = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.78, 0.14), glassMat);
+          ws.position.set(wx, 3.15, locoLen / 2 - 1.22);
+          ws.rotation.x = -0.32;
+          loco.add(ws);
+        });
+
+        // Side GO logo panels on locomotive flanks
+        [-1, 1].forEach(side => {
+          const lPanel = new THREE.Mesh(new THREE.PlaneGeometry(locoLen - 5.2, 1.85), goSideMat);
+          lPanel.position.set(side * 1.56, 2.45, -1.5);
+          lPanel.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+          loco.add(lPanel);
+        });
+
+        // Front pilot / snowplow + bright twin ditch lights + upper headlight + glow cone
+        const plow = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.55, 0.7), bellowMat);
+        plow.position.set(0, 0.52, locoLen / 2 + 0.15);
+        plow.rotation.x = -0.35;
+        loco.add(plow);
+
+        [-0.92, 0.92].forEach(lx => {
+          const ditch = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.14, 12), headLightMat);
+          ditch.rotation.x = Math.PI / 2;
+          ditch.position.set(lx, 1.18, locoLen / 2 + 0.22);
+          loco.add(ditch);
+        });
+        const topHead = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.16, 12), headLightMat);
+        topHead.rotation.x = Math.PI / 2;
+        topHead.position.set(0, 3.68, locoLen / 2 - 1.18);
+        loco.add(topHead);
+
+        // Subtle volumetric headlight beam cone
+        const coneGeo = new THREE.ConeGeometry(2.6, 14.0, 16, 1, true);
+        coneGeo.rotateX(Math.PI / 2);
+        const coneMat = new THREE.MeshBasicMaterial({
+          color: 0xfffbeb,
+          transparent: true,
+          opacity: 0.14,
+          side: THREE.DoubleSide,
+          depthWrite: false
+        });
+        const lightCone = new THREE.Mesh(coneGeo, coneMat);
+        lightCone.position.set(0, 1.5, locoLen / 2 + 7.2);
+        loco.add(lightCone);
+
+        return loco;
       }
+
+      // Build two full bi-directional GO Transit consists (Eastbound on Track 2, Westbound on Track 3)
+      function spawnGoConsist(trackOffset, speed, startDist, dir) {
+        const cars = [];
+        const carSpacing = 23.6;
+        const loco = buildGoLocomotive(21.5);
+        scene.add(loco);
+        cars.push(loco);
+
+        const numCoaches = 6;
+        for (let ci = 0; ci < numCoaches; ci++) {
+          const isTrailingCab = (ci === numCoaches - 1);
+          const coach = buildBiLevelCoach(22.4, isTrailingCab);
+          scene.add(coach);
+          cars.push(coach);
+        }
+        goTrains.push({ cars, trackOffset, speed, dist: startDist, dir, spacing: carSpacing });
+      }
+
+      // Train 1: Eastbound Express (Track 2, offset = -2.6m)
+      spawnGoConsist(-2.6, 28.0, 620.0, 1);
+      // Train 2: Westbound Lakeshore West Express (Track 3, offset = +2.6m)
+      spawnGoConsist(2.6, 25.0, 1420.0, -1);
     }
 
     // ---------- 4. Green P Parking Signs (Toronto Parking Authority) ----------
@@ -6346,22 +6588,25 @@
       if (lighthouseBeam) lighthouseBeam.rotation.y = t * 0.85;
       if (airportBeacon) airportBeacon.rotation.y = t * 1.6;
 
-      // Animate Articulated GO Transit Train down in the Sunken Rail Trench on Track 2
-      if (goTrainCars.length) {
-        goTrainDist = (goTrainDist + dt * 26.0) % USRC_SPAN;
-        for (let ci = 0; ci < goTrainCars.length; ci++) {
-          const cd = (goTrainDist - ci * 23.5 + USRC_SPAN) % USRC_SPAN;
+      // Animate Bi-Directional GO Transit Fleet in the Open Sunken Rail Corridor
+      for (const tr of goTrains) {
+        tr.dist = (tr.dist + dt * tr.speed * tr.dir + USRC_SPAN) % USRC_SPAN;
+        for (let ci = 0; ci < tr.cars.length; ci++) {
+          const cd = (tr.dist - ci * tr.spacing * tr.dir + USRC_SPAN * 4) % USRC_SPAN;
           const cx = GO_X0 + cd;
           const cz = getUsrcZ(cx);
-          const nextZ = getUsrcZ(cx + 2.0);
-          const dx = 2.0, dz = nextZ - cz;
+          const nextZ = getUsrcZ(cx + 2.0 * tr.dir);
+          const dx = 2.0 * tr.dir, dz = nextZ - cz;
           const len = Math.hypot(dx, dz) || 1;
-          const nx = -dz / len, nz = dx / len;
-          const trainX = cx + nx * (-2.5);
-          const trainZ = cz + nz * (-2.5);
+          // Consistent corridor normal regardless of travel direction
+          const baseDz = getUsrcZ(cx + 2.0) - cz;
+          const baseLen = Math.hypot(2.0, baseDz) || 1;
+          const nx = -baseDz / baseLen, nz = 2.0 / baseLen;
+          const trainX = cx + nx * tr.trackOffset;
+          const trainZ = cz + nz * tr.trackOffset;
           const ang = Math.atan2(dx, dz);
-          goTrainCars[ci].position.set(trainX, TRENCH_Y + 0.22, trainZ);
-          goTrainCars[ci].rotation.y = ang;
+          tr.cars[ci].position.set(trainX, TRENCH_Y + 0.12, trainZ);
+          tr.cars[ci].rotation.y = ang;
         }
       }
 
