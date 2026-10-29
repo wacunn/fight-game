@@ -3295,6 +3295,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     const [[minX, minZ], [maxX, maxZ]] = MAP.bounds;
     const PLAY = { minX: Math.min(minX, -1120), maxX: Math.max(maxX, 1020), minZ: Math.min(minZ, -760), maxZ: Math.max(maxZ, 600) };
     const LM = Object.assign({}, MAP.landmarks);
+    LM.hhof = [498.5, -327.9];
 
     // ---------- CN Tower vertical walkables ----------
     const TWR = { x: LM.cnTower[0], z: LM.cnTower[1] };
@@ -4876,10 +4877,11 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
           : name.indexOf('Roy Thomson') >= 0 ? 'royThomson'
             : name === 'Union Station' ? 'unionStation'
               : name === 'Scotiabank Arena' ? 'scotiabank'
-                : name.indexOf('Fairmont Royal York') >= 0 ? 'royalYork' : null;
+                : name.indexOf('Fairmont Royal York') >= 0 ? 'royalYork'
+                  : name.indexOf('Hockey Hall of Fame') >= 0 ? 'hhof' : null;
       if (lmKey) {
         landmarkFeet[lmKey] = pts;
-        if (lmKey !== 'unionStation' && lmKey !== 'royalYork' && lmKey !== 'royThomson') {
+        if (lmKey !== 'unionStation' && lmKey !== 'royalYork' && lmKey !== 'royThomson' && lmKey !== 'hhof') {
           addSolid({ type: 'poly', pts, h: b.h || 20, name });
         }
         return;
@@ -5611,7 +5613,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       MAP.buildings.forEach(b => {
         const nm = b.n || '';
         if (!nm) return;
-        if (/Fairmont Royal York/i.test(nm)) return; // Royal York has dedicated historic CPR grand hotel marquees and vintage neon rooftop sign
+        if (/Fairmont Royal York|Hockey Hall of Fame/i.test(nm)) return; // Royal York and HHOF have dedicated historic marquees & monuments
         let pts = toPairs(b.p);
         if (pts.length < 3) return;
         if (polyArea(pts) < 0) pts = pts.reverse();
@@ -5624,7 +5626,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         }
         // Automatically mount real-world signage for every named hotel, restaurant, theatre, studio, bank, fire station, or iconic tower in OSM!
         const kTheme = b.k && KIND_SIGN_THEME[b.k];
-        const isFamousTower = /^(Scotia Plaza|First Canadian Place|Commerce Court|Royal Bank Plaza|Brookfield Place|TD Canada Trust|The St\. Regis|Shangri-La|The Ritz-Carlton|Bisha Hotel|Nobu|L Tower|EY Tower|Simcoe Place|TELUS Harbour|Market Wharf|Queen Live Fresh Food Market|MuchMusic|CHUM 104\.5|The Keg|The Works|Tom Jones|Bymark|Meridian Hall|Hockey Hall of Fame)/.test(nm);
+        const isFamousTower = /^(Scotia Plaza|First Canadian Place|Commerce Court|Royal Bank Plaza|Brookfield Place|TD Canada Trust|The St\. Regis|Shangri-La|The Ritz-Carlton|Bisha Hotel|Nobu|L Tower|EY Tower|Simcoe Place|TELUS Harbour|Market Wharf|Queen Live Fresh Food Market|MuchMusic|CHUM 104\.5|The Keg|The Works|Tom Jones|Bymark|Meridian Hall)/.test(nm);
         if (kTheme || isFamousTower) {
           const th = kTheme || { bg: '#0f172a', fg: '#f8fafc', border: '#38bdf8', sub: 'DOWNTOWN TORONTO' };
           const title = nm.toUpperCase();
@@ -7740,6 +7742,289 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       const toKing = unit(0, -1);
       s.position.set(cx + toKing[0] * (rBase + 1.5), 2.6, cz + toKing[1] * (rBase + 1.5)); s.rotation.y = Math.atan2(toKing[0], toKing[1]);
       scene.add(s);
+    }
+
+    // ---------------- 4b. Hockey Hall of Fame: 1885 Beaux-Arts Bank of Montreal ----------------
+    // 30 Yonge Street at Front Street West (Darling & Curry, 1885)
+    // Opulent Beaux-Arts / Rococo Revival palazzo in carved Ohio freestone.
+    // 2-storey monumental round-arched windows with carved keystone masks and Corinthian pilasters,
+    // iconic chamfered southeast corner portico facing Yonge & Front with classical pediment
+    // bearing the Bank of Montreal coat of arms, perimeter stone balustrades with urns,
+    // the magnificent stained-glass Esso Great Hall dome & verdigris copper cupola,
+    // Front Street bronze hockey monument ("Our Game") plinth, and elegant cast-bronze marquee.
+    if (landmarkFeet.hhof) {
+      const rawP = landmarkFeet.hhof;
+      let P = subdividePoly(rawP, 1);
+      if (polyArea(P) < 0) P.reverse();
+      const [cx, cz] = centroid(P);
+      LM.hhof = [cx, cz];
+
+      // Dedicated Ohio Sandstone Beaux-Arts Facade Texture
+      function makeHHOFFacade() {
+        const SZ = 512, [c, ctx] = canvas2(SZ, SZ), [e, ectx] = canvas2(SZ, SZ), [r, rctx] = canvas2(SZ, SZ);
+        ectx.fillStyle = '#000'; ectx.fillRect(0, 0, SZ, SZ);
+        rctx.fillStyle = 'rgb(220,215,205)'; rctx.fillRect(0, 0, SZ, SZ);
+        // Ohio sandstone warm buff tone
+        ctx.fillStyle = '#c5b694'; ctx.fillRect(0, 0, SZ, SZ);
+
+        // Ashlar block coursing
+        for (let y = 0; y < SZ; y += 12) {
+          for (let x = ((y / 12) % 2) ? 0 : 16; x < SZ; x += 32) {
+            ctx.fillStyle = `rgba(${hash(x * 4.3 + y * 6.7) > 0.5 ? '255,245,225' : '70,60,45'},${0.03 + hash(x * 5.7 + y * 9.1) * 0.08})`;
+            ctx.fillRect(x, y, 31, 11);
+          }
+        }
+
+        // 4 bays of 2-storey monumental round-arched Beaux-Arts windows
+        const NBAYS = 4, BAY_W = SZ / NBAYS;
+        for (let b = 0; b < NBAYS; b++) {
+          const bx = b * BAY_W;
+          const archW = 82, archX = bx + (BAY_W - archW) / 2;
+          const archTopY = 160, archH = 260, archR = archW / 2;
+
+          // Rusticated ground floor base under the window (y = 430..512)
+          ctx.fillStyle = '#b3a480'; ctx.fillRect(bx + 4, 430, BAY_W - 8, 80);
+          ctx.fillStyle = '#7a6a4c'; ctx.fillRect(bx + 6, 442, BAY_W - 12, 4);
+          // Small arched basement reveal
+          ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(archX + 16, 460, archW - 32, 42);
+
+          // Deep window reveal shadow
+          ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(archX - 3, archTopY - 3, archW + 6, archH + 6);
+
+          // Carved Ohio sandstone voussoirs radiating around the arch
+          ctx.strokeStyle = '#b8a984'; ctx.lineWidth = 6;
+          ctx.beginPath(); ctx.arc(archX + archR, archTopY + archR, archR + 3, Math.PI, 0); ctx.stroke();
+
+          // Carved classical keystone mask
+          ctx.fillStyle = '#dcd0b2'; ctx.fillRect(archX + archR - 6, archTopY - 10, 12, 16);
+
+          // Monumental arched window interior - warm golden glow of the Esso Great Hall
+          [ctx, ectx].forEach((k, ki) => {
+            const g = k.createLinearGradient(0, archTopY, 0, archTopY + archH);
+            g.addColorStop(0, '#fff4cc');
+            g.addColorStop(0.35, '#ffdf88');
+            g.addColorStop(0.75, ki ? '#f59e0b' : '#c27803');
+            g.addColorStop(1, ki ? '#3d2208' : '#2b1805');
+            k.fillStyle = g;
+            k.beginPath();
+            k.arc(archX + archR, archTopY + archR, archR, Math.PI, 0);
+            k.lineTo(archX + archW, archTopY + archH);
+            k.lineTo(archX, archTopY + archH);
+            k.closePath();
+            k.fill();
+
+            // Delicate bronze arched window tracery & mullions
+            k.strokeStyle = 'rgba(25,18,10,0.85)'; k.lineWidth = 2;
+            k.beginPath();
+            k.moveTo(archX + archR, archTopY); k.lineTo(archX + archR, archTopY + archH);
+            k.moveTo(archX, archTopY + archR); k.lineTo(archX + archW, archTopY + archR);
+            k.moveTo(archX, archTopY + archR + 70); k.lineTo(archX + archW, archTopY + archR + 70);
+            k.moveTo(archX, archTopY + archR + 140); k.lineTo(archX + archW, archTopY + archR + 140);
+            k.stroke();
+
+            // Great Hall chandelier silhouette
+            k.fillStyle = ki ? 'rgba(255,245,210,0.95)' : 'rgba(255,235,170,0.9)';
+            k.beginPath(); k.arc(archX + archR, archTopY + archR + 25, 12, 0, Math.PI * 2); k.fill();
+            k.fillStyle = 'rgba(20,15,10,0.9)';
+            k.fillRect(archX + archR - 1, archTopY + 10, 2, 15);
+            k.fillRect(archX + archR - 14, archTopY + archR + 25, 28, 3);
+          });
+          rctx.fillStyle = 'rgb(35,35,35)'; rctx.fillRect(archX, archTopY, archW, archH);
+
+          // Fluted Corinthian pilasters flanking the bay
+          ctx.fillStyle = '#bdae8a'; ctx.fillRect(bx, 140, 10, 290); ctx.fillRect(bx + BAY_W - 10, 140, 10, 290);
+          ctx.fillStyle = '#dcd0b2'; ctx.fillRect(bx - 2, 132, 14, 10); ctx.fillRect(bx + BAY_W - 12, 132, 14, 10);
+        }
+
+        // Classical frieze, dentil molding, and heavy cornice at top (y = 0..60)
+        ctx.fillStyle = '#b3a480'; ctx.fillRect(0, 48, SZ, 8);
+        ctx.fillStyle = '#ded3b6'; ctx.fillRect(0, 36, SZ, 12);
+        for (let dx = 4; dx < SZ; dx += 14) { ctx.fillStyle = '#9c8c6d'; ctx.fillRect(dx, 40, 7, 6); }
+        ctx.fillStyle = '#c5b694'; ctx.fillRect(0, 18, SZ, 18);
+        ctx.fillStyle = '#e5dac0'; ctx.fillRect(0, 12, SZ, 6);
+
+        const tex = new THREE.CanvasTexture(c), etex = new THREE.CanvasTexture(e), rtex = new THREE.CanvasTexture(r);
+        [tex, etex, rtex].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; });
+        return new THREE.MeshStandardMaterial({
+          map: tex, emissive: 0xffffff, emissiveMap: etex, emissiveIntensity: 1.0, roughness: 0.88, roughnessMap: rtex, side: THREE.DoubleSide
+        });
+      }
+
+      const hhofFacadeMat = makeHHOFFacade();
+      const trimStone = new THREE.MeshStandardMaterial({ color: 0xc4b492, roughness: 0.80, envMapIntensity: 0.35, side: THREE.DoubleSide });
+      const copper = new THREE.MeshStandardMaterial({ color: 0x3d7a64, roughness: 0.52, metalness: 0.40, envMapIntensity: 0.75, side: THREE.DoubleSide });
+      const brassMat = new THREE.MeshStandardMaterial({ color: 0xa0854c, roughness: 0.25, metalness: 0.85, envMapIntensity: 0.9 });
+      const bronzeDark = new THREE.MeshStandardMaterial({ color: 0x2e261f, roughness: 0.45, metalness: 0.80 });
+
+      // 1. Main Ohio Sandstone Beaux-Arts Palazzo Walls (0m -> 16.5m)
+      const baseWalls = new THREE.Mesh(wallsGeo(P, 0, () => 16.5, 16, 16.5), hhofFacadeMat);
+      baseWalls.castShadow = baseWalls.receiveShadow = true;
+      scene.add(baseWalls);
+      scene.add(new THREE.Mesh(capGeo(P, () => 16.5), trimStone));
+
+      // Rusticated stone stringcourse at 5.5m & heavy projecting cornice at 16.5m
+      scene.add(new THREE.Mesh(wallsGeo(P, 5.2, () => 5.6, 8, 0.4), trimStone));
+      scene.add(new THREE.Mesh(wallsGeo(P, 16.2, () => 16.7, 8, 0.5), trimStone));
+      addSolid({ type: 'poly', pts: P, h: 22, name: 'Hockey Hall of Fame' });
+
+      // 2. Classical Roof Balustrade & Carved Stone Urns (16.5m -> 18.0m)
+      scene.add(new THREE.Mesh(wallsGeo(P, 16.5, () => 17.8, 4, 1.3), trimStone));
+
+      // Carved stone urns at each corner pier
+      rawP.forEach(([ux, uz]) => {
+        const urnGroup = new THREE.Group();
+        const pier = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.4, 0.85), trimStone);
+        pier.position.y = 0.7;
+        urnGroup.add(pier);
+        const urn = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.40, 0.85, 10), trimStone);
+        urn.position.y = 1.75;
+        urnGroup.add(urn);
+        const finial = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), trimStone);
+        finial.position.y = 2.25;
+        urnGroup.add(finial);
+        urnGroup.position.set(ux, 16.5, uz);
+        scene.add(urnGroup);
+      });
+
+      // 3. Iconic Chamfered Southeast Corner Portico & Classical Pediment
+      // Facing the corner of Yonge & Front Street (edge between 515.4,-329.6 and 513.2,-324.1)
+      const cornerMid = [514.3, -326.9];
+      const cornerNorm = [0.93, 0.37];
+      const cornerAng = Math.atan2(cornerNorm[0], cornerNorm[1]);
+      const cornerPerp = [-cornerNorm[1], cornerNorm[0]];
+
+      // Fluted Corinthian columns flanking the grand corner doorway
+      [-1.8, -0.6, 0.6, 1.8].forEach(off => {
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 12.0, 12), trimStone);
+        col.position.set(cornerMid[0] + cornerPerp[0] * off + cornerNorm[0] * 0.45, 6.0, cornerMid[1] + cornerPerp[1] * off + cornerNorm[1] * 0.45);
+        col.castShadow = true;
+        scene.add(col);
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.5, 0.82), trimStone);
+        cap.position.set(col.position.x, 12.2, col.position.z);
+        scene.add(cap);
+      });
+
+      // Ceremonial arched double entrance doorway with brass frame & fanlight
+      const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(2.4, 4.6, 0.25), brassMat);
+      doorMesh.position.set(cornerMid[0] + cornerNorm[0] * 0.1, 2.3, cornerMid[1] + cornerNorm[1] * 0.1);
+      doorMesh.rotation.y = cornerAng;
+      scene.add(doorMesh);
+
+      // Triangular Classical Pediment atop the Southeast Corner Portico
+      const cornerPed = new THREE.Mesh(new THREE.ConeGeometry(3.6, 2.4, 4), trimStone);
+      cornerPed.rotation.y = cornerAng + Math.PI / 4;
+      cornerPed.position.set(cornerMid[0] + cornerNorm[0] * 0.4, 17.7, cornerMid[1] + cornerNorm[1] * 0.4);
+      scene.add(cornerPed);
+
+      // Classical Bank of Montreal Coat of Arms relief plaque in tympanum
+      const coaPlaque = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.2, 0.2), trimStone);
+      coaPlaque.position.set(cornerMid[0] + cornerNorm[0] * 0.65, 17.2, cornerMid[1] + cornerNorm[1] * 0.65);
+      coaPlaque.rotation.y = cornerAng;
+      scene.add(coaPlaque);
+
+      // Historic Cast-Bronze & Gold Entrance Marquee Sign
+      const hhofSign = signMesh(['HOCKEY HALL OF FAME', 'TEMPLE DE LA RENOMMÉE DU HOCKEY • EST. 1885'], 5.8, 1.6, {
+        bg: '#081410', fg: '#fef08a', borderColor: '#d4af37', size: 52
+      });
+      hhofSign.position.set(cornerMid[0] + cornerNorm[0] * 0.72, 7.2, cornerMid[1] + cornerNorm[1] * 0.72);
+      hhofSign.rotation.y = cornerAng;
+      scene.add(hhofSign);
+
+      const cornerLight = new THREE.PointLight(0xffdf88, 2.0, 18);
+      cornerLight.position.set(cornerMid[0] + cornerNorm[0] * 1.5, 6.5, cornerMid[1] + cornerNorm[1] * 1.5);
+      scene.add(cornerLight);
+
+      // 4. Classical Triangular Pediments centered on Front St & Yonge St Facades
+      // South Facade (Front St) pediment
+      const southMid = [506.2, -322.1], southNorm = [0.27, 0.96];
+      const southPed = new THREE.Mesh(new THREE.ConeGeometry(4.4, 2.5, 4), trimStone);
+      southPed.rotation.y = Math.atan2(southNorm[0], southNorm[1]) + Math.PI / 4;
+      southPed.position.set(southMid[0] + southNorm[0] * 0.4, 17.7, southMid[1] + southNorm[1] * 0.4);
+      scene.add(southPed);
+
+      // East Facade (Yonge St) pediment
+      const eastMid = [513.3, -337.1], eastNorm = [0.96, -0.27];
+      const eastPed = new THREE.Mesh(new THREE.ConeGeometry(4.4, 2.5, 4), trimStone);
+      eastPed.rotation.y = Math.atan2(eastNorm[0], eastNorm[1]) + Math.PI / 4;
+      eastPed.position.set(eastMid[0] + eastNorm[0] * 0.4, 17.7, eastMid[1] + eastNorm[1] * 0.4);
+      scene.add(eastPed);
+
+      // 5. The Crown Jewel: The Stained-Glass Esso Great Hall Dome & Verdigris Cupola (16.5m -> 25.5m)
+      // Stepped octagonal sandstone drum base
+      const drumMesh = new THREE.Mesh(new THREE.CylinderGeometry(7.2, 7.8, 1.8, 8), trimStone);
+      drumMesh.position.set(cx, 17.4, cz);
+      scene.add(drumMesh);
+
+      // Stained-glass skylight dome texture
+      const domeTex = canvasTex(256, 256, dctx => {
+        dctx.fillStyle = '#0f172a'; dctx.fillRect(0, 0, 256, 256);
+        // Leaded stained-glass pie wedges in rich amber, cobalt, and gold
+        const cols = ['#f59e0b', '#d97706', '#38bdf8', '#059669', '#fde047', '#dc2626', '#b45309', '#0284c7'];
+        for (let i = 0; i < 8; i++) {
+          const a0 = (i / 8) * Math.PI * 2, a1 = ((i + 1) / 8) * Math.PI * 2;
+          dctx.fillStyle = cols[i];
+          dctx.beginPath(); dctx.moveTo(128, 128); dctx.arc(128, 128, 120, a0, a1); dctx.closePath(); dctx.fill();
+        }
+        // Lead came outlines
+        dctx.strokeStyle = '#18181b'; dctx.lineWidth = 4;
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          dctx.beginPath(); dctx.moveTo(128, 128); dctx.lineTo(128 + Math.cos(a) * 120, 128 + Math.sin(a) * 120); dctx.stroke();
+        }
+        dctx.beginPath(); dctx.arc(128, 128, 60, 0, Math.PI * 2); dctx.stroke();
+      }, dctx => {
+        dctx.fillStyle = '#ffdf88'; dctx.fillRect(0, 0, 256, 256);
+      });
+
+      const domeMesh = new THREE.Mesh(new THREE.ConeGeometry(6.8, 2.8, 8), new THREE.MeshStandardMaterial({
+        map: domeTex.t, emissive: 0xffdf88, emissiveMap: domeTex.e, emissiveIntensity: 1.1, roughness: 0.25, metalness: 0.5, side: THREE.DoubleSide
+      }));
+      domeMesh.position.set(cx, 19.7, cz);
+      scene.add(domeMesh);
+
+      // Ornate octagonal verdigris copper lantern / cupola
+      const cupolaMesh = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.5, 2.2, 8), copper);
+      cupolaMesh.position.set(cx, 22.2, cz);
+      scene.add(cupolaMesh);
+
+      // Pinnacle spire needle
+      const spireMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.35, 2.6, 8), copper);
+      spireMesh.position.set(cx, 24.6, cz);
+      scene.add(spireMesh);
+
+      // 6. Front Street Sidewalk Monument Plinth & "Our Game" Bronze Sculpture
+      const scMid = [southMid[0] + southNorm[0] * 4.6, southMid[1] + southNorm[1] * 4.6];
+      const plinthMesh = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.85, 2.2), new THREE.MeshStandardMaterial({ color: 0x2e3338, roughness: 0.7 }));
+      plinthMesh.position.set(scMid[0], 0.42, scMid[1]);
+      plinthMesh.rotation.y = Math.atan2(southNorm[0], southNorm[1]);
+      scene.add(plinthMesh);
+
+      // Bronze sculpture figures
+      const statueGroup = new THREE.Group();
+      [-1.1, -0.3, 0.5, 1.2].forEach((sx, si) => {
+        const skater = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, 1.4 + (si % 2) * 0.2, 8), bronzeDark);
+        skater.position.set(sx, 0.7, (si % 2) * 0.2);
+        skater.rotation.z = (si - 1.5) * 0.15;
+        statueGroup.add(skater);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), bronzeDark);
+        head.position.set(sx, 1.55 + (si % 2) * 0.2, (si % 2) * 0.2);
+        statueGroup.add(head);
+      });
+      statueGroup.position.set(scMid[0], 0.85, scMid[1]);
+      statueGroup.rotation.y = Math.atan2(southNorm[0], southNorm[1]);
+      scene.add(statueGroup);
+
+      // Commemorative bronze plaque facing Front Street
+      const plaqueSign = signMesh(['HOCKEY HALL OF FAME', 'HOME OF THE STANLEY CUP'], 3.6, 0.85, {
+        bg: '#0c1618', fg: '#fef08a', borderColor: '#d4af37', size: 56
+      });
+      plaqueSign.position.set(scMid[0] + southNorm[0] * 1.15, 0.45, scMid[1] + southNorm[1] * 1.15);
+      plaqueSign.rotation.y = Math.atan2(southNorm[0], southNorm[1]);
+      scene.add(plaqueSign);
+
+      const plinthLight = new THREE.PointLight(0xffdf88, 1.6, 12);
+      plinthLight.position.set(scMid[0] + southNorm[0] * 1.8, 2.2, scMid[1] + southNorm[1] * 1.8);
+      scene.add(plinthLight);
     }
 
     // ---------------- 5. Gooderham Building: mansard roof + round turret at the prow ----------------
