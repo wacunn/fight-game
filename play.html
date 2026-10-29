@@ -2529,6 +2529,7 @@ body.telescope-mode #crosshair-wrapper {
               <li><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> &mdash; Switch Attacks</li>
               <li><kbd>V</kbd> &mdash; <b>🤖 WATCH TRAINED AI (Toggle AI Copilot)</b></li>
               <li><kbd>N</kbd> &mdash; <b>AI Persona (🥊 Brawler vs 📦 Crate Hunter)</b></li>
+              <li><kbd>T</kbd> &mdash; <b>🏛️ Tour / Fast Travel Toronto Landmarks (13 Scenic Spawns)</b></li>
               <li><kbd>ESC</kbd> or <kbd>P</kbd> &mdash; <b>Instant Release Mouse / Pause</b></li>
             </ul>
           </div>
@@ -5142,6 +5143,21 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       }
       return false;
     }
+    function isReservedParkOrLandmark(x, z) {
+      // St. James Cathedral & St. James Park
+      if (x >= 730 && x <= 930 && z >= -765 && z <= -660) return true;
+      // Berczy Park & Gooderham block
+      if (x >= 605 && x <= 728 && z >= -495 && z <= -390) return true;
+      // David Pecaut Square
+      if (x >= -340 && x <= -270 && z >= -305 && z <= -235) return true;
+      // Clarence Square
+      if (x >= -860 && x <= -760 && z >= -65 && z <= 30) return true;
+      // Olympic Park
+      if (x >= -390 && x <= -310 && z >= 170 && z <= 245) return true;
+      // Harbour Square Park
+      if (x >= 430 && x <= 520 && z >= 450 && z <= 530) return true;
+      return false;
+    }
     const nearSanctuary = (x, z) => Math.hypot(x - LM.cnTower[0], z - LM.cnTower[1]) < 75;
     // Newer map files record the area covered by real OSM data; nothing is invented inside it
     const DATA = MAP.dataBounds ? { x0: MAP.dataBounds[0][0], z0: MAP.dataBounds[0][1], x1: MAP.dataBounds[1][0], z1: MAP.dataBounds[1][1] } : null;
@@ -5154,6 +5170,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       }
       const [cx, cz] = centroid(rect);
       probes.push([cx, cz]);
+      if (probes.some(([x, z]) => isReservedParkOrLandmark(x, z))) return false;
       return probes.every(([x, z]) => !onRoad(x, z, -1.2, -1) && canMoveTo(x, z, 0.8) && !nearSanctuary(x, z) && (x < TRENCH_X0 - 20 || x > TRENCH_X1 + 20 || Math.abs(z - getUsrcZ(x)) > TRENCH_HALF_W + 6));
     }
     function addLot(rect, h, style, seed, opts) {
@@ -5426,7 +5443,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
               if (t + lotW > len - 3) break;
               const s0 = r.w / 2 + 3.2;
               const mx = ax + dx * (t + lotW / 2) + nx * side * (s0 + 10), mz = az + dz * (t + lotW / 2) + nz * side * (s0 + 10);
-              if (mx < PLAY.minX || mx > PLAY.maxX || mz < PLAY.minZ || mz > PLAY.maxZ || inRealData(mx, mz) || nearRealBuilding(mx, mz, 48)) { t += lotW; continue; }
+              if (mx < PLAY.minX || mx > PLAY.maxX || mz < PLAY.minZ || mz > PLAY.maxZ || inRealData(mx, mz) || nearRealBuilding(mx, mz, 48) || isReservedParkOrLandmark(mx, mz)) { t += lotW; continue; }
               // up to two rows deep: street-front shops, then a taller building behind
               let off = s0;
               for (let row = 0; row < 2; row++) {
@@ -8155,12 +8172,124 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         scene.add(new THREE.Mesh(capGeo(shedPoly, () => 6.2), shedMat));
       });
 
-      // D. Direct Connection to Scotiabank Arena North Facade
-      // Connecting portal joining the Bay South Teamway into Scotiabank Arena's north galleria
-      const scotiaJoinPt = [teamwayStart[0] + fDir[0] * bayTeamU + sDir[0] * (teamwayLen + 0.5), teamwayStart[1] + fDir[1] * bayTeamU + sDir[1] * (teamwayLen + 0.5)];
+      // D. Union Station South Building: Monumental South Concourse & Transit Terminal
+      // Spans across the entire southern boundary of the station grounds (width 176m, depth 22m, height 18.5m)
+      // facing Scotiabank Arena, Bremner Blvd, and Lake Ontario.
+      // Features:
+      // - Grand 4-storey glass curtain wall facade with illuminated warm interior transit lounges
+      // - Limestone corner anchor pavilions matching Union Station headhouse
+      // - High illuminated station frieze: "UNION STATION • SOUTH CONCOURSE & TRANSIT TERMINAL"
+      // - Covered passenger drop-off colonnade & transit entrances
+      // - Enclosed high-level pedestrian skybridge galleria directly into Scotiabank Arena Gate 1
+      const SOUTH_W = 176.0, SOUTH_D = 22.0, SOUTH_H = 18.5;
+      const southAnchorDist = teamwayLen - SOUTH_D; // sits at distance 78m to 100m from Great Hall
+      const southCenter = [teamwayStart[0] + sDir[0] * (southAnchorDist + SOUTH_D / 2), teamwayStart[1] + sDir[1] * (southAnchorDist + SOUTH_D / 2)];
+      const southRotY = Math.atan2(sDir[0], sDir[1]);
+
+      // South Concourse polygon
+      const southPoly = [
+        [teamwayStart[0] - fDir[0] * (SOUTH_W / 2) + sDir[0] * southAnchorDist, teamwayStart[1] - fDir[1] * (SOUTH_W / 2) + sDir[1] * southAnchorDist],
+        [teamwayStart[0] + fDir[0] * (SOUTH_W / 2) + sDir[0] * southAnchorDist, teamwayStart[1] + fDir[1] * (SOUTH_W / 2) + sDir[1] * southAnchorDist],
+        [teamwayStart[0] + fDir[0] * (SOUTH_W / 2) + sDir[0] * (southAnchorDist + SOUTH_D), teamwayStart[1] + fDir[1] * (SOUTH_W / 2) + sDir[1] * (southAnchorDist + SOUTH_D)],
+        [teamwayStart[0] - fDir[0] * (SOUTH_W / 2) + sDir[0] * (southAnchorDist + SOUTH_D), teamwayStart[1] - fDir[1] * (SOUTH_W / 2) + sDir[1] * (southAnchorDist + SOUTH_D)]
+      ];
+      if (polyArea(southPoly) < 0) southPoly.reverse();
+
+      // South Building main walls & roof
+      const southMesh = new THREE.Mesh(wallsGeo(southPoly, 0, () => SOUTH_H, 16, 12), uStoneMat);
+      southMesh.castShadow = southMesh.receiveShadow = true;
+      scene.add(southMesh);
+      scene.add(new THREE.Mesh(capGeo(southPoly, () => SOUTH_H), stoneCapMat));
+      addSolid({ type: 'poly', pts: southPoly, h: SOUTH_H, name: 'Union Station South Building' });
+
+      // Grand Multi-Storey South Glass Curtain Wall Atrium (facing Scotiabank Arena)
+      const curtainW = 120.0, curtainH = 14.5;
+      const curtainMat = new THREE.MeshStandardMaterial({
+        color: 0x93c5fd, emissive: 0xffeaae, emissiveIntensity: 0.45, roughness: 0.15, metalness: 0.65, side: THREE.DoubleSide
+      });
+      const curtainWall = new THREE.Mesh(new THREE.PlaneGeometry(curtainW, curtainH), curtainMat);
+      curtainWall.position.set(
+        southCenter[0] + sDir[0] * (SOUTH_D / 2 + 0.15),
+        2.5 + curtainH / 2,
+        southCenter[1] + sDir[1] * (SOUTH_D / 2 + 0.15)
+      );
+      curtainWall.rotation.y = southRotY;
+      scene.add(curtainWall);
+
+      // Structural mullion grid over the south glass curtain
+      const mullionMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.8 });
+      for (let mx = -curtainW / 2 + 10; mx < curtainW / 2; mx += 10) {
+        const mul = new THREE.Mesh(new THREE.BoxGeometry(0.3, curtainH, 0.4), mullionMat);
+        const mulPos = [
+          southCenter[0] + sDir[0] * (SOUTH_D / 2 + 0.2) + fDir[0] * mx,
+          southCenter[1] + sDir[1] * (SOUTH_D / 2 + 0.2) + fDir[1] * mx
+        ];
+        mul.position.set(mulPos[0], 2.5 + curtainH / 2, mulPos[1]);
+        mul.rotation.y = southRotY;
+        scene.add(mul);
+      }
+
+      // Monumental South Station Entrance Sign facing Scotiabank Arena
+      const southStationSign = signMesh([
+        'UNION STATION • SOUTH CONCOURSE & TRANSIT TERMINAL',
+        'VIA RAIL CANADA • GO TRANSIT • UP EXPRESS • CIBC SQUARE'
+      ], 42, 3.4, { bg: '#0f172a', fg: '#f8fafc', borderColor: '#38bdf8', size: 54 });
+      southStationSign.position.set(
+        southCenter[0] + sDir[0] * (SOUTH_D / 2 + 0.5),
+        SOUTH_H - 1.8,
+        southCenter[1] + sDir[1] * (SOUTH_D / 2 + 0.5)
+      );
+      southStationSign.rotation.y = southRotY;
+      scene.add(southStationSign);
+
+      // South Covered Passenger Drop-off Colonnade & Warm Portal Lighting
+      const southCanopy = new THREE.Mesh(new THREE.BoxGeometry(curtainW + 8.0, 0.4, 4.2), steelFrameMat);
+      southCanopy.position.set(
+        southCenter[0] + sDir[0] * (SOUTH_D / 2 + 2.1),
+        3.8,
+        southCenter[1] + sDir[1] * (SOUTH_D / 2 + 2.1)
+      );
+      southCanopy.rotation.y = southRotY;
+      scene.add(southCanopy);
+
+      // Warm concourse entrance portals
+      for (let pi = -2; pi <= 2; pi++) {
+        const pOffset = pi * 18.0;
+        const pPt = [
+          southCenter[0] + sDir[0] * (SOUTH_D / 2 + 0.3) + fDir[0] * pOffset,
+          southCenter[1] + sDir[1] * (SOUTH_D / 2 + 0.3) + fDir[1] * pOffset
+        ];
+        const pDoor = new THREE.Mesh(new THREE.PlaneGeometry(6.5, 3.2), new THREE.MeshStandardMaterial({
+          color: 0x334155, emissive: 0xffdf88, emissiveIntensity: 0.9, roughness: 0.2, side: THREE.DoubleSide
+        }));
+        pDoor.position.set(pPt[0], 1.6, pPt[1]);
+        pDoor.rotation.y = southRotY;
+        scene.add(pDoor);
+
+        const pLite = new THREE.PointLight(0xffdf88, 1.4, 16);
+        pLite.position.set(pPt[0] + sDir[0] * 2.2, 3.2, pPt[1] + sDir[1] * 2.2);
+        scene.add(pLite);
+      }
+
+      // E. Elevated Skybridge Galleria directly joining Union Station into Scotiabank Arena Gate 1
+      const bridgeLen = 18.0, bridgeSpanW = 12.0, bridgeH = 6.2;
+      const skybridgeStart = [southCenter[0] + fDir[0] * bayTeamU + sDir[0] * (SOUTH_D / 2), southCenter[1] + fDir[1] * bayTeamU + sDir[1] * (SOUTH_D / 2)];
+      const skybridgePoly = [
+        [skybridgeStart[0] - fDir[0] * (bridgeSpanW / 2), skybridgeStart[1] - fDir[1] * (bridgeSpanW / 2)],
+        [skybridgeStart[0] + fDir[0] * (bridgeSpanW / 2), skybridgeStart[1] + fDir[1] * (bridgeSpanW / 2)],
+        [skybridgeStart[0] + fDir[0] * (bridgeSpanW / 2) + sDir[0] * bridgeLen, skybridgeStart[1] + fDir[1] * (bridgeSpanW / 2) + sDir[1] * bridgeLen],
+        [skybridgeStart[0] - fDir[0] * (bridgeSpanW / 2) + sDir[0] * bridgeLen, skybridgeStart[1] - fDir[1] * (bridgeSpanW / 2) + sDir[1] * bridgeLen]
+      ];
+      if (polyArea(skybridgePoly) < 0) skybridgePoly.reverse();
+      const skybridgeMesh = new THREE.Mesh(wallsGeo(skybridgePoly, 4.2, () => 4.2 + bridgeH, 8, 6), glassConcourseMat);
+      scene.add(skybridgeMesh);
+      scene.add(new THREE.Mesh(capGeo(skybridgePoly, () => 4.2 + bridgeH), steelFrameMat));
+      addSolid({ type: 'poly', pts: skybridgePoly, h: 4.2 + bridgeH, name: 'Union-Scotia Skybridge' });
+
+      const scotiaJoinPt = [skybridgeStart[0] + sDir[0] * bridgeLen, skybridgeStart[1] + sDir[1] * bridgeLen];
       const scotiaSign = signMesh(['SCOTIABANK ARENA • NORTH GALLERIA', 'GATE 1 • AIR CANADA CLUB • MAPLE LEAF SQUARE'], 26, 2.8, { bg: '#7f1d1d', fg: '#ffffff', borderColor: '#ef4444', size: 56 });
-      scotiaSign.position.set(scotiaJoinPt[0], 5.8, scotiaJoinPt[1]);
-      scotiaSign.rotation.y = Math.atan2(sDir[0], sDir[1]);
+      scotiaSign.position.set(scotiaJoinPt[0], 7.8, scotiaJoinPt[1]);
+      scotiaSign.rotation.y = southRotY;
       scene.add(scotiaSign);
     }
 
@@ -8262,40 +8391,63 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       }
 
       // 2. Monumental Projecting Central Portico (facing Front Street curve around [455, -241])
+      // Set comfortably back from Front Street curb with full ground-to-entablature colossal columns
       const porticoPos = [455.0, -241.5];
       // Tangent and outward normal along the curve at this location
       const pNorm = unit(-0.45, -0.89); // pointing out toward Front Street
       const pTan = [pNorm[1], -pNorm[0]]; // pointing along Front Street
 
-      const PORT_W = 24.0, PORT_PROJ = 3.2, COL_H = 15.0;
+      const PORT_W = 24.0, PORT_PROJ = 1.4, COL_H = 18.2;
       const porticoCenter = [porticoPos[0] + pNorm[0] * (PORT_PROJ / 2), porticoPos[1] + pNorm[1] * (PORT_PROJ / 2)];
       const portRotY = Math.atan2(pNorm[0], pNorm[1]);
 
-      // 4 Colossal Classical Columns across the portico
+      // Ground-level classical stylobate plinth & entrance steps (columns reach ground!)
+      const pStylobate = new THREE.Mesh(new THREE.BoxGeometry(PORT_W + 1.6, 1.2, PORT_PROJ + 1.8), dpStoneCapMat);
+      pStylobate.position.set(porticoCenter[0], 0.6, porticoCenter[1]);
+      pStylobate.rotation.y = portRotY;
+      pStylobate.receiveShadow = true;
+      scene.add(pStylobate);
+
+      const pSteps = new THREE.Mesh(new THREE.BoxGeometry(PORT_W, 0.6, 1.6), dpStoneCapMat);
+      pSteps.position.set(porticoCenter[0] + pNorm[0] * (PORT_PROJ + 1.2), 0.3, porticoCenter[1] + pNorm[1] * (PORT_PROJ + 1.2));
+      pSteps.rotation.y = portRotY;
+      pSteps.receiveShadow = true;
+      scene.add(pSteps);
+
+      // 4 Colossal Classical Columns reaching from the ground stylobate up to the entablature
       const nPCols = 4;
-      const pColsMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.65, 0.75, COL_H, 18), dpStoneCapMat, nPCols);
-      const pcm = new THREE.Matrix4();
+      const pColsMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.68, 0.78, COL_H, 20), dpStoneCapMat, nPCols);
+      const pBasesMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.92, 0.98, 0.8, 18), dpStoneCapMat, nPCols);
+      const pCapsMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1.9, 0.7, 1.9), dpStoneCapMat, nPCols);
+      const pcm = new THREE.Matrix4(), pbm = new THREE.Matrix4(), pcm2 = new THREE.Matrix4();
       for (let k = 0; k < nPCols; k++) {
-        const u = -PORT_W / 2 + 3.5 + (k * (PORT_W - 7.0)) / (nPCols - 1);
+        const u = -PORT_W / 2 + 3.2 + (k * (PORT_W - 6.4)) / (nPCols - 1);
         const colX = porticoPos[0] + pTan[0] * u + pNorm[0] * PORT_PROJ;
         const colZ = porticoPos[1] + pTan[1] * u + pNorm[1] * PORT_PROJ;
-        pcm.makeTranslation(colX, 8.5 + COL_H / 2, colZ);
+        // Molded column base resting on the stylobate at y = 1.2
+        pbm.makeTranslation(colX, 1.6, colZ);
+        pBasesMesh.setMatrixAt(k, pbm);
+        // Colossal column shaft spanning y = 1.6 to 19.4
+        pcm.makeTranslation(colX, 1.2 + COL_H / 2, colZ);
         pColsMesh.setMatrixAt(k, pcm);
-        addCircle(colX, colZ, 0.85);
+        // Classical Corinthian / Ionic capital at y = 19.4
+        pcm2.makeTranslation(colX, 1.2 + COL_H + 0.35, colZ);
+        pCapsMesh.setMatrixAt(k, pcm2);
+        addCircle(colX, colZ, 0.95);
       }
-      pColsMesh.castShadow = true;
-      scene.add(pColsMesh);
+      pColsMesh.castShadow = true; pBasesMesh.castShadow = true; pCapsMesh.castShadow = true;
+      scene.add(pColsMesh); scene.add(pBasesMesh); scene.add(pCapsMesh);
 
       // Portico Classical Entablature & Stepped Attic
-      const pEntMesh = new THREE.Mesh(new THREE.BoxGeometry(PORT_W, 3.5, PORT_PROJ + 1.0), dpStoneCapMat);
-      pEntMesh.position.set(porticoCenter[0] + pNorm[0] * 1.0, 8.5 + COL_H + 1.75, porticoCenter[1] + pNorm[1] * 1.0);
+      const pEntMesh = new THREE.Mesh(new THREE.BoxGeometry(PORT_W + 1.0, 3.4, PORT_PROJ + 1.2), dpStoneCapMat);
+      pEntMesh.position.set(porticoCenter[0], 1.2 + COL_H + 2.0, porticoCenter[1]);
       pEntMesh.rotation.y = portRotY;
       pEntMesh.castShadow = true;
       scene.add(pEntMesh);
 
       // Stepped attic with carved Canadian Coat of Arms shield
-      const pAtticMesh = new THREE.Mesh(new THREE.BoxGeometry(PORT_W - 4.0, 3.2, PORT_PROJ), dpStoneCapMat);
-      pAtticMesh.position.set(porticoCenter[0] + pNorm[0] * 0.8, 8.5 + COL_H + 4.8, porticoCenter[1] + pNorm[1] * 0.8);
+      const pAtticMesh = new THREE.Mesh(new THREE.BoxGeometry(PORT_W - 2.0, 2.8, PORT_PROJ + 0.6), dpStoneCapMat);
+      pAtticMesh.position.set(porticoCenter[0] - pNorm[0] * 0.2, 1.2 + COL_H + 5.0, porticoCenter[1] - pNorm[1] * 0.2);
       pAtticMesh.rotation.y = portRotY;
       scene.add(pAtticMesh);
 
@@ -8312,8 +8464,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         const tex = new THREE.CanvasTexture(c);
         return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.72, envMapIntensity: 0.35 });
       }
-      const dpFrieze = new THREE.Mesh(new THREE.PlaneGeometry(PORT_W - 2.0, 3.0), makeDominionFrieze());
-      dpFrieze.position.set(porticoCenter[0] + pNorm[0] * (PORT_PROJ + 1.55), 8.5 + COL_H + 1.75, porticoCenter[1] + pNorm[1] * (PORT_PROJ + 1.55));
+      const dpFrieze = new THREE.Mesh(new THREE.PlaneGeometry(PORT_W - 2.0, 2.8), makeDominionFrieze());
+      dpFrieze.position.set(porticoCenter[0] + pNorm[0] * (PORT_PROJ / 2 + 0.65), 1.2 + COL_H + 2.0, porticoCenter[1] + pNorm[1] * (PORT_PROJ / 2 + 0.65));
       dpFrieze.rotation.y = portRotY;
       scene.add(dpFrieze);
 
@@ -9194,6 +9346,102 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       transRoofMesh.rotation.y = Math.PI / 2;
       transRoofMesh.position.set(transeptX, 18, transeptZ);
       cathedGrp.add(transRoofMesh);
+
+      // 3b. Gothic Chancel & Polygonal Apse (Chevet) on the North Side
+      // Extends north from the nave to form the sacred high altar & apse with 5 soaring stained-glass lancet windows
+      const chancelZ = -741.0, chancelLen = 11.0, chancelW = 16.0, chancelH = 17.5;
+      const chancelWalls = new THREE.Mesh(new THREE.BoxGeometry(chancelW, chancelH, chancelLen), buffBrickMat);
+      chancelWalls.position.set(tcx, chancelH / 2, chancelZ);
+      cathedGrp.add(chancelWalls);
+
+      const chancelRoofShape = new THREE.Shape();
+      chancelRoofShape.moveTo(-chancelW / 2 - 0.3, 0); chancelRoofShape.lineTo(chancelW / 2 + 0.3, 0); chancelRoofShape.lineTo(0, 8.8); chancelRoofShape.closePath();
+      const chancelRoofGeo = new THREE.ExtrudeGeometry(chancelRoofShape, { depth: chancelLen, bevelEnabled: false });
+      chancelRoofGeo.translate(0, 0, -chancelLen / 2);
+      const chancelRoofMesh = new THREE.Mesh(chancelRoofGeo, copperVerdigris);
+      chancelRoofMesh.position.set(tcx, chancelH, chancelZ);
+      cathedGrp.add(chancelRoofMesh);
+
+      // Semi-Octagonal Faceted Gothic Apse (radius 7.5m, 5 facets facing north)
+      const apseR = 7.5, apseH = 17.5;
+      const apseZ = chancelZ - chancelLen / 2;
+      const nApseFacets = 5;
+      for (let fi = 0; fi < nApseFacets; fi++) {
+        const ang0 = Math.PI * (0.85 + (fi * 1.3) / nApseFacets);
+        const ang1 = Math.PI * (0.85 + ((fi + 1) * 1.3) / nApseFacets);
+        const fx0 = tcx + Math.cos(ang0) * apseR, fz0 = apseZ + Math.sin(ang0) * apseR;
+        const fx1 = tcx + Math.cos(ang1) * apseR, fz1 = apseZ + Math.sin(ang1) * apseR;
+        const fLen = Math.hypot(fx1 - fx0, fz1 - fz0);
+        const fWall = new THREE.Mesh(new THREE.BoxGeometry(fLen, apseH, 0.9), buffBrickMat);
+        fWall.position.set((fx0 + fx1) / 2, apseH / 2, (fz0 + fz1) / 2);
+        fWall.rotation.y = -Math.atan2(fz1 - fz0, fx1 - fx0);
+        cathedGrp.add(fWall);
+
+        // Soaring Gothic Lancet Stained Glass Window in each facet
+        const lWin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 8.5, 0.4), stainedGlassMat);
+        lWin.position.set((fx0 + fx1) / 2, 9.8, (fz0 + fz1) / 2);
+        lWin.rotation.y = -Math.atan2(fz1 - fz0, fx1 - fx0);
+        cathedGrp.add(lWin);
+
+        // Stone buttress & pinnacle at each angle of the apse
+        const bX = fx0, bZ = fz0;
+        const butt = new THREE.Mesh(new THREE.BoxGeometry(1.2, apseH + 1.5, 1.2), sandstoneMat);
+        butt.position.set(bX, (apseH + 1.5) / 2, bZ);
+        cathedGrp.add(butt);
+        const bPin = new THREE.Mesh(new THREE.ConeGeometry(0.8, 3.8, 4), sandstoneMat);
+        bPin.position.set(bX, apseH + 3.4, bZ);
+        cathedGrp.add(bPin);
+      }
+
+      // Faceted Copper Apse Roof Semi-Spire
+      const apseRoof = new THREE.Mesh(new THREE.ConeGeometry(apseR + 0.6, 9.5, nApseFacets * 2, 1, false, Math.PI * 0.8, Math.PI * 1.4), copperVerdigris);
+      apseRoof.position.set(tcx, apseH + 4.75, apseZ);
+      cathedGrp.add(apseRoof);
+
+      // 3c. Diocesan Synod House & Cathedral Parish Cloister (West/North-West Wing)
+      // Historic Gothic Revival administrative hall in matching buff brick & Ohio sandstone dressings
+      const synodX = 735.0, synodZ = -736.0, synodW = 16.0, synodLen = 18.0, synodH = 11.5;
+      const synodWalls = new THREE.Mesh(new THREE.BoxGeometry(synodW, synodH, synodLen), buffBrickMat);
+      synodWalls.position.set(synodX, synodH / 2, synodZ);
+      cathedGrp.add(synodWalls);
+
+      // Steeply pitched copper roof with stone dormers
+      const synodRoofShape = new THREE.Shape();
+      synodRoofShape.moveTo(-synodW / 2 - 0.3, 0); synodRoofShape.lineTo(synodW / 2 + 0.3, 0); synodRoofShape.lineTo(0, 6.5); synodRoofShape.closePath();
+      const synodRoofGeo = new THREE.ExtrudeGeometry(synodRoofShape, { depth: synodLen, bevelEnabled: false });
+      synodRoofGeo.translate(0, 0, -synodLen / 2);
+      const synodRoofMesh = new THREE.Mesh(synodRoofGeo, copperVerdigris);
+      synodRoofMesh.position.set(synodX, synodH, synodZ);
+      cathedGrp.add(synodRoofMesh);
+
+      // Gothic mullioned windows along Synod House
+      const synodWinMat = new THREE.MeshStandardMaterial({
+        color: 0x3b82f6, emissive: 0x1d4ed8, emissiveIntensity: 0.5, roughness: 0.2
+      });
+      for (let si = -1; si <= 1; si++) {
+        const swMesh = new THREE.Mesh(new THREE.BoxGeometry(2.4, 4.2, 0.4), synodWinMat);
+        swMesh.position.set(synodX + si * 4.8, 6.2, synodZ - synodLen / 2 - 0.1);
+        cathedGrp.add(swMesh);
+      }
+
+      // Stone Cloister Arcade connecting Synod House into Cathedral Transept
+      const cloisW = 6.0, cloisLen = 14.0, cloisH = 4.8;
+      const cloisX = (tcx - naveWidth / 2 + synodX + synodW / 2) / 2;
+      const cloisZ = (transeptZ + synodZ) / 2;
+      const cloisMesh = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(tcx - naveWidth / 2 - (synodX + synodW / 2)) + 0.8, cloisH, 4.2), sandstoneMat);
+      cloisMesh.position.set(cloisX, cloisH / 2, cloisZ);
+      cathedGrp.add(cloisMesh);
+
+      // Inscribed bronze heritage plaque on Synod House north courtyard
+      const synodSign = signMesh([
+        'ST. JAMES CATHEDRAL • SYNOD HOUSE',
+        'DIOCESAN COUNCIL & HERITAGE ARCHIVES • EST. 1889'
+      ], 9.5, 1.4, { bg: '#1c1917', fg: '#fef08a', borderColor: '#d4af37', size: 52 });
+      synodSign.position.set(synodX, 2.2, synodZ - synodLen / 2 - 0.5);
+      cathedGrp.add(synodSign);
+
+      addSolid({ type: 'poly', pts: [[tcx - 8, chancelZ - chancelLen / 2], [tcx + 8, chancelZ - chancelLen / 2], [tcx + 8, chancelZ + chancelLen / 2], [tcx - 8, chancelZ + chancelLen / 2]], h: chancelH, name: 'St. James Cathedral Chancel' });
+      addSolid({ type: 'poly', pts: [[synodX - synodW / 2, synodZ - synodLen / 2], [synodX + synodW / 2, synodZ - synodLen / 2], [synodX + synodW / 2, synodZ + synodLen / 2], [synodX - synodW / 2, synodZ + synodLen / 2]], h: synodH, name: 'St. James Synod House' });
 
       // 4. Stained Glass Windows along Nave & Flying Buttresses
       for (let bi = 0; bi < 6; bi++) {
@@ -12420,12 +12668,125 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       ctx.restore();
     }
 
-    // Player start: at the CN Tower Plaza inside the Peace Sanctuary
-    const towerX = LM.cnTower[0];
-    const towerZ = LM.cnTower[1];
-    const start = findOpenSpot(towerX + 22, towerZ - 18, 0, 10, 2.0);
-    const toTower = [towerX - start.x, towerZ - start.z];
-    const startYaw = Math.atan2(toTower[0], toTower[1]) + 0.35; // Face outward towards Ripley's Aquarium, Roundhouse Park & the city
+    // Curated starting locations across Toronto's landmarks, parks, and waterfront areas
+    const spawnLocations = [
+      {
+        id: 'cnTower',
+        name: 'CN Tower Plaza & Peace Sanctuary',
+        desc: 'Ripley’s Aquarium, Roundhouse Park & 553m CN Tower Base',
+        pos: { x: -264.5, y: 1.7, z: 141.4 },
+        yaw: 1.4
+      },
+      {
+        id: 'berczyPark',
+        name: 'Berczy Park & Dog Fountain',
+        desc: 'Scott & Wellington Plaza with 27-dog cast bronze fountain & golden bone',
+        pos: { x: 635.0, y: 1.7, z: -428.0 },
+        yaw: Math.PI / 2
+      },
+      {
+        id: 'gooderham',
+        name: 'Gooderham Flatiron & Mural',
+        desc: 'Historic 1892 red brick wedge & Derek Besant trompe-l’œil mural',
+        pos: { x: 712.0, y: 1.7, z: -482.0 },
+        yaw: -1.8
+      },
+      {
+        id: 'stJamesPark',
+        name: 'St. James Park & Victorian Gazebo',
+        desc: 'Victorian bandstand gazebo, formal rose gardens & gravel paths',
+        pos: { x: 835.0, y: 1.7, z: -718.0 },
+        yaw: -0.6
+      },
+      {
+        id: 'stJamesCathedral',
+        name: 'The Cathedral Church of St. James',
+        desc: '82m Gothic Revival bell tower & spire, clock faces & triple portal',
+        pos: { x: 752.0, y: 1.7, z: -665.0 },
+        yaw: Math.PI
+      },
+      {
+        id: 'waterfrontBoardwalk',
+        name: 'Harbourfront Waterfront Boardwalk',
+        desc: 'Lake Ontario cedar promenade, York Quay & Natrel Pond',
+        pos: { x: 42.0, y: 1.7, z: 508.0 },
+        yaw: 0.2
+      },
+      {
+        id: 'harbourSquare',
+        name: 'Harbour Square Park & Sundial Plaza',
+        desc: 'Waterfront promenade, weeping willows & bronze gnomon sundial',
+        pos: { x: 472.0, y: 1.7, z: 506.0 },
+        yaw: 0.0
+      },
+      {
+        id: 'davidPecaut',
+        name: 'David Pecaut Square & Great Lawn',
+        desc: 'Civic park between Metro Hall & Roy Thomson Hall, reflecting pool',
+        pos: { x: -308.0, y: 1.7, z: -260.0 },
+        yaw: -Math.PI / 2
+      },
+      {
+        id: 'clarenceSquare',
+        name: 'Clarence Square Historic Park',
+        desc: '1834 Victorian park, circular stone plaza & towering canopy trees',
+        pos: { x: -805.0, y: 1.7, z: -7.0 },
+        yaw: Math.PI
+      },
+      {
+        id: 'unionStation',
+        name: 'Union Station Grand Colonnade',
+        desc: 'Front Street 22-column Queenston limestone colonnade & Great Hall',
+        pos: { x: 262.0, y: 1.7, z: -182.0 },
+        yaw: 0.0
+      },
+      {
+        id: 'royalYork',
+        name: 'Fairmont Royal York Hotel',
+        desc: 'Grand Railway Chateau facade, clock tower & Front St entrance',
+        pos: { x: 180.0, y: 1.7, z: -180.0 },
+        yaw: Math.PI
+      },
+      {
+        id: 'hhof',
+        name: 'Hockey Hall of Fame',
+        desc: '1885 Bank of Montreal classical landmark temple & Stanley Cup home',
+        pos: { x: 490.0, y: 1.7, z: -315.0 },
+        yaw: 2.3
+      },
+      {
+        id: 'googleKing',
+        name: 'Google Toronto (65 King Street East)',
+        desc: 'Modern stepped bronze office tower & illuminated Google street lobby',
+        pos: { x: 664.5, y: 1.7, z: -562.0 },
+        yaw: Math.PI
+      }
+    ];
+
+    function getRandomSpawn() {
+      const idx = Math.floor(Math.random() * spawnLocations.length);
+      const chosen = spawnLocations[idx];
+      return {
+        ...chosen,
+        x: chosen.pos.x,
+        y: chosen.pos.y,
+        z: chosen.pos.z,
+        index: idx
+      };
+    }
+
+    // Varied random starting spawn for exploration
+    const initialSpawn = getRandomSpawn();
+    const start = {
+      x: initialSpawn.x,
+      y: initialSpawn.y,
+      z: initialSpawn.z,
+      id: initialSpawn.id,
+      name: initialSpawn.name,
+      desc: initialSpawn.desc,
+      index: initialSpawn.index
+    };
+    const startYaw = initialSpawn.yaw;
 
     function isInsidePeaceZone(x, z, y) {
       if (y !== undefined && y > 50) return false; // Sky Showdown combat zone on CN Tower observation deck!
@@ -12444,6 +12805,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       drawMinimap,
       start,
       startYaw,
+      spawnLocations,
+      getRandomSpawn,
       bounds: PLAY,
       landmarks: LM,
       attribution: MAP.attribution,
@@ -16992,12 +17355,16 @@ const player = {
   jumpStrength: 9.0
 };
 
-// Spawn player on Front St facing CN Tower if Toronto City is loaded
+// Curated Toronto landmark tour index & initial player spawn
+let currentTourIndex = 0;
 if (city && city.start) {
   player.pos.set(city.start.x, 1.7, city.start.z);
   player.yaw = city.startYaw;
   camera.rotation.order = 'YXZ';
   camera.rotation.y = city.startYaw;
+  if (city.spawnLocations && city.start.index !== undefined) {
+    currentTourIndex = city.start.index;
+  }
 }
 
 // Colliders array (for fallback or supplemental obstacles)
@@ -20027,6 +20394,22 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  // Landmark Tour / Fast Travel Hotkey: [T] cycles through all 13 Toronto landmarks & parks
+  if (e.code === 'KeyT') {
+    e.preventDefault();
+    if (city && city.spawnLocations && city.spawnLocations.length > 0) {
+      currentTourIndex = (currentTourIndex + 1) % city.spawnLocations.length;
+      const sp = city.spawnLocations[currentTourIndex];
+      player.pos.set(sp.pos.x, 1.7, sp.pos.z);
+      player.yaw = sp.yaw;
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = sp.yaw;
+      player.vel.set(0, 0, 0);
+      showAnnouncement(`🏛️ TOUR [${currentTourIndex + 1}/${city.spawnLocations.length}]: ${sp.name.toUpperCase()}\n${sp.desc}`, 3800);
+    }
+    return;
+  }
+
   // Quick box smash if standing right near the mission container
   if ((e.code === 'KeyF' || e.code === 'KeyE') && missionState.active && missionState.state === 'active' && missionState.boxObj) {
     const dBox = Math.hypot(missionState.pos.x - player.pos.x, missionState.pos.z - player.pos.z);
@@ -20135,6 +20518,14 @@ function resumeGame(usePointerLock = true) {
   state.inGame = true;
   state.freeMouseMode = !usePointerLock;
   document.getElementById('menu-overlay').classList.add('hidden');
+
+  if (!state.hasShownSpawnIntro && city && city.spawnLocations) {
+    state.hasShownSpawnIntro = true;
+    const currentLoc = city.spawnLocations[currentTourIndex] || city.start;
+    if (currentLoc) {
+      showAnnouncement(`📍 EXPLORING TORONTO: ${currentLoc.name.toUpperCase()}\nPRESS [T] ANYTIME TO TOUR NEXT LANDMARK`, 4200);
+    }
+  }
 
   if (usePointerLock) {
     container.requestPointerLock();
@@ -21304,11 +21695,14 @@ function triggerSlamFlash() {
   setTimeout(() => f.style.opacity = '0', 180);
 }
 
-function showAnnouncement(text) {
+let announcementTimer = null;
+function showAnnouncement(text, duration = 2400) {
   const ann = document.getElementById('announcement');
+  if (!ann) return;
   ann.innerText = text;
   ann.classList.add('show');
-  setTimeout(() => ann.classList.remove('show'), 2200);
+  if (announcementTimer) clearTimeout(announcementTimer);
+  announcementTimer = setTimeout(() => ann.classList.remove('show'), duration);
 }
 
 // Peace Sanctuary Banner Controller
@@ -22536,7 +22930,15 @@ function resetGame() {
     const bOverlay = document.getElementById('berserk-overlay');
     if (bOverlay) bOverlay.style.opacity = '0';
   }
-  if (city && city.start) {
+  if (city && city.getRandomSpawn) {
+    const nextSpawn = city.getRandomSpawn();
+    player.pos.set(nextSpawn.x, 1.7, nextSpawn.z);
+    player.yaw = nextSpawn.yaw;
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = nextSpawn.yaw;
+    currentTourIndex = nextSpawn.index !== undefined ? nextSpawn.index : currentTourIndex;
+    showAnnouncement(`📍 SPAWNED: ${nextSpawn.name.toUpperCase()}\n${nextSpawn.desc}`, 3600);
+  } else if (city && city.start) {
     player.pos.set(city.start.x, 1.7, city.start.z);
     player.yaw = city.startYaw;
     camera.rotation.order = 'YXZ';

@@ -1104,12 +1104,16 @@ const player = {
   jumpStrength: 9.0
 };
 
-// Spawn player on Front St facing CN Tower if Toronto City is loaded
+// Curated Toronto landmark tour index & initial player spawn
+let currentTourIndex = 0;
 if (city && city.start) {
   player.pos.set(city.start.x, 1.7, city.start.z);
   player.yaw = city.startYaw;
   camera.rotation.order = 'YXZ';
   camera.rotation.y = city.startYaw;
+  if (city.spawnLocations && city.start.index !== undefined) {
+    currentTourIndex = city.start.index;
+  }
 }
 
 // Colliders array (for fallback or supplemental obstacles)
@@ -4139,6 +4143,22 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  // Landmark Tour / Fast Travel Hotkey: [T] cycles through all 13 Toronto landmarks & parks
+  if (e.code === 'KeyT') {
+    e.preventDefault();
+    if (city && city.spawnLocations && city.spawnLocations.length > 0) {
+      currentTourIndex = (currentTourIndex + 1) % city.spawnLocations.length;
+      const sp = city.spawnLocations[currentTourIndex];
+      player.pos.set(sp.pos.x, 1.7, sp.pos.z);
+      player.yaw = sp.yaw;
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = sp.yaw;
+      player.vel.set(0, 0, 0);
+      showAnnouncement(`🏛️ TOUR [${currentTourIndex + 1}/${city.spawnLocations.length}]: ${sp.name.toUpperCase()}\n${sp.desc}`, 3800);
+    }
+    return;
+  }
+
   // Quick box smash if standing right near the mission container
   if ((e.code === 'KeyF' || e.code === 'KeyE') && missionState.active && missionState.state === 'active' && missionState.boxObj) {
     const dBox = Math.hypot(missionState.pos.x - player.pos.x, missionState.pos.z - player.pos.z);
@@ -4247,6 +4267,14 @@ function resumeGame(usePointerLock = true) {
   state.inGame = true;
   state.freeMouseMode = !usePointerLock;
   document.getElementById('menu-overlay').classList.add('hidden');
+
+  if (!state.hasShownSpawnIntro && city && city.spawnLocations) {
+    state.hasShownSpawnIntro = true;
+    const currentLoc = city.spawnLocations[currentTourIndex] || city.start;
+    if (currentLoc) {
+      showAnnouncement(`📍 EXPLORING TORONTO: ${currentLoc.name.toUpperCase()}\nPRESS [T] ANYTIME TO TOUR NEXT LANDMARK`, 4200);
+    }
+  }
 
   if (usePointerLock) {
     container.requestPointerLock();
@@ -5416,11 +5444,14 @@ function triggerSlamFlash() {
   setTimeout(() => f.style.opacity = '0', 180);
 }
 
-function showAnnouncement(text) {
+let announcementTimer = null;
+function showAnnouncement(text, duration = 2400) {
   const ann = document.getElementById('announcement');
+  if (!ann) return;
   ann.innerText = text;
   ann.classList.add('show');
-  setTimeout(() => ann.classList.remove('show'), 2200);
+  if (announcementTimer) clearTimeout(announcementTimer);
+  announcementTimer = setTimeout(() => ann.classList.remove('show'), duration);
 }
 
 // Peace Sanctuary Banner Controller
@@ -6648,7 +6679,15 @@ function resetGame() {
     const bOverlay = document.getElementById('berserk-overlay');
     if (bOverlay) bOverlay.style.opacity = '0';
   }
-  if (city && city.start) {
+  if (city && city.getRandomSpawn) {
+    const nextSpawn = city.getRandomSpawn();
+    player.pos.set(nextSpawn.x, 1.7, nextSpawn.z);
+    player.yaw = nextSpawn.yaw;
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = nextSpawn.yaw;
+    currentTourIndex = nextSpawn.index !== undefined ? nextSpawn.index : currentTourIndex;
+    showAnnouncement(`📍 SPAWNED: ${nextSpawn.name.toUpperCase()}\n${nextSpawn.desc}`, 3600);
+  } else if (city && city.start) {
     player.pos.set(city.start.x, 1.7, city.start.z);
     player.yaw = city.startYaw;
     camera.rotation.order = 'YXZ';
