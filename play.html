@@ -3259,7 +3259,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
   function makeLabelTexture(lines, opts) {
     opts = opts || {};
     const c = document.createElement('canvas');
-    c.width = opts.w || 512; c.height = opts.h || 128;
+    c.width = opts.w || (lines.length > 1 ? 1024 : 512);
+    c.height = opts.h || (lines.length > 1 ? 256 : 128);
     const ctx = c.getContext('2d');
     ctx.fillStyle = opts.bg || '#123a7a';
     ctx.fillRect(0, 0, c.width, c.height);
@@ -3268,17 +3269,37 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       ctx.lineWidth = 6;
       ctx.strokeRect(6, 6, c.width - 12, c.height - 12);
     }
-    ctx.fillStyle = opts.fg || '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     if (lines.length === 1) {
-      ctx.font = `bold ${opts.size || 64}px "Chakra Petch", Arial, sans-serif`;
+      let s = opts.size || (c.height > 160 ? 84 : 64);
+      ctx.font = `bold ${s}px "Chakra Petch", Arial, sans-serif`;
+      while (ctx.measureText(lines[0]).width > c.width - 36 && s > 18) {
+        s -= 2;
+        ctx.font = `bold ${s}px "Chakra Petch", Arial, sans-serif`;
+      }
+      ctx.fillStyle = opts.fg || '#ffffff';
       ctx.fillText(lines[0], c.width / 2, c.height / 2 + 4);
     } else {
-      ctx.font = `bold ${Math.round((opts.size || 64) * 0.4)}px Arial, sans-serif`;
-      ctx.fillText(lines[0], c.width / 2, c.height * 0.27);
-      ctx.font = `bold ${opts.size || 64}px "Chakra Petch", Arial, sans-serif`;
-      ctx.fillText(lines[1], c.width / 2, c.height * 0.65);
+      // Line 0 is the PRIMARY / MAIN NAME: Large, bold, and prominent
+      let mainSize = opts.size || (c.height > 180 ? 88 : 64);
+      ctx.font = `bold ${mainSize}px "Chakra Petch", Arial, sans-serif`;
+      while (ctx.measureText(lines[0]).width > c.width - 48 && mainSize > 24) {
+        mainSize -= 2;
+        ctx.font = `bold ${mainSize}px "Chakra Petch", Arial, sans-serif`;
+      }
+      ctx.fillStyle = opts.fg || '#ffffff';
+      ctx.fillText(lines[0], c.width / 2, c.height * 0.38);
+
+      // Line 1 is the SUBTITLE / SECONDARY INFO: Subordinate, clean, and smaller
+      let subSize = Math.max(14, Math.min(Math.round(mainSize * 0.44), 36));
+      ctx.font = `bold ${subSize}px "Chakra Petch", Arial, sans-serif`;
+      while (ctx.measureText(lines[1]).width > c.width - 48 && subSize > 12) {
+        subSize -= 1;
+        ctx.font = `bold ${subSize}px "Chakra Petch", Arial, sans-serif`;
+      }
+      ctx.fillStyle = opts.subFg || opts.fg || '#ffffff';
+      ctx.fillText(lines[1], c.width / 2, c.height * 0.74);
     }
     const t = new THREE.CanvasTexture(c);
     t.anisotropy = 4;
@@ -5494,9 +5515,9 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       const BRAND_SPEC = {
         shoppers: { lines: ['SHOPPERS DRUG MART', 'PHARMACY • OPEN LATE'], bg: '#dc2626', fg: '#ffffff', border: '#fecaca', fascia: 0xb91c1c, cross: 0xef4444 },
         tims:     { lines: ['TIM HORTONS', 'ALWAYS FRESH • COFFEE & BAKE SHOP'], bg: '#991b1b', fg: '#fef08a', border: '#f87171', fascia: 0x7f1d1d, cross: 0 },
-        lcbo:     { lines: ['LCBO • LIQUOR & WINE', 'SPIRITS • VINTAGES • CRAFT BEER'], bg: '#14532d', fg: '#fde047', border: '#4ade80', fascia: 0x064e3b, cross: 0 },
+        lcbo:     { lines: ['LCBO', 'LIQUOR • WINE • CRAFT BEER'], bg: '#14532d', fg: '#fde047', border: '#4ade80', fascia: 0x064e3b, cross: 0 },
         mcdonalds:{ lines: ["McDONALD'S", 'Golden Arches • Open 24 Hours'], bg: '#b91c1c', fg: '#facc15', border: '#fde047', fascia: 0x991b1b, arch: true },
-        pizzapizza:{ lines: ['PIZZA PIZZA • HOT SLICES', '416-967-1111'], bg: '#ea580c', fg: '#ffffff', border: '#fed7aa', fascia: 0xc2410c, cross: 0 },
+        pizzapizza:{ lines: ['PIZZA PIZZA', 'HOT FRESH SLICES • 416-967-1111'], bg: '#ea580c', fg: '#ffffff', border: '#fed7aa', fascia: 0xc2410c, cross: 0 },
         rabba:    { lines: ['RABBA FINE FOODS', '24 HOUR NEIGHBOURHOOD MARKET'], bg: '#15803d', fg: '#ffffff', border: '#86efac', fascia: 0x166534, cross: 0 }
       };
       const pharmaCrossRed = new THREE.MeshBasicMaterial({ color: 0xef4444, toneMapped: false });
@@ -5590,13 +5611,13 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       // 1. Signature Marquees on Real Cultural, Theatre & Market Landmarks
       const NAMED_SIGNS = [
         { match: /^Royal Alexandra Theatre$/, lines: ['ROYAL ALEXANDRA THEATRE', 'KING WEST • EST. 1907'], bg: '#7f1d1d', fg: '#fde047', border: '#f59e0b', w: 18, h: 2.8, y: 6.2 },
-        { match: /^Princess of Wales Theatre$/, lines: ['PRINCESS OF WALES THEATRE'], bg: '#2d0b1a', fg: '#fef08a', border: '#d97706', w: 20, h: 2.8, y: 6.2 },
-        { match: /^Bell Lightbox$/, lines: ['TIFF BELL LIGHTBOX'], bg: '#9a3412', fg: '#ffffff', border: '#fb923c', w: 18, h: 2.6, y: 6.5 },
-        { match: /^Canadian Broadcasting Centre$/, lines: ['CBC • RADIO-CANADA', 'BROADCASTING CENTRE'], bg: '#991b1b', fg: '#ffffff', border: '#ef4444', w: 22, h: 3.2, y: 7.5 },
-        { match: /^St\. Lawrence Hall$/, lines: ['ST. LAWRENCE HALL • 1850'], bg: '#064e3b', fg: '#fde68a', border: '#d97706', w: 16, h: 2.4, y: 6.2 },
-        { match: /^The Omni King Edward Hotel$/, lines: ['THE OMNI KING EDWARD HOTEL'], bg: '#450a0a', fg: '#fde68a', border: '#d97706', w: 20, h: 2.6, y: 6.8 },
+        { match: /^Princess of Wales Theatre$/, lines: ['PRINCESS OF WALES THEATRE', 'MIRVISH THEATRE • KING WEST'], bg: '#2d0b1a', fg: '#fef08a', border: '#d97706', w: 20, h: 2.8, y: 6.2 },
+        { match: /^Bell Lightbox$/, lines: ['TIFF BELL LIGHTBOX', 'TORONTO INTL FILM FESTIVAL'], bg: '#9a3412', fg: '#ffffff', border: '#fb923c', w: 18, h: 2.6, y: 6.5 },
+        { match: /^Canadian Broadcasting Centre$/, lines: ['CBC • RADIO-CANADA', 'CANADIAN BROADCASTING CENTRE'], bg: '#991b1b', fg: '#ffffff', border: '#ef4444', w: 22, h: 3.2, y: 7.5 },
+        { match: /^St\. Lawrence Hall$/, lines: ['ST. LAWRENCE HALL', 'HISTORIC LANDMARK • EST. 1850'], bg: '#064e3b', fg: '#fde68a', border: '#d97706', w: 16, h: 2.4, y: 6.2 },
+        { match: /^The Omni King Edward Hotel$/, lines: ['THE OMNI KING EDWARD HOTEL', 'HISTORIC GRAND HOTEL • EST. 1903'], bg: '#450a0a', fg: '#fde68a', border: '#d97706', w: 20, h: 2.6, y: 6.8 },
         { match: /^North St\. Lawrence Market|^St\. Lawrence North Market/, lines: ['ST. LAWRENCE NORTH MARKET', 'FARMERS MARKET & ARTISANS'], bg: '#7c2d12', fg: '#fef08a', border: '#22c55e', w: 20, h: 2.8, y: 5.8 },
-        { match: /^Gooderham Building$/, lines: ['GOODERHAM FLATIRON • 1892'], bg: '#450a0a', fg: '#fde68a', border: '#b45309', w: 13, h: 1.9, y: 5.4 },
+        { match: /^Gooderham Building$/, lines: ['GOODERHAM FLATIRON', 'HISTORIC LANDMARK • EST. 1892'], bg: '#450a0a', fg: '#fde68a', border: '#b45309', w: 13, h: 1.9, y: 5.4 },
         { match: /^Queen's Quay Terminal$/, lines: ["QUEEN'S QUAY TERMINAL", 'HARBOURFRONT MARKET & SHOPS'], bg: '#0f766e', fg: '#fef08a', border: '#2dd4bf', w: 22, h: 3.0, y: 7.0 }
       ];
       const KIND_SIGN_THEME = {
@@ -6991,7 +7012,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     }
     function signMesh(text, w, h, colors) {
       const backMat = signMesh._backMat || (signMesh._backMat = new THREE.MeshStandardMaterial({ color: 0x141820, roughness: 0.7, metalness: 0.4 }));
-      const tex = makeLabelTexture(Array.isArray(text) ? text : [text], Object.assign({ size: 70, w: 1024, h: Array.isArray(text) ? 170 : 140 }, colors));
+      const isMulti = Array.isArray(text) && text.length > 1;
+      const tex = makeLabelTexture(Array.isArray(text) ? text : [text], Object.assign({ size: 70, w: 1024, h: isMulti ? 256 : 140 }, colors));
       const frontMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
       return new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.16), [backMat, backMat, backMat, backMat, frontMat, backMat]);
     }
@@ -10235,7 +10257,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 5.5, 8), hullRed);
         tower.position.set(0, 5.8, -3);
         fbg.add(tower);
-        const fbSign = signMesh(['TORONTO FIREBOAT 334', 'WILLIAM LYON MACKENZIE'], 7.5, 0.9, { bg: '#991b1b', fg: '#fef08a', borderColor: '#ef4444', size: 54 });
+        const fbSign = signMesh(['WM. LYON MACKENZIE', 'TORONTO FIRE RESCUE • BOAT 334'], 7.5, 0.9, { bg: '#991b1b', fg: '#fef08a', borderColor: '#ef4444', size: 54 });
         fbSign.position.set(0, 4.8, 2);
         fbg.add(fbSign);
         fbg.position.set(-295, WATER_Y, 632);
