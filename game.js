@@ -1042,17 +1042,17 @@ function buildNightCityEnvMap(renderer) {
   const g = c.getContext('2d');
   const grad = g.createLinearGradient(0, 0, 0, 256);
   grad.addColorStop(0.0, '#05070f');
-  grad.addColorStop(0.42, '#1a1f3a');
-  grad.addColorStop(0.5, '#6b4a5c');   // sodium/neon glow on the horizon
-  grad.addColorStop(0.56, '#20202a');
-  grad.addColorStop(1.0, '#0c0c10');  // wet asphalt below
+  grad.addColorStop(0.42, '#151f33');
+  grad.addColorStop(0.5, '#1e2d42');   // crisp urban night glow on the horizon
+  grad.addColorStop(0.56, '#181e28');
+  grad.addColorStop(1.0, '#0a0d14');  // wet asphalt below
   g.fillStyle = grad;
   g.fillRect(0, 0, 8, 256);
   const skyTex = new THREE.CanvasTexture(c);
   envScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide })));
   // Ring of bright "windows / signs" so glossy surfaces pick up specular glints
   const panelGeo = new THREE.PlaneGeometry(5, 9);
-  const cols = [0xffd59a, 0xffb36b, 0x9fd2ff, 0xffffff, 0xff5a7a, 0x63f0ff];
+  const cols = [0xffd59a, 0xffb36b, 0x9fd2ff, 0xffffff, 0x70a0d0, 0x63f0ff];
   for (let i = 0; i < 18; i++) {
     const a = (i / 18) * Math.PI * 2;
     const m = new THREE.Mesh(panelGeo, new THREE.MeshBasicMaterial({ color: cols[i % cols.length] }));

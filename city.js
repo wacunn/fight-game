@@ -94,24 +94,24 @@
     ectx.fillStyle = '#000'; ectx.fillRect(0, 0, SZ, SZ);
 
     const S = {
-      glass: { base: '#1b2b3a', frame: '#33495c', glass: ['#2a4560', '#1a2c40'], lit: ['#cfe6ff', '#ffe9c2', '#b8dcff'], litP: 0.38, full: true, wallRough: 120, metal: 0.4 },
-      office: { base: '#545a63', frame: '#6a707a', glass: ['#26303c', '#141a22'], lit: ['#ffe6b5', '#fff5dc', '#d7ecff'], litP: 0.32, full: false, wallRough: 215, metal: 0.0 },
-      brick: { base: '#8c3b2b', frame: '#b07258', glass: ['#2a2420', '#120e0c'], lit: ['#ffc77a', '#ffd9a3', '#ffb35c', '#ff9e5e'], litP: 0.45, full: false, wallRough: 235, metal: 0.0 },
+      glass: { base: '#152433', frame: '#2c3e50', glass: ['#253d54', '#152433'], lit: ['#cfe6ff', '#ffe9c2', '#b8dcff'], litP: 0.38, full: true, wallRough: 120, metal: 0.4 },
+      office: { base: '#464c56', frame: '#5a626e', glass: ['#222a35', '#12161c'], lit: ['#ffe6b5', '#fff5dc', '#d7ecff'], litP: 0.32, full: false, wallRough: 215, metal: 0.0 },
+      brick: { base: '#7c2e20', frame: '#98543e', glass: ['#221d19', '#100c0a'], lit: ['#ffc77a', '#ffd9a3', '#ffb35c', '#ff9e5e'], litP: 0.45, full: false, wallRough: 235, metal: 0.0 },
       dark: { base: '#12151b', frame: '#262c36', glass: ['#1c2836', '#0a0e14'], lit: ['#a6dcff', '#ffffff', '#ffd59a'], litP: 0.22, full: true, wallRough: 110, metal: 0.5 },
-      stone: { base: '#9e9078', frame: '#bdaea0', glass: ['#2b261f', '#14110d'], lit: ['#ffd38a', '#ffe6bb', '#fff2d6'], litP: 0.52, full: false, wallRough: 230, metal: 0.0 },
+      stone: { base: '#9c8e76', frame: '#b8a896', glass: ['#26221c', '#12100d'], lit: ['#ffd38a', '#ffe6bb', '#fff2d6'], litP: 0.52, full: false, wallRough: 230, metal: 0.0 },
       concrete: { base: '#6c6864', frame: '#85817c', glass: ['#2a2e33', '#15181b'], lit: ['#eaf2ff', '#fff1d6', '#ffd9a8'], litP: 0.28, full: false, wallRough: 225, metal: 0.0 },
-      // King West converted warehouses: warm red/terracotta brick, big multi-pane windows under segmental brick arches
+      // King West converted warehouses: rich deep red/terracotta brick, big multi-pane windows under segmental brick arches
       warehouse: {
-        base: '#943d28', frame: '#4a3f39', glass: ['#262a2e', '#101214'], lit: ['#ffc77a', '#ffd9a3', '#fff0cf', '#ff9e66'], litP: 0.52, full: false, wallRough: 235, metal: 0.0,
+        base: '#863522', frame: '#423732', glass: ['#22262a', '#0e1012'], lit: ['#ffc77a', '#ffd9a3', '#fff0cf', '#ff9e66'], litP: 0.52, full: false, wallRough: 235, metal: 0.0,
         masonry: true, win: { ox: 8, oy: 15, w: CELL - 16, h: CELL - 23 }, arch: true, panes: [3, 2]
       },
-      // Old Town (St. Lawrence / King St / Front St E) Victorian commercial: rich brick & painted heritage facades, cream stone lintels
+      // Old Town (St. Lawrence / King St / Front St E) Victorian commercial: rich pressed brick, cream stone lintels
       victorian: {
-        base: '#ab5438', frame: '#e6d8bc', glass: ['#2a2420', '#120e0c'], lit: ['#ffc77a', '#ffd9a3', '#ffb35c', '#ffe4b5'], litP: 0.50, full: false, wallRough: 235, metal: 0.0,
+        base: '#883a24', frame: '#dfd2b5', glass: ['#241e1a', '#100c0a'], lit: ['#ffc77a', '#ffd9a3', '#ffb35c', '#ffe4b5'], litP: 0.50, full: false, wallRough: 235, metal: 0.0,
         masonry: true, win: { ox: Math.round(CELL * 0.29), oy: 13, w: Math.round(CELL * 0.42), h: CELL - 21 }, lintel: true, panes: [1, 2]
       },
-      // South Core / CityPlace / waterfront condos: blue-green window wall with white balcony slabs
-      condo: { base: '#2f5664', frame: '#c9d2d8', glass: ['#4c7c8c', '#24414c'], lit: ['#cfe6ff', '#ffe9c2', '#ffd9b0'], litP: 0.42, full: true, wallRough: 110, metal: 0.35, balcony: true }
+      // South Core / CityPlace / waterfront condos: twilight charcoal-blue window wall with clean white balcony slabs
+      condo: { base: '#1a2936', frame: '#98a8b8', glass: ['#2d485e', '#172734'], lit: ['#cfe6ff', '#ffe9c2', '#ffd9b0'], litP: 0.42, full: true, wallRough: 110, metal: 0.35, balcony: true }
     }[style];
 
     ctx.fillStyle = S.base; ctx.fillRect(0, 0, SZ, SZ);
@@ -617,11 +617,11 @@
     const ctx = c.getContext('2d');
     const g = ctx.createLinearGradient(0, 0, 0, 512);
     g.addColorStop(0.0, '#03040a');
-    g.addColorStop(0.35, '#0b0f24');
-    g.addColorStop(0.47, '#2a1d3d');
-    g.addColorStop(0.5, '#5a3448');   // city glow on horizon
-    g.addColorStop(0.53, '#1a1424');
-    g.addColorStop(1.0, '#07070b');
+    g.addColorStop(0.35, '#0a1020');
+    g.addColorStop(0.47, '#142034');
+    g.addColorStop(0.5, '#1e2e44');   // crisp urban night glow on horizon
+    g.addColorStop(0.53, '#101828');
+    g.addColorStop(1.0, '#070910');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 4, 512);
     return new THREE.CanvasTexture(c);
@@ -1121,8 +1121,8 @@
     }
 
     // ---------- Sky, fog, lighting ----------
-    scene.background = new THREE.Color(0x07070b);
-    scene.fog = new THREE.FogExp2(0x1d1828, 0.0021);
+    scene.background = new THREE.Color(0x080c14);
+    scene.fog = new THREE.FogExp2(0x0c1322, 0.0018);
 
     const sky = new THREE.Mesh(
       new THREE.SphereGeometry(2200, 32, 16),
@@ -1143,11 +1143,11 @@
     const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xcfd8ff, size: 2.2, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.8 }));
     scene.add(stars);
 
-    scene.add(new THREE.HemisphereLight(0x5a6a9a, 0x2a2018, 0.5));
-    scene.add(new THREE.AmbientLight(0x3a4050, 0.22));
+    scene.add(new THREE.HemisphereLight(0x7da4d4, 0x181a1c, 0.45));
+    scene.add(new THREE.AmbientLight(0x242d3c, 0.20));
     // Moonlight with real shadows. The shadow frustum follows the player (see update()).
     const MOON_DIR = new THREE.Vector3(-0.45, 0.8, -0.38).normalize();
-    const moon = new THREE.DirectionalLight(0xa9b8e8, 0.75);
+    const moon = new THREE.DirectionalLight(0xbcd0f0, 0.70);
     moon.castShadow = true;
     moon.shadow.mapSize.set(2048, 2048);
     moon.shadow.camera.left = -75; moon.shadow.camera.right = 75;
@@ -1894,7 +1894,7 @@
       const podiumH = hasPodium ? Math.min(16.5, h * 0.42) : 0;
       const fy0 = hasPodium ? podiumH : (shops ? STOREFRONT_H : y0);
       const podGB = hasPodium ? facadeGB[opts.podiumStyle] : null;
-      if (podGB) podGB.color = opts.podiumTint || [1.22, 0.88, 0.72];
+      if (podGB) podGB.color = opts.podiumTint || [1.0, 1.0, 1.0];
       gb.color = tint;
       let u = opts.uOff || 0;
       for (let i = 0; i < pts.length; i++) {
@@ -1930,7 +1930,7 @@
       gb.color = [1, 1, 1];
       if (podGB) {
         podGB.color = [1, 1, 1];
-        const pt = opts.podiumTint || [1.22, 0.88, 0.72];
+        const pt = opts.podiumTint || [1.0, 1.0, 1.0];
         capGB.color = [pt[0] * 0.92, pt[1] * 0.9, pt[2] * 0.88];
         const pBand = offsetPoly(pts, 0.25);
         wallRing(capGB, pBand, podiumH - 0.35, podiumH + 0.15, 1);
@@ -2065,78 +2065,137 @@
     function districtStyle(x, z, h, seed) {
       const r = hash(seed * 3.3), d = districtOf(x, z);
       if (d === 'south') {
-        if (h > 160) return r < 0.6 ? 'glass' : 'dark';         // the few office towers
-        if (h > 35) return r < 0.72 ? 'condo' : 'glass';
-        return pick(['warehouse', 'victorian', 'brick', 'stone', 'concrete'], r);
+        if (h > 160) return r < 0.55 ? 'glass' : (r < 0.85 ? 'dark' : 'condo');
+        if (h > 35) return r < 0.55 ? 'condo' : (r < 0.82 ? 'glass' : 'office');
+        return pick(['warehouse', 'brick', 'concrete', 'stone', 'victorian'], r);
       }
       if (d === 'kingwest') {
         // King West & Entertainment District: rich red-brick warehouses, painted Victorian row buildings & terracotta lofts
-        if (h <= 55) return pick(['warehouse', 'victorian', 'brick', 'warehouse', 'victorian', 'stone'], r);
-        if (h <= 115) return r < 0.45 ? 'warehouse' : (r < 0.78 ? 'condo' : 'brick');
-        return r < 0.6 ? 'condo' : 'glass';
+        if (h <= 55) return pick(['warehouse', 'brick', 'victorian', 'warehouse', 'stone', 'brick', 'office'], r);
+        if (h <= 115) return r < 0.35 ? 'warehouse' : (r < 0.60 ? 'brick' : (r < 0.82 ? 'condo' : 'glass'));
+        return r < 0.55 ? 'condo' : (r < 0.80 ? 'glass' : 'dark');
       }
       if (d === 'financial') {
-        if (h > 105) return r < 0.55 ? 'glass' : (r < 0.82 ? 'dark' : 'stone');
-        if (h > 45) return pick(['stone', 'office', 'brick', 'victorian', 'glass'], r);
-        return pick(['stone', 'victorian', 'brick', 'warehouse', 'stone'], r);  // heritage banks, clubs & King St restaurants
+        if (h > 105) return r < 0.50 ? 'glass' : (r < 0.78 ? 'dark' : 'stone');
+        if (h > 45) return pick(['stone', 'office', 'dark', 'concrete', 'glass'], r);
+        return pick(['stone', 'victorian', 'brick', 'office', 'stone'], r);  // heritage banks, clubs & King St restaurants
       }
       // oldtown: St. Lawrence Market / King St E / Front St E / The Esplanade
-      if (h <= 65) return pick(['victorian', 'brick', 'victorian', 'warehouse', 'stone', 'victorian'], r);
-      if (h <= 110) return pick(['brick', 'victorian', 'warehouse', 'stone', 'condo'], r);
-      return 'condo';
+      if (h <= 65) return pick(['victorian', 'brick', 'brick', 'warehouse', 'stone', 'victorian'], r);
+      if (h <= 110) return pick(['brick', 'warehouse', 'stone', 'condo', 'office'], r);
+      return r < 0.65 ? 'condo' : 'glass';
     }
-    // Rich Toronto architectural color palette so streets feel vibrant instead of greyscale
-    const TORONTO_PALETTE = [
-      [1.38, 0.68, 0.52], // Toronto pressed red brick / warm terracotta
-      [1.35, 1.08, 0.66], // Victorian golden ochre / buff yellow brick
-      [1.42, 0.58, 0.58], // King Street bistro crimson / burgundy masonry
-      [0.76, 1.18, 0.86], // Heritage sage / emerald painted row facade
-      [0.78, 0.96, 1.32], // Old Town cobalt / slate blue painted facade
-      [1.30, 1.20, 0.98], // St. Lawrence warm cream limestone
-      [1.40, 0.82, 0.54], // Distillery / King West amber rust loft
-      [1.24, 0.76, 1.08]  // Victorian berry / plum painted brick
+    // Toronto's real architectural material palette:
+    // Facade textures are already rich (brick is red/terracotta, stone is warm, concrete is grey,
+    // glass is deep blue-black, dark is Mies black steel). Tints below provide authentic diversity
+    // without ever washing buildings into flat pastels or weird pinks.
+    const BRICK_PALETTE = [
+      [1.00, 1.00, 1.00], // classic Toronto red pressed brick (majority)
+      [1.08, 0.92, 0.84], // rich warm russet / terracotta brick
+      [0.65, 0.60, 0.58], // soot-weathered 19th-century railway brick (dark charcoal brown)
+      [1.38, 1.25, 0.75], // Don Valley "Toronto Yellow" buff brick (golden ochre)
+      [0.85, 0.78, 0.72], // weathered brown heritage brick
+      [1.15, 0.85, 0.75], // warm heritage orange-red brick
+      [0.72, 0.52, 0.50], // deep dark plum / oxblood brick
+      [0.55, 0.56, 0.60]  // dark industrial soot brick
     ];
+    const STONE_PALETTE = [
+      [1.16, 1.12, 1.02], // warm Indiana limestone (Royal York, Bank of Nova Scotia)
+      [1.24, 1.10, 0.88], // Berea honey sandstone
+      [1.02, 1.04, 1.06], // light grey Canadian granite (Brookfield Place)
+      [0.72, 0.74, 0.78], // dark charcoal polished granite
+      [0.95, 0.96, 0.98]  // Queenston fossil stone
+    ];
+    const GLASS_PALETTE = [
+      [0.85, 1.08, 1.28], // deep cyan-blue reflective curtain wall
+      [0.78, 1.20, 1.15], // emerald / aquamarine sea glass
+      [0.82, 0.95, 1.32], // twilight sapphire glass
+      [0.68, 0.72, 0.78], // sleek charcoal / smoke tinted glass
+      [1.15, 1.06, 0.82], // warm bronze / champagne tinted glass
+      [0.96, 1.02, 1.12]  // crisp silver-blue window wall
+    ];
+    const CONCRETE_PALETTE = [
+      [0.95, 0.95, 0.95], // standard civic architectural concrete
+      [1.05, 1.02, 0.96], // warm limestone-aggregate concrete
+      [0.82, 0.84, 0.86]  // weathered / dark industrial concrete
+    ];
+
     function buildingColorTint(style, cx, cz, seed) {
       const r = hash(seed * 5.17 + cx * 0.07);
-      if (style === 'victorian' || style === 'brick' || style === 'warehouse') {
-        const pal = TORONTO_PALETTE[Math.floor(r * TORONTO_PALETTE.length) % TORONTO_PALETTE.length];
-        const v = 0.88 + hash(seed * 2.3) * 0.24;
-        return [pal[0] * v, pal[1] * v, pal[2] * v];
+      const v = 0.92 + hash(seed * 2.3) * 0.16; // subtle per-building illumination variation
+      let p;
+      if (style === 'victorian' || style === 'brick') p = BRICK_PALETTE;
+      else if (style === 'warehouse') p = [[1.0, 0.95, 0.9], [0.72, 0.65, 0.6], [1.12, 0.88, 0.72], [0.55, 0.58, 0.62], [1.35, 1.22, 0.75]];
+      else if (style === 'stone') p = STONE_PALETTE;
+      else if (style === 'concrete' || style === 'office') p = CONCRETE_PALETTE;
+      else if (style === 'dark') p = [[0.75, 0.76, 0.80], [0.65, 0.66, 0.70], [0.85, 0.86, 0.90]];
+      else p = GLASS_PALETTE;
+      const t = p[Math.floor(r * p.length) % p.length];
+      return [t[0] * v, t[1] * v, t[2] * v];
+    }
+
+    // Direct, physical mapping of real OpenStreetMap building:colour tags to rich vertex tints
+    function osmColourToTint(colStr, style) {
+      if (!colStr) return null;
+      const lc = colStr.toLowerCase().trim();
+      const KNOWN = {
+        'black': [0.42, 0.44, 0.48],
+        'darkgrey': [0.65, 0.66, 0.70],
+        'darkgray': [0.65, 0.66, 0.70],
+        'grey': [0.92, 0.94, 0.96],
+        'gray': [0.92, 0.94, 0.96],
+        'lightgrey': [1.18, 1.18, 1.20],
+        'lightgray': [1.18, 1.18, 1.20],
+        'white': [1.40, 1.40, 1.42],
+        'silver': [1.25, 1.28, 1.32],
+        'red': [1.15, 0.70, 0.68],
+        'darkred': [0.85, 0.40, 0.38],
+        'maroon': [0.75, 0.35, 0.35],
+        'brown': [0.82, 0.68, 0.58],
+        'beige': [1.25, 1.18, 1.02],
+        'cream': [1.32, 1.28, 1.10],
+        'ivory': [1.35, 1.30, 1.15],
+        'yellow': [1.40, 1.30, 0.75],
+        'gold': [1.80, 1.45, 0.60],
+        'blue': [0.70, 0.95, 1.35],
+        'navy': [0.40, 0.55, 0.95],
+        'green': [0.55, 1.15, 0.75],
+        'turquoise': [0.65, 1.25, 1.20],
+        'teal': [0.60, 1.18, 1.15]
+      };
+      if (KNOWN[lc]) return KNOWN[lc];
+      if (lc[0] === '#' && (lc.length === 7 || lc.length === 4)) {
+        const hex = lc.length === 4 ? '#' + lc[1] + lc[1] + lc[2] + lc[2] + lc[3] + lc[3] : lc;
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+        if (!isNaN(r + g + b)) {
+          const maxC = Math.max(r, g, b, 0.08);
+          const boost = (style === 'dark' || style === 'glass') ? 1.6 : 1.25;
+          return [
+            Math.max(0.35, Math.min(2.2, (r / maxC) * boost * (0.6 + maxC * 0.6))),
+            Math.max(0.35, Math.min(2.2, (g / maxC) * boost * (0.6 + maxC * 0.6))),
+            Math.max(0.35, Math.min(2.2, (b / maxC) * boost * (0.6 + maxC * 0.6)))
+          ];
+        }
       }
-      if (style === 'stone' || style === 'office' || style === 'concrete') {
-        const warmPal = [
-          [1.28, 1.16, 0.94], // warm limestone
-          [1.24, 0.96, 0.80], // sandstone rose
-          [1.18, 1.12, 0.88], // buff cream
-          [0.92, 1.08, 1.18], // slate blue-grey
-          [1.26, 0.84, 0.72]  // warm granite
-        ][Math.floor(r * 5) % 5];
-        const v = 0.86 + hash(seed * 3.1) * 0.24;
-        return [warmPal[0] * v, warmPal[1] * v, warmPal[2] * v];
-      }
-      // Even glass & condo towers get subtle warm gold, teal, emerald, or cobalt reflections
-      const glassPal = [
-        [0.88, 1.08, 1.22], // sky cyan glass
-        [0.82, 1.16, 1.04], // emerald/aquamarine condo glass
-        [1.18, 1.06, 0.88], // warm champagne/bronze glass
-        [0.92, 0.96, 1.25]  // twilight sapphire glass
-      ][Math.floor(r * 4) % 4];
-      return glassPal;
+      return null;
     }
     // Buildings whose real look is distinctive enough to hard-code
     const NAMED_LOOK = [
-      [/^(TD (North|South|West) Tower|Toronto Dominion Bank Tower|TD Terrace)$/, 'dark', [0.8, 0.8, 0.82]],   // Mies' black steel
-      [/^Royal Bank Plaza (North|South) Tower$/, 'glass', [2.3, 1.65, 0.55]],                                      // gold glass
-      [/^First Canadian Place$/, 'stone', [1.45, 1.45, 1.4]],                                                      // white cladding
-      [/^Scotia Plaza$/, 'stone', [1.35, 0.68, 0.58]],                                                            // red granite
-      [/^Canadian Broadcasting Centre$/, 'brick', [1.65, 0.44, 0.42]],                                            // CBC's iconic bright red grid
-      [/^Royal Alexandra Theatre$|^Princess of Wales Theatre$/, 'victorian', [1.38, 1.04, 0.68]],                 // King West Beaux-Arts theatres
-      [/^Bell Lightbox$|^Festival Tower$/, 'victorian', [1.36, 0.86, 0.62]],                                      // TIFF warm terracotta/amber
-      [/^St\. Lawrence Hall$|^The Omni King Edward Hotel$|^1 King West$/, 'victorian', [1.32, 1.18, 0.92]],       // Heritage cream & gold limestone
-      [/^North St\. Lawrence Market|St\. Lawrence North Market/, 'victorian', [1.42, 0.64, 0.48]],                // North Market vibrant terracotta
-      [/^Queen's Quay Terminal$|^Tip Top Tailors$/, 'warehouse', [1.36, 0.82, 0.60]],                             // Waterfront heritage warehouses
-      [/^Bisha Hotel|^Hotel Le Germain|^SoHo Hotel|^Revery Toronto/, 'warehouse', [1.35, 0.66, 0.56]],            // Boutique King West brick hotels
-      [/^Commerce Court North$|^Bank of Nova Scotia$|^Royal Bank Building$|^Traders Bank$|^Dominion Public/, 'stone', [1.28, 1.18, 0.96]]
+      [/^(TD (North|South|West) Tower|Toronto Dominion Bank Tower|TD Terrace)$/, 'dark', [0.72, 0.74, 0.78]],   // Mies' stark black steel
+      [/^Royal Bank Plaza (North|South) Tower$/, 'glass', [2.25, 1.68, 0.58]],                                    // iconic 24k gold glass
+      [/^First Canadian Place$/, 'stone', [1.52, 1.54, 1.58]],                                                    // brilliant white cladding
+      [/^Scotia Plaza$/, 'stone', [1.40, 0.45, 0.40]],                                                            // iconic polished red granite
+      [/^Canadian Broadcasting Centre$/, 'brick', [1.55, 0.35, 0.35]],                                            // CBC's iconic bright red grid
+      [/^Royal Alexandra Theatre$|^Princess of Wales Theatre$/, 'stone', [1.18, 1.12, 1.02]],                     // King West Beaux-Arts theatres
+      [/^Bell Lightbox$|^Festival Tower$/, 'concrete', [1.12, 1.14, 1.18]],                                       // TIFF festival tower
+      [/^St\. Lawrence Hall$|^The Omni King Edward Hotel$|^1 King West$/, 'stone', [1.22, 1.16, 1.04]],           // Heritage cream limestone
+      [/^North St\. Lawrence Market|St\. Lawrence North Market/, 'victorian', [1.02, 0.95, 0.92]],                // North Market terracotta & glass
+      [/^Queen's Quay Terminal$|^Tip Top Tailors$/, 'concrete', [1.35, 1.35, 1.32]],                             // Waterfront heritage concrete/deco
+      [/^Bisha Hotel|^Hotel Le Germain|^SoHo Hotel|^Revery Toronto/, 'warehouse', [0.82, 0.72, 0.68]],            // Boutique King West brick hotels
+      [/^Commerce Court North$|^Bank of Nova Scotia$|^Royal Bank Building$|^Traders Bank$|^Dominion Public/, 'stone', [1.22, 1.16, 1.02]],
+      [/^CIBC Square/, 'glass', [0.68, 1.25, 1.22]]
     ];
     MAP.buildings.forEach((b, bi) => {
       let pts = toPairs(b.p);
@@ -2233,41 +2292,15 @@
 
       h = Math.max(4, Math.min(h, 320));
 
-      // Convert real OpenStreetMap building:colour tag (b.c) into a vertex-color tint multiplier
-      function osmColourToTint(colStr) {
-        if (!colStr) return null;
-        const NAMED_COLS = {
-          red: [1.38, 0.62, 0.48], maroon: [1.22, 0.48, 0.44], brown: [1.18, 0.82, 0.62],
-          beige: [1.22, 1.14, 0.96], ivory: [1.26, 1.22, 1.08], white: [1.25, 1.25, 1.28],
-          black: [0.42, 0.45, 0.50], grey: [0.92, 0.95, 0.98], gray: [0.92, 0.95, 0.98],
-          orange: [1.38, 0.85, 0.48]
-        };
-        const lc = colStr.toLowerCase().trim();
-        if (NAMED_COLS[lc]) return NAMED_COLS[lc];
-        if (lc[0] === '#' && (lc.length === 7 || lc.length === 4)) {
-          const hex = lc.length === 4
-            ? '#' + lc[1] + lc[1] + lc[2] + lc[2] + lc[3] + lc[3]
-            : lc;
-          const r = parseInt(hex.slice(1, 3), 16) / 255;
-          const g = parseInt(hex.slice(3, 5), 16) / 255;
-          const bVal = parseInt(hex.slice(5, 7), 16) / 255;
-          if (!isNaN(r) && !isNaN(g) && !isNaN(bVal)) {
-            // Normalize into [0.42 .. 1.42] tint multiplier range so facade window detail stays crisp
-            return [0.45 + r * 0.95, 0.45 + g * 0.95, 0.45 + bVal * 0.95];
-          }
-        }
-        return null;
-      }
-
       let style, namedTint = null;
       const look = NAMED_LOOK.find(([re]) => re.test(name));
       if (look) { style = look[1]; namedTint = look[2]; }
       else if (isPowerPlant || isRedpathShed || isRedpathTower || isPumpingStation) {
         style = 'warehouse';
-        namedTint = isRedpathTower ? [1.22, 0.58, 0.44] : [1.36, 0.64, 0.48];
+        namedTint = isRedpathTower ? [0.85, 0.8, 0.78] : [1.0, 1.0, 1.0];
       } else if (isHarbourfrontMain) {
         style = 'victorian';
-        namedTint = [1.28, 0.78, 0.56];
+        namedTint = [1.0, 1.0, 1.0];
       } else if (isWaterclub || isIceCondos || isTenYork || isCanadaHouse) {
         style = 'condo';
         namedTint = [0.82, 1.02, 1.15];
@@ -2289,7 +2322,7 @@
         style = districtStyle(cx, cz, h, bi);
       }
       if (!namedTint && b.c) {
-        namedTint = osmColourToTint(b.c);
+        namedTint = osmColourToTint(b.c, style);
       }
 
       if (name.indexOf('Rogers Centre') === 0) {
@@ -2299,19 +2332,35 @@
 
       if (isGooderham || isMarket) {
         style = 'victorian';
-        namedTint = [1.42, 0.66, 0.50]; // Iconic Toronto red-brick Flatiron & St. Lawrence Market
+        namedTint = [1.0, 1.0, 1.0]; // Iconic Toronto red-brick Flatiron & St. Lawrence Market
       }
       const bTint = namedTint || buildingColorTint(style, cx, cz, bi);
       const dist = districtOf(cx, cz);
-      const wantHeritagePodium = !look && h > 26 && (style === 'glass' || style === 'condo' || style === 'dark') && (dist === 'kingwest' || dist === 'oldtown' || hash(bi * 4.1) < 0.65);
+      const wantHeritagePodium = !look && !b.hp && h > 26 && (style === 'glass' || style === 'condo' || style === 'dark') && (dist === 'kingwest' || dist === 'oldtown') && hash(bi * 4.1) < 0.45;
       const podStyle = wantHeritagePodium ? pick(['victorian', 'warehouse', 'brick', 'stone'], hash(bi * 6.3)) : null;
       const podTint = wantHeritagePodium ? buildingColorTint(podStyle, cx, cz, bi + 19) : null;
+
+      const isStadiumOrSpecial = (name.indexOf('Rogers Centre') === 0 ||
+        name.indexOf('Scotiabank Arena') >= 0 ||
+        name.indexOf('Roundhouse') >= 0 ||
+        name.indexOf('Union Station') >= 0 ||
+        name.indexOf('Roy Thomson') >= 0 ||
+        name.indexOf('Convention Centre') >= 0 ||
+        isPowerPlant || isRedpathShed || isRedpathTower || isPumpingStation ||
+        area > 8000 ||
+        /parking|Green P|Impark|Station|Arena|Stadium|Convention|Roundhouse|Substation|Pumping/i.test(name + ' ' + (b.k || '')));
+      const isHeritageRetailArea = (dist === 'kingwest' || dist === 'oldtown') && h <= 36;
+      const isTaggedRetail = !!(b.k && /shop|retail|commercial|restaurant|cafe|bar|pub|fast_food|bank|supermarket/i.test(b.k));
+      const hasRetailTenant = !!(b.tn || (b.n && /bistro|cafe|restaurant|pub|tavern|grill|brew|tacos|pizza|coffee|bakery|market/i.test(b.n)));
+      const wantShops = !isStadiumOrSpecial && (isTaggedRetail || hasRetailTenant || (isHeritageRetailArea && hash(bi * 3.7) < 0.70));
+
       addBuilding(pts, h, style, 0, {
         tint: bTint,
         podiumStyle: podStyle,
         podiumTint: podTint,
         uOff: hash(bi * 7.7) * TILE_W,
-        shops: true, roof: !(isGooderham || isMarket)
+        shops: wantShops,
+        roof: !(isGooderham || isMarket)
       });
 
       let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -2324,17 +2373,6 @@
 
     // ---------- Real OSM 3D building:parts (podiums, setbacks, twin towers, crowns) ----------
     {
-      const partTint = c => {
-        if (!c) return null;
-        const NC = { red: [1.38, 0.62, 0.48], brown: [1.18, 0.82, 0.62], white: [1.25, 1.25, 1.28], black: [0.42, 0.45, 0.5], grey: [0.92, 0.95, 0.98], gray: [0.92, 0.95, 0.98], lightgrey: [1.1, 1.12, 1.15], silver: [1.15, 1.18, 1.22], navy: [0.5, 0.6, 1.0], beige: [1.22, 1.14, 0.96] };
-        const lc = c.toLowerCase().trim();
-        if (NC[lc]) return NC[lc];
-        if (lc[0] === '#' && lc.length === 7) {
-          const r = parseInt(lc.slice(1, 3), 16) / 255, g = parseInt(lc.slice(3, 5), 16) / 255, b = parseInt(lc.slice(5, 7), 16) / 255;
-          if (!isNaN(r + g + b)) return [0.45 + r * 0.95, 0.45 + g * 0.95, 0.45 + b * 0.95];
-        }
-        return null;
-      };
       let nParts = 0;
       (MAP.parts || []).forEach((pt, pi) => {
         let pts = toPairs(pt.p);
@@ -2353,9 +2391,10 @@
         else if (m === 'metal' || m === 'copper') style = 'dark';
         else if (m === 'glass') style = (pt.c === 'black' || pt.c === '#333333') ? 'dark' : (h > 65 ? 'glass' : 'condo');
         else style = districtStyle(cx, cz, h, pi + 900);
+        const wantPartShops = mh === 0 && pt.h <= 24 && pt.k && /shop|retail|restaurant|cafe|bar|pub/i.test(pt.k);
         addBuilding(pts, h, style, mh, {
-          tint: partTint(pt.c) || buildingColorTint(style, cx, cz, pi + 900),
-          uOff: hash(pi * 3.3) * TILE_W, shops: mh === 0, roof: h - mh > 20
+          tint: osmColourToTint(pt.c, style) || buildingColorTint(style, cx, cz, pi + 900),
+          uOff: hash(pi * 3.3) * TILE_W, shops: wantPartShops, roof: h - mh > 20
         });
         if (mh < 2.5) addSolid({ type: 'poly', pts, h, name: pt.n || 'Building part' });
         if (h > 70 && roofLights.length < 90) roofLights.push(new THREE.Vector3(cx, h + 1.5, cz));
@@ -2386,6 +2425,9 @@
       let nSigns = 0;
       (MAP.pois || []).forEach(p => {
         if (nSigns >= 320 || SKIP.has(p.k)) return;
+        // no high-street signage on the stadium, CN Tower base or rail lands
+        if (rogersPoly && Math.hypot(p.x - rogersPoly.cx, p.z - rogersPoly.cz) < 150) return;
+        if (Math.hypot(p.x - LM.cnTower[0], p.z - LM.cnTower[1]) < 90) return;
         let best = null;
         edges.forEach(([a, c, L]) => {
           if (Math.abs(a[0] - p.x) > 40 || Math.abs(a[1] - p.z) > 40) return;
@@ -2802,6 +2844,9 @@
             if (len < 8) continue;
             const nX = (b[1] - a[1]) / len, nZ = -(b[0] - a[0]) / len;
             const q = segNearest(tx, tz, a, b);
+            if (rogersPoly && Math.hypot(q.x - rogersPoly.cx, q.z - rogersPoly.cz) < 140) continue;
+            if (Math.hypot(q.x - LM.cnTower[0], q.z - LM.cnTower[1]) < 80) continue;
+            if (landmarkFeet.scotiabank && Math.hypot(q.x - 350, q.z - 45) < 90) continue;
             if ((best.x - q.x) * nX + (best.z - q.z) * nZ <= 0) continue;   // must face the street corner
             if (dA && Math.abs(nX * dA[0] + nZ * dA[1]) > 0.45) continue;      // ...and run along the shop's street
             if (!hit || q.d < hit.d) {
@@ -2865,19 +2910,48 @@
       // VIBRANT TORONTO STREET LIFE: KING STREET RESTAURANT ROW, THEATRE
       // DISTRICT MARQUEES & ST. LAWRENCE MARKET / OLD TOWN AWNINGS & PATIOS
       // ========================================================================
-      const AWNING_THEMES = [
-        { title: 'PAI NORTHERN THAI', bg: '#7f1d1d', fg: '#fde047', border: '#ef4444', c1: 0xdc2626, c2: 0xfef2f2, umb: 0xdc2626 },
-        { title: 'GUSTO 101 • TRATTORIA', bg: '#1e3a8a', fg: '#ffffff', border: '#38bdf8', c1: 0x2563eb, c2: 0xf8fafc, umb: 0x2563eb },
-        { title: 'LA CARNITA • TACOS', bg: '#831843', fg: '#f472b6', border: '#ec4899', c1: 0xdb2777, c2: 0xfdf2f8, umb: 0xdb2777 },
-        { title: 'CAROUSEL BAKERY', bg: '#9a3412', fg: '#fef08a', border: '#fb923c', c1: 0xea580c, c2: 0xfffbeb, umb: 0xea580c },
-        { title: "C'EST WHAT BREWPUB", bg: '#064e3b', fg: '#fcd34d', border: '#10b981', c1: 0x059669, c2: 0xfef3c7, umb: 0x059669 },
-        { title: 'BYBLOS • KING WEST', bg: '#134e4a', fg: '#fde68a', border: '#2dd4bf', c1: 0x0d9488, c2: 0xf0fdfa, umb: 0x0d9488 },
-        { title: 'KINKA IZAKAYA', bg: '#450a0a', fg: '#fb7185', border: '#f43f5e', c1: 0xb91c1c, c2: 0xfef08a, umb: 0xb91c1c },
-        { title: 'WILBUR MEXICANA', bg: '#7c2d12', fg: '#38bdf8', border: '#f97316', c1: 0xf97316, c2: 0xfffbeb, umb: 0xf97316 },
-        { title: "BUSTER'S SEA COVE", bg: '#083344', fg: '#67e8f9', border: '#06b6d4', c1: 0x0284c7, c2: 0xf0f9ff, umb: 0x0284c7 },
-        { title: 'OLD TOWN OSTERIA', bg: '#3b0764', fg: '#f5d0fe', border: '#c084fc', c1: 0x7e22ce, c2: 0xfae8ff, umb: 0x7e22ce },
-        { title: 'ST. LAWRENCE ROASTERY', bg: '#451a03', fg: '#fde68a', border: '#f59e0b', c1: 0xd97706, c2: 0xfef3c7, umb: 0xd97706 },
-        { title: 'THE FLATIRON BISTRO', bg: '#14532d', fg: '#fef08a', border: '#4ade80', c1: 0x16a34a, c2: 0xdcfce7, umb: 0x16a34a }
+      // 12 Authentic, sophisticated restaurant canopy colorways
+      const AWNING_STYLES = [
+        { bg: '#450a0a', fg: '#fde047', border: '#b91c1c', c1: 0x991b1b, c2: 0xfef2f2, umb: 0x991b1b }, // Burgundy & Cream
+        { bg: '#172554', fg: '#ffffff', border: '#38bdf8', c1: 0x1d4ed8, c2: 0xf8fafc, umb: 0x1d4ed8 }, // French Navy & White
+        { bg: '#064e3b', fg: '#fef08a', border: '#10b981', c1: 0x047857, c2: 0xfef9c3, umb: 0x047857 }, // Forest Green & Warm Cream
+        { bg: '#451a03', fg: '#fed7aa', border: '#f97316', c1: 0xc2410c, c2: 0xffedd5, umb: 0xc2410c }, // Terracotta & Linen
+        { bg: '#2e1065', fg: '#f5d0fe', border: '#c084fc', c1: 0x6b21a8, c2: 0xfae8ff, umb: 0x6b21a8 }, // Plum & Rose Ivory
+        { bg: '#18181b', fg: '#f4f4f5', border: '#71717a', c1: 0x3f3f46, c2: 0xf4f4f5, umb: 0x3f3f46 }, // Charcoal & Crisp Linen
+        { bg: '#134e4a', fg: '#ccfbf1', border: '#2dd4bf', c1: 0x0f766e, c2: 0xf0fdfa, umb: 0x0f766e }, // Heritage Teal & Pearl
+        { bg: '#78350f', fg: '#fef3c7', border: '#f59e0b', c1: 0xb45309, c2: 0xfef3c7, umb: 0xb45309 }, // Espresso & Golden Amber
+        { bg: '#831843', fg: '#fce7f3', border: '#f472b6', c1: 0xbe185d, c2: 0xfdf2f8, umb: 0xbe185d }, // Wine Red & Butter
+        { bg: '#1e3a8a', fg: '#93c5fd', border: '#60a5fa', c1: 0x2563eb, c2: 0xeff6ff, umb: 0x2563eb }, // Royal Blue & Soft White
+        { bg: '#14532d', fg: '#bbf7d0', border: '#4ade80', c1: 0x15803d, c2: 0xf0fdf4, umb: 0x15803d }, // Hunter Green & Pale Sage
+        { bg: '#365314', fg: '#fef08a', border: '#a3e635', c1: 0x4d7c0f, c2: 0xfefce8, umb: 0x4d7c0f }  // Olive & Warm Buttermilk
+      ];
+
+      // 24 Authentic, diverse Toronto restaurant & bistro names (no repeating single brands)
+      const RESTAURANT_NAMES = [
+        'KING WEST BISTRO',
+        'OLD TOWN OSTERIA',
+        'ST. LAWRENCE ROASTERY',
+        'MARKET STREET TRATTORIA',
+        'THE FLATIRON BISTRO',
+        'ESPLANADE BREWPUB',
+        'WELLINGTON SOCIAL',
+        'TORONTO ESPRESSO BAR',
+        'QUEEN WEST TAQUERIA',
+        'METROPOLITAN BRASSERIE',
+        'JARVIS STREET TAPROOM',
+        'YONGE STREET BAKE SHOP',
+        'THE MARKET CAFE',
+        'OLD TOWN TAVERN',
+        'KING STREET DINER',
+        'CRAFT BEER & BITES',
+        'DISTRICT RESTO-BAR',
+        'YORK STREET BISTRO',
+        'FRONT STREET TAVERN',
+        'CAROUSEL BAKERY & CAFE',
+        'CHURCH STREET BISTRO',
+        'HARBOUR STREET CAFE',
+        'SPADINA NOODLE HOUSE',
+        'JOHN STREET ROASTERS'
       ];
 
       // 1. Signature Marquees on Real Cultural, Theatre & Market Landmarks
@@ -2933,7 +3007,8 @@
       });
 
       // 2. Colorful 3D Striped Restaurant Awnings, Glowing Signs & Patio Umbrellas
-      // along King Street (West & East), Front Street (East & West), Wellington, and around St. Lawrence Market
+      // Confined strictly to authentic Toronto restaurant strips (King West Restaurant Row, St. Lawrence Market / Front St E)
+      // and explicitly tagged restaurants/cafes/pubs. NEVER placed on Rogers Centre, stadiums, arenas, or skyscrapers!
       const vibrantRoadNames = new Set([
         'King Street West', 'King Street East',
         'Front Street East', 'Front Street West',
@@ -2948,7 +3023,7 @@
       });
 
       // Pre-build striped canvas awning materials for each theme
-      const awningMats = AWNING_THEMES.map(th => {
+      const awningMats = AWNING_STYLES.map(th => {
         const [ac, actx] = canvas2(128, 64);
         const hex1 = '#' + th.c1.toString(16).padStart(6, '0');
         const hex2 = '#' + th.c2.toString(16).padStart(6, '0');
@@ -2966,34 +3041,61 @@
       const lanternGlowMat = new THREE.MeshBasicMaterial({ color: 0xffd27d, toneMapped: false });
 
       let awningCount = 0;
-      footprints.forEach((pts, fi) => {
+      MAP.buildings.forEach((b, bi) => {
+        let pts = toPairs(b.p);
+        if (pts.length < 3) return;
+        if (polyArea(pts) < 0) pts = pts.reverse();
         const [bcx, bcz] = centroid(pts);
-        // Focus density on King St W/E, St. Lawrence Market / Old Town, and Front/Wellington
-        for (let i = 0; i < pts.length; i++) {
-          const a = pts[i], b = pts[(i + 1) % pts.length];
-          const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-          if (len < 13 || awningCount > 135) continue;
-          const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2;
-          const nX = (b[1] - a[1]) / len, nZ = -(b[0] - a[0]) / len;
+        const nm = b.n || '';
+        const h = b.h || 15;
 
-          // Check if this building edge faces one of Toronto's restaurant/market streets within 28m
-          let bestRoad = null, bestD = 28;
+        // Strictly exclude Rogers Centre, CN Tower, arenas, stations, convention centres, parking, towers
+        if (rogersPoly && Math.hypot(bcx - rogersPoly.cx, bcz - rogersPoly.cz) < 140) return;
+        if (Math.hypot(bcx - LM.cnTower[0], bcz - LM.cnTower[1]) < 90) return;
+        if (/Rogers Centre|CN Tower|Arena|Stadium|Convention|Roundhouse|Union Station|Roy Thomson|parking|Impark|Green P|Garage/i.test(nm + ' ' + (b.k || ''))) return;
+        if (h > 32) return; // office/condo skyscrapers don't get sloped cafe awnings
+        if (pts.some(([x, z]) => isInsideTrench(x, z) || z > getShorelineZ(x) - 10)) return;
+
+        // Check if this building is in an authentic dining / bistro / market strip or tagged food
+        const isTaggedFood = !!(b.k && /restaurant|cafe|bar|pub|fast_food|bakery|bistro/i.test(b.k));
+        const hasFoodName = !!(nm && /restaurant|cafe|bar|pub|tavern|bistro|grill|brew|tacos|pizza|trattoria|diner|kitchen|bakery|coffee/i.test(nm));
+        const isKingWestDining = bcx > -640 && bcx < -460 && bcz > -330 && bcz < -200 && h <= 28;
+        const isOldTownDining = bcx > 600 && bcx < 980 && bcz > -580 && bcz < -360 && h <= 26;
+
+        if (!isTaggedFood && !hasFoodName && !isKingWestDining && !isOldTownDining) return;
+
+        for (let i = 0; i < pts.length; i++) {
+          const a = pts[i], c = pts[(i + 1) % pts.length];
+          const len = Math.hypot(c[0] - a[0], c[1] - a[1]);
+          if (len < 11 || awningCount > 75) continue;
+          const mx = (a[0] + c[0]) / 2, mz = (a[1] + c[1]) / 2;
+          const nX = (c[1] - a[1]) / len, nZ = -(c[0] - a[0]) / len;
+
+          // Check if this building edge faces one of Toronto's restaurant/market streets within 22m
+          let bestRoad = null, bestD = 22;
           for (let s = 0; s < vibrantSegs.length; s++) {
             const [sa, sb, rName] = vibrantSegs[s];
             const q = segNearest(mx, mz, sa, sb);
-            if (q.d < bestD && (q.x - mx) * nX + (q.z - mz) * nZ > 2.0) {
+            if (q.d < bestD && (q.x - mx) * nX + (q.z - mz) * nZ > 1.5) {
               bestD = q.d;
               bestRoad = rName;
             }
           }
           if (!bestRoad) continue;
-          // Deterministic selection: ~65% of qualifying street-facing facades get 3D restaurant awnings & patios
-          if (hash(fi * 7.3 + i * 13.1) > 0.68) continue;
+          if (hash(bi * 7.3 + i * 13.1) > 0.65) continue;
 
-          const themeIdx = Math.floor(hash(fi * 19.7 + i * 5.3) * AWNING_THEMES.length) % AWNING_THEMES.length;
-          const th = AWNING_THEMES[themeIdx];
-          const awW = Math.min(11.5, len * 0.72);
+          const themeIdx = (bi * 5 + i * 3) % AWNING_STYLES.length;
+          const th = AWNING_STYLES[themeIdx];
+          const awW = Math.min(10.5, len * 0.70);
           const g = new THREE.Group();
+
+          // Title: use building's name if specific, or pick unique authentic name
+          let title = '';
+          if (nm && !/building|house|apartments|condo|centre|tower|plaza|court|garage/i.test(nm)) {
+            title = nm.toUpperCase();
+          } else {
+            title = RESTAURANT_NAMES[(bi * 17 + i * 7) % RESTAURANT_NAMES.length];
+          }
 
           // 1. Sloped 3D Striped Restaurant Awning Canopy
           const slope = new THREE.Mesh(new THREE.BoxGeometry(awW, 0.14, 2.1), awningMats[themeIdx]);
@@ -3006,20 +3108,20 @@
           valance.position.set(0, 3.18, 2.04);
           g.add(valance);
 
-          // Warm under-awning restaurant window glow + lantern bulbs
+          // Warm under-awning restaurant window glow
           const uGlow = new THREE.Mesh(new THREE.BoxGeometry(awW * 0.92, 2.5, 0.10), windowGlow);
           uGlow.position.set(0, 1.65, 0.08);
           g.add(uGlow);
 
           // 2. Colorful 3D Restaurant Fascia Sign above the awning
-          const rSign = signMesh([th.title], Math.min(8.5, awW * 0.85), 0.88, {
-            bg: th.bg, fg: th.fg, borderColor: th.border, size: 72
+          const rSign = signMesh([title], Math.min(8.5, awW * 0.85), 0.88, {
+            bg: th.bg, fg: th.fg, borderColor: th.border, size: 70
           });
           rSign.position.set(0, 4.45, 0.22);
           g.add(rSign);
 
-          // 3. Sidewalk Bistro Patio Umbrellas & String Lanterns on wide frontages (tucked within 1.5m of wall so sidewalk stays clear)
-          if (awW >= 7.5 && hash(fi * 3.1 + i) > 0.35) {
+          // 3. Sidewalk Bistro Patio Umbrellas on wide frontages
+          if (awW >= 7.5 && hash(bi * 3.1 + i) > 0.35) {
             const umbMat = new THREE.MeshStandardMaterial({
               color: th.umb, roughness: 0.5, emissive: th.umb, emissiveIntensity: 0.22, side: THREE.DoubleSide
             });
@@ -3076,7 +3178,7 @@
           const rect = [[-sx / 2, sz / 2], [sx / 2, sz / 2], [sx / 2, -sz / 2], [-sx / 2, -sz / 2]].map(([u, v]) => [jx + u * gca - v * gsa, jz + u * gsa + v * gca]);
           if (polyArea(rect) < 0) rect.reverse();
           const tb = 0.7 + hash(jx * 3.3) * 0.35;
-          addBuilding(rect, h, style, 0, { tint: [tb, tb, tb], uOff: hash(jz) * TILE_W, shops: h > 20 && hash(jx) > 0.5, roof: false });
+          addBuilding(rect, h, style, 0, { tint: [tb, tb, tb], uOff: hash(jz) * TILE_W, shops: false, roof: false });
           addSolid({ type: 'poly', pts: rect, h });
           if (h > 70) roofLights.push(new THREE.Vector3(jx, h + 1.5, jz));
           n++;
@@ -3119,7 +3221,7 @@
 
       // 2. Queen's Quay Terminal (207 Queens Quay W): stepped upper glass atrium terraces (35.4m -> 49m) + SE clock tower
       addBuilding(rotRect(243, 496, 23, 34), 48.5, 'glass', 35.4, { tint: [0.85, 1.12, 1.15], shops: false });
-      addBuilding(rotRect(262, 526, 8.5, 8.5), 57.0, 'brick', 35.4, { tint: [1.30, 0.92, 0.68], shops: false });
+      addBuilding(rotRect(262, 526, 8.5, 8.5), 57.0, 'brick', 35.4, { tint: [1.0, 1.0, 1.0], shops: false });
 
       // 3. Westin Harbour Castle (1 Harbour Square): North rectangular tower (108m) & South cylindrical harbour tower (114m)
       addBuilding(rotRect(618, 314, 21, 13), 108, 'concrete', 14.5, { tint: [1.08, 1.04, 0.96], shops: false });
@@ -3154,7 +3256,7 @@
 
       // 8. Amsterdam Brewhouse on the Water (245 Queens Quay W pier)
       const amstPoly = rotRect(-67, 556, 18, 20, -0.22);
-      addBuilding(amstPoly, 11.5, 'warehouse', 0, { tint: [1.32, 0.62, 0.45], shops: true });
+      addBuilding(amstPoly, 11.5, 'warehouse', 0, { tint: [1.0, 1.0, 1.0], shops: true });
       addSolid({ type: 'poly', pts: amstPoly, h: 11.5, name: 'Amsterdam Brewhouse' });
     }
 
@@ -3215,7 +3317,7 @@
       } else {
         const ring = [];
         for (let i = 0; i < 40; i++) ring.push([cx + Math.cos(-i / 40 * Math.PI * 2) * R, cz + Math.sin(-i / 40 * Math.PI * 2) * R]);
-        addBuilding(ring, 32, 'concrete');
+        addBuilding(ring, 32, 'concrete', 0, { shops: false });
         addSolid({ type: 'poly', pts: ring, bb: [cx - R, cz - R, cx + R, cz + R], h: 32 });
       }
       const dome = new THREE.Mesh(
@@ -3232,6 +3334,57 @@
         rib.rotation.x = Math.PI / 2;
         rib.position.set(cx, 32 + 50 * Math.sqrt(1 - Math.pow(1 - i * 0.22, 2)), cz);
         scene.add(rib);
+      }
+
+      // ---------- Rogers Centre Blue Jays Stadium Gates, Marquees & Canopies ----------
+      if (rogersPoly) {
+        const R_PTS = rogersPoly.pts;
+        const R_CX = rogersPoly.cx, R_CZ = rogersPoly.cz;
+        const jaysNavyMat = new THREE.MeshStandardMaterial({ color: 0x0c2340, roughness: 0.55, metalness: 0.35 });
+        const portalGlowMat = new THREE.MeshBasicMaterial({ color: 0xecf4ff, toneMapped: false });
+
+        // 1. Signature Stadium Marquees
+        // Main Entrance Marquee at Gate 7 (West facing Blue Jays Way & Bremner Blvd)
+        const gate7Mesh = signMesh(['ROGERS CENTRE', 'HOME OF THE TORONTO BLUE JAYS • GATE 7'], 25, 3.4, {
+          bg: '#0c2340', fg: '#ffffff', borderColor: '#59b3e4', size: 66
+        });
+        signOnEdge(R_PTS, [R_CX - 150, R_CZ + 40], gate7Mesh, 7.5, 10);
+
+        // Official Jays Shop Team Store Marquee at Gate 5 (South facing Bremner Blvd)
+        const jaysShopMesh = signMesh(["JAY'S SHOP", 'TORONTO BLUE JAYS OFFICIAL STORE'], 22, 3.0, {
+          bg: '#134a8e', fg: '#ffffff', borderColor: '#59b3e4', size: 62
+        });
+        signOnEdge(R_PTS, [R_CX - 60, R_CZ + 150], jaysShopMesh, 7.0, 10);
+
+        // 2. Perimeter Gate Signs & Architectural Modern Canopies (Navy steel, white/powder-blue signs)
+        const STADIUM_GATES = [
+          { label: 'GATE 1 • TICKETS & ENTRANCE', towards: [R_CX + 60, R_CZ + 150], w: 12 },
+          { label: 'GATE 2 • STADIUM ENTRANCE', towards: [R_CX, R_CZ + 150], w: 11 },
+          { label: 'GATE 5 • JAYS SHOP & ENTRANCE', towards: [R_CX - 120, R_CZ + 100], w: 12 },
+          { label: 'GATE 7 • VIP & CLUB ENTRANCE', towards: [R_CX - 150, R_CZ - 20], w: 12 },
+          { label: 'GATE 9 • STADIUM ENTRANCE', towards: [R_CX - 100, R_CZ - 120], w: 11 },
+          { label: 'GATE 11 • NORTH ENTRANCE', towards: [R_CX, R_CZ - 150], w: 11 },
+          { label: 'GATE 14 • EAST CONCOURSE', towards: [R_CX + 150, R_CZ], w: 12 }
+        ];
+
+        STADIUM_GATES.forEach(gInfo => {
+          const sMesh = signMesh(['ROGERS CENTRE', gInfo.label], gInfo.w, 1.8, {
+            bg: '#0f1f38', fg: '#59b3e4', borderColor: '#ffffff', size: 54
+          });
+          const hit = signOnEdge(R_PTS, gInfo.towards, sMesh, 5.2, 8);
+          if (hit) {
+            // Architectural modern steel entrance canopy above the turnstiles
+            const canopy = new THREE.Mesh(new THREE.BoxGeometry(gInfo.w + 1.2, 0.28, 2.6), jaysNavyMat);
+            canopy.position.set((hit.a[0] + hit.b[0]) / 2 + hit.nx * 1.35, 4.35, (hit.a[1] + hit.b[1]) / 2 + hit.nz * 1.35);
+            canopy.rotation.y = Math.atan2(hit.nx, hit.nz);
+            scene.add(canopy);
+            // Turnstile / entrance portal warm illumination under canopy
+            const portal = new THREE.Mesh(new THREE.BoxGeometry(gInfo.w * 0.88, 3.2, 0.12), portalGlowMat);
+            portal.position.set((hit.a[0] + hit.b[0]) / 2 + hit.nx * 0.12, 1.6, (hit.a[1] + hit.b[1]) / 2 + hit.nz * 0.12);
+            portal.rotation.y = Math.atan2(hit.nx, hit.nz);
+            scene.add(portal);
+          }
+        });
       }
     }
 
