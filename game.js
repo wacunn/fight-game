@@ -4143,22 +4143,6 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
-  // Landmark Tour / Fast Travel Hotkey: [T] cycles through all 13 Toronto landmarks & parks
-  if (e.code === 'KeyT') {
-    e.preventDefault();
-    if (city && city.spawnLocations && city.spawnLocations.length > 0) {
-      currentTourIndex = (currentTourIndex + 1) % city.spawnLocations.length;
-      const sp = city.spawnLocations[currentTourIndex];
-      player.pos.set(sp.pos.x, 1.7, sp.pos.z);
-      player.yaw = sp.yaw;
-      camera.rotation.order = 'YXZ';
-      camera.rotation.y = sp.yaw;
-      player.vel.set(0, 0, 0);
-      showAnnouncement(`🏛️ TOUR [${currentTourIndex + 1}/${city.spawnLocations.length}]: ${sp.name.toUpperCase()}\n${sp.desc}`, 3800);
-    }
-    return;
-  }
-
   // Quick box smash if standing right near the mission container
   if ((e.code === 'KeyF' || e.code === 'KeyE') && missionState.active && missionState.state === 'active' && missionState.boxObj) {
     const dBox = Math.hypot(missionState.pos.x - player.pos.x, missionState.pos.z - player.pos.z);
@@ -4272,7 +4256,7 @@ function resumeGame(usePointerLock = true) {
     state.hasShownSpawnIntro = true;
     const currentLoc = city.spawnLocations[currentTourIndex] || city.start;
     if (currentLoc) {
-      showAnnouncement(`📍 EXPLORING TORONTO: ${currentLoc.name.toUpperCase()}\nPRESS [T] ANYTIME TO TOUR NEXT LANDMARK`, 4200);
+      showAnnouncement(`📍 EXPLORING TORONTO: ${currentLoc.name.toUpperCase()}\n${currentLoc.desc || ''}`, 3600);
     }
   }
 
