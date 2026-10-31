@@ -2,6 +2,21 @@
 // FISTS OF DOOM: TORONTO — DEFENDER OF THE 6IX
 // ============================================================================
 
+// --- HUD ANNOUNCEMENT SYSTEM (Available immediately across all modules) ---
+var announcementTimer = null;
+function showAnnouncement(text, duration = 2400) {
+  const ann = document.getElementById('announcement');
+  if (!ann) return;
+  ann.innerText = text;
+  ann.classList.add('show');
+  if (announcementTimer) clearTimeout(announcementTimer);
+  announcementTimer = setTimeout(() => {
+    const el = document.getElementById('announcement');
+    if (el) el.classList.remove('show');
+  }, duration);
+}
+if (typeof window !== 'undefined') window.showAnnouncement = showAnnouncement;
+
 // --- ENHANCED AUDIO SYNTHESIZER (Industrial Metal Riffs & Visceral FX) ---
 class EnhancedRetroAudio {
   constructor() {
@@ -4250,20 +4265,29 @@ function resumeGame(usePointerLock = true) {
   state.isPaused = false;
   state.inGame = true;
   state.freeMouseMode = !usePointerLock;
-  document.getElementById('menu-overlay').classList.add('hidden');
+  const overlay = document.getElementById('menu-overlay');
+  if (overlay) overlay.classList.add('hidden');
 
-  if (!state.hasShownSpawnIntro && city && city.spawnLocations) {
-    state.hasShownSpawnIntro = true;
-    const currentLoc = city.spawnLocations[currentTourIndex] || city.start;
-    if (currentLoc) {
-      showAnnouncement(`📍 EXPLORING TORONTO: ${currentLoc.name.toUpperCase()}\n${currentLoc.desc || ''}`, 3600);
+  try {
+    if (!state.hasShownSpawnIntro && city && city.spawnLocations) {
+      state.hasShownSpawnIntro = true;
+      const currentLoc = city.spawnLocations[currentTourIndex] || city.start;
+      if (currentLoc) {
+        showAnnouncement(`📍 EXPLORING TORONTO: ${currentLoc.name.toUpperCase()}\n${currentLoc.desc || ''}`, 3600);
+      }
     }
+  } catch (err) {
+    console.warn('Spawn announcement error:', err);
   }
 
-  if (usePointerLock) {
-    container.requestPointerLock();
-  } else {
-    if (document.pointerLockElement) document.exitPointerLock();
+  try {
+    if (usePointerLock && container && container.requestPointerLock) {
+      container.requestPointerLock();
+    } else if (!usePointerLock && document.pointerLockElement && document.exitPointerLock) {
+      document.exitPointerLock();
+    }
+  } catch (err) {
+    console.warn('Pointer lock request error:', err);
   }
 }
 
@@ -5426,16 +5450,6 @@ function triggerSlamFlash() {
   const f = document.getElementById('slam-flash');
   f.style.opacity = '1';
   setTimeout(() => f.style.opacity = '0', 180);
-}
-
-var announcementTimer = null;
-function showAnnouncement(text, duration = 2400) {
-  const ann = document.getElementById('announcement');
-  if (!ann) return;
-  ann.innerText = text;
-  ann.classList.add('show');
-  if (announcementTimer) clearTimeout(announcementTimer);
-  announcementTimer = setTimeout(() => ann.classList.remove('show'), duration);
 }
 
 // Peace Sanctuary Banner Controller
@@ -6640,17 +6654,23 @@ function updateCombatTimers(dt) {
 // ============================================================================
 // START & MODE SELECTORS
 // ============================================================================
-document.getElementById('start-mouse-btn').addEventListener('click', () => {
-  audio.init();
-  if (state.isDead) resetGame();
-  resumeGame(true);
-});
+const startMouseBtn = document.getElementById('start-mouse-btn');
+if (startMouseBtn) {
+  startMouseBtn.addEventListener('click', () => {
+    try { if (audio && audio.init) audio.init(); } catch (e) { console.warn('Audio init error:', e); }
+    if (state.isDead) resetGame();
+    resumeGame(true);
+  });
+}
 
-document.getElementById('start-free-btn').addEventListener('click', () => {
-  audio.init();
-  if (state.isDead) resetGame();
-  resumeGame(false);
-});
+const startFreeBtn = document.getElementById('start-free-btn');
+if (startFreeBtn) {
+  startFreeBtn.addEventListener('click', () => {
+    try { if (audio && audio.init) audio.init(); } catch (e) { console.warn('Audio init error:', e); }
+    if (state.isDead) resetGame();
+    resumeGame(false);
+  });
+}
 
 function resetGame() {
   state.health = 100;

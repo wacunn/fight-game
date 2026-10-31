@@ -19,15 +19,11 @@ def bundle():
     game_js = (BASE_DIR / 'game.js').read_text(encoding='utf-8')
 
     # Replace CSS link
-    css_tag = '<link rel="stylesheet" href="styles.css">'
+    import re
     inline_css = f'<style>\n{styles_css}\n</style>'
-    if css_tag in index_html:
-        out = index_html.replace(css_tag, inline_css)
-    else:
-        raise RuntimeError(f"Could not find {css_tag} in index.html")
+    out = re.sub(r'<link rel="stylesheet" href="styles\.css[^"]*">', lambda m: inline_css, index_html)
 
     # Replace JS script tags
-    import re
     grid_file = BASE_DIR / 'ai_grid.js'
     grid_js = grid_file.read_text(encoding='utf-8') if grid_file.exists() else ''
     def sub_literal(pat, repl, s):
