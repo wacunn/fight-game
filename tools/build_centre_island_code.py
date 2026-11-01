@@ -790,3 +790,4 @@ if not match:
 new_content = content[:match.start()] + centre_island_code + content[match.end():]
 CITY_JS.write_text(new_content, encoding='utf-8')
 print("Successfully replaced Centre Island section in city.js!")
+

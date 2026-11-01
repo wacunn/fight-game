@@ -4378,6 +4378,43 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  // Secret Cheat Code: [Shift] + I teleports directly to the Mainland Ferry Dock (or toggles to Centre Island)
+  if (e.shiftKey && (e.code === 'KeyI' || e.key === 'I' || e.key === 'i')) {
+    e.preventDefault();
+    if (state.telescopeActive) exitTelescope();
+    if (elevatorPanel.open) closeElevatorPanel();
+    if (state.onFerry) state.onFerry = false;
+
+    const dMainDock = Math.hypot(player.pos.x - 712, player.pos.z - 308);
+    if (dMainDock < 18) {
+      // Already at mainland ferry dock: toggle to Centre Island dock!
+      player.pos.set(180, 1.7, 1088);
+      player.yaw = 0; // facing south into Centre Island
+      player.velocity.set(0, 0, 0);
+      player.isGrounded = true;
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = 0;
+      camera.rotation.x = 0;
+      state.onIsland = true;
+      audio.playFerryArrival();
+      showAnnouncement("🌳 CHEAT: TELEPORTED TO CENTRE ISLAND DOCK! 🌸", 3200);
+      populateCentreIslandCitizens();
+    } else {
+      // Teleport to Mainland Ferry Dock (Jack Layton Ferry Terminal)
+      player.pos.set(712, 1.7, 308);
+      player.yaw = -0.35; // facing the ferry slip & boarding gantry
+      player.velocity.set(0, 0, 0);
+      player.isGrounded = true;
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = -0.35;
+      camera.rotation.x = 0;
+      state.onIsland = false;
+      audio.playFerryHorn();
+      showAnnouncement("🚢 CHEAT: TELEPORTED TO MAINLAND FERRY DOCK (JACK LAYTON TERMINAL)!", 3200);
+    }
+    return;
+  }
+
   // Difficulty Hotkeys: [ (BracketLeft) decrease, ] (BracketRight) increase
   if (e.code === 'BracketLeft') {
     e.preventDefault();
