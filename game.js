@@ -750,6 +750,49 @@ class EnhancedRetroAudio {
     } catch (err) { }
   }
 
+  playFerryHorn() {
+    if (!this.ctx || this.isMuted) return;
+    try {
+      const t = this.ctx.currentTime;
+      // Resonant deep brassy marine twin-tone horn (146.8 Hz and 220.0 Hz)
+      [146.83, 220.00].forEach((freq) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, t);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.98, t + 1.8);
+        gain.gain.setValueAtTime(0.01, t);
+        gain.gain.linearRampToValueAtTime(0.35, t + 0.12);
+        gain.gain.setValueAtTime(0.32, t + 1.4);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 2.0);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 2.1);
+      });
+    } catch (err) { }
+  }
+
+  playFerryArrival() {
+    if (!this.ctx || this.isMuted) return;
+    try {
+      const t = this.ctx.currentTime;
+      // Classic ship's brass bell double strike
+      [0, 0.22].forEach((offset) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1174.66, t + offset);
+        gain.gain.setValueAtTime(0.3, t + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.65);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t + offset);
+        osc.stop(t + offset + 0.7);
+      });
+    } catch (err) { }
+  }
+
   playShowdownAlert() {
     if (!this.ctx || this.isMuted) return;
     try {
@@ -1020,6 +1063,9 @@ const state = {
   telescopeBasePitch: 0,
   telescopeOffsetYaw: 0,
   telescopeOffsetPitch: 0,
+  // Toronto Island Ferry & Centre Island State
+  onFerry: false,
+  onIsland: false,
   skyShowdownActive: false,
   skyShowdownWave: 0,
   skyShowdownTotalWaves: 3,
@@ -2481,6 +2527,12 @@ function create3DHumanFighter(x, z, kind = 'robot', archetypeIndex = 0) {
 }
 
 function pickEnemyTypeForCurrentDifficulty() {
+  // If player is on Toronto Centre Island or on the ferry, ONLY peaceful citizens spawn!
+  if (state.onFerry || state.onIsland || (player && player.pos && player.pos.z > 950) || (city && city.isInsideCentreIsland && city.isInsideCentreIsland(player.pos.x, player.pos.z))) {
+    const archIdx = Math.floor(Math.random() * CIVILIAN_ARCHETYPES.length);
+    return { kind: 'civilian', archIdx };
+  }
+
   const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
   const civRatio = (cfg.civilianRatio !== undefined) ? cfg.civilianRatio : 0.50;
   const botRatio = (cfg.robotRatio !== undefined) ? cfg.robotRatio : 0.35;
@@ -2504,6 +2556,14 @@ function spawnEnemy(x, z, kind = 'robot', archIdx = 0, isGuard = false, guardTit
     isGuard = archIdx;
     archIdx = kind;
     kind = 'robot';
+  }
+
+  // Centre Island & Toronto Islands are strictly peaceful citizen sanctuary ("with only citizens")
+  if (z > 950 || (city && city.isInsideCentreIsland && city.isInsideCentreIsland(x, z))) {
+    kind = 'civilian';
+    archIdx = Math.floor(Math.random() * CIVILIAN_ARCHETYPES.length);
+    isGuard = false;
+    guardTitle = null;
   }
 
   const fighterRig = create3DHumanFighter(x, z, kind, archIdx);
@@ -2709,6 +2769,38 @@ function spawnAdditionalEnemies(count) {
   for (let i = 0; i < count; i++) {
     spawnSingleReinforcement();
   }
+}
+
+function populateCentreIslandCitizens() {
+  if (!city) return;
+  // Pre-populate Centre Island attractions with peaceful Torontonian citizens
+  const islandSpots = [
+    // Avenue of the Island & Gardens
+    [178, 1120], [183, 1140], [177, 1195], [182, 1215],
+    // Grand Fountain plaza
+    [172, 1170], [188, 1170],
+    // Pizza Pizza dining patio
+    [236, 1208], [244, 1208], [248, 1200], [240, 1218],
+    // William Meany Hedge Maze
+    [85, 1165], [65, 1185],
+    // Centreville Amusement Park
+    [330, 1205], [270, 1175], [300, 1215], [360, 1235],
+    // Centre Island Beach
+    [140, 1410], [180, 1430], [220, 1415], [260, 1425],
+    // Lagoon footbridge & boardwalk
+    [180, 1248], [180, 1465],
+    // Olympic Island meadow
+    [-60, 1220], [-80, 1260]
+  ];
+
+  islandSpots.forEach(([ix, iz], idx) => {
+    // Only spawn if spot is open and not crowded
+    const nearby = enemies.some(e => !e.isDead && Math.hypot(e.rig.root.position.x - ix, e.rig.root.position.z - iz) < 8.0);
+    if (!nearby) {
+      const archIdx = idx % CIVILIAN_ARCHETYPES.length;
+      spawnEnemy(ix, iz, 'civilian', archIdx);
+    }
+  });
 }
 
 function setDifficulty(diffKey, announce = true) {
@@ -3203,6 +3295,120 @@ if (city) {
 }
 
 // ============================================================================
+// TORONTO ISLAND FERRY & CENTRE ISLAND EXPLORATION CONTROLLER
+// ============================================================================
+
+const ferryController = {
+  isMoving: false,
+  dir: 'to_island', // 'to_island' or 'to_mainland'
+  progress: 0,
+  duration: 7.0
+};
+
+const FERRY_WATER_Y = -0.65;
+
+function startFerryRide(dir) {
+  if (ferryController.isMoving || !city || !city.islandFerry) return;
+  ferryController.dir = dir;
+  ferryController.isMoving = true;
+  ferryController.progress = 0;
+  ferryController.duration = 7.0;
+  state.onFerry = true;
+  audio.playFerryHorn();
+
+  const msg = dir === 'to_island'
+    ? '🚢 TORONTO ISLAND FERRY: DEPARTING FOR CENTRE ISLAND...'
+    : '🚢 TORONTO ISLAND FERRY: DEPARTING FOR TORONTO MAINLAND...';
+  showAnnouncement(msg, 3500);
+
+  const ferry = city.islandFerry.ferryMesh;
+  if (ferry) {
+    ferry.isPlayerFerry = true;
+  }
+  player.velocity.set(0, 0, 0);
+}
+
+function updateFerry(dt) {
+  if (!ferryController.isMoving || !city || !city.islandFerry) return;
+  const ferry = city.islandFerry.ferryMesh;
+  if (!ferry) return;
+
+  ferryController.progress += dt / ferryController.duration;
+  const prog = Math.max(0, Math.min(1, ferryController.progress));
+  // Smooth cubic Hermite curve easing
+  const t = prog * prog * (3 - 2 * prog);
+
+  const p0 = ferryController.dir === 'to_island' ? { x: 712, z: 320 } : { x: 180, z: 1075 };
+  const p1 = ferryController.dir === 'to_island' ? { x: 180, z: 1075 } : { x: 712, z: 320 };
+
+  // Follow curved trajectory through harbour
+  const midX = 420, midZ = 700;
+  const oneMinusT = 1 - t;
+  const fx = oneMinusT * oneMinusT * p0.x + 2 * oneMinusT * t * midX + t * t * p1.x;
+  const fz = oneMinusT * oneMinusT * p0.z + 2 * oneMinusT * t * midZ + t * t * p1.z;
+
+  const nextT = Math.min(1, t + 0.01);
+  const nextOMT = 1 - nextT;
+  const nfx = nextOMT * nextOMT * p0.x + 2 * nextOMT * nextT * midX + nextT * nextT * p1.x;
+  const nfz = nextOMT * nextOMT * p0.z + 2 * nextOMT * nextT * midZ + nextT * nextT * p1.z;
+  const heading = Math.atan2(nfx - fx, nfz - fz);
+
+  const waterY = (city && city.waterY !== undefined) ? city.waterY : FERRY_WATER_Y;
+  const bob = Math.sin(prog * Math.PI * 6) * 0.12;
+  ferry.position.set(fx, waterY + bob, fz);
+  ferry.rotation.y = heading;
+
+  // Keep player on the ferry upper promenade deck
+  player.pos.set(fx, waterY + 7.2 + EYE_HEIGHT + bob, fz);
+  player.velocity.set(0, 0, 0);
+
+  if (ferryController.progress >= 1.0) {
+    arriveFerry(ferryController.dir);
+  }
+}
+
+function arriveFerry(dir) {
+  ferryController.isMoving = false;
+  state.onFerry = false;
+  audio.playFerryArrival();
+
+  const ferry = city.islandFerry.ferryMesh;
+  const waterY = (city && city.waterY !== undefined) ? city.waterY : FERRY_WATER_Y;
+  if (dir === 'to_island') {
+    state.onIsland = true;
+    player.pos.set(180, 1.7, 1088);
+    player.yaw = 0; // facing south into the island
+    player.velocity.set(0, 0, 0);
+    player.isGrounded = true;
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = 0;
+
+    if (ferry) {
+      ferry.position.set(180, waterY, 1075);
+      ferry.rotation.y = 0;
+    }
+
+    showAnnouncement('🌳 WELCOME TO CENTRE ISLAND • TORONTO ISLAND PARK 🌸\nEnjoy the beaches, Centreville rides, Pizza Pizza & Hedge Maze!', 5000);
+    populateCentreIslandCitizens();
+  } else {
+    state.onIsland = false;
+    player.pos.set(712, 1.7, 308);
+    player.yaw = Math.PI; // facing north towards Queens Quay & downtown
+    player.velocity.set(0, 0, 0);
+    player.isGrounded = true;
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = Math.PI;
+
+    if (ferry) {
+      ferry.position.set(712, waterY, 320);
+      ferry.rotation.y = -0.35;
+    }
+
+    showAnnouncement('🏙️ WELCOME BACK TO TORONTO MAINLAND • QUEENS QUAY WEST', 4000);
+  }
+}
+
+// ============================================================================
 // CN TOWER GLASS ELEVATOR, 2-FLOOR OBSERVATION DECK & SKY SHOWDOWN SYSTEMS
 // ============================================================================
 
@@ -3461,18 +3667,36 @@ function setDeckPrompt(key, text) {
 }
 
 function updateObservationDeck(dt) {
-  if (!city || !city.cnElevator) return;
-  const elevPos = city.cnElevator.pos;
+  if (!city) return;
   const promptEl = document.getElementById('deck-action-prompt');
   activeDeckAction = null;
 
-  if (state.inElevator) {
+  if (state.inElevator || state.onFerry) {
     if (promptEl) promptEl.classList.add('hidden');
     closeElevatorPanel();
     return;
   }
 
   const feet = player.pos.y - EYE_HEIGHT;
+
+  // Toronto Island Ferry Docks (Jack Layton Terminal & Centre Island Dock)
+  if (feet < 15) {
+    const dMainDock = Math.hypot(player.pos.x - 712, player.pos.z - 315);
+    if (dMainDock < 9.5) {
+      activeDeckAction = 'ferry_to_island';
+      setDeckPrompt('[E]', 'BOARD TORONTO ISLAND FERRY (CENTRE ISLAND)');
+      return;
+    }
+    const dIslandDock = Math.hypot(player.pos.x - 180, player.pos.z - 1085);
+    if (dIslandDock < 9.5) {
+      activeDeckAction = 'ferry_to_mainland';
+      setDeckPrompt('[E]', 'BOARD TORONTO ISLAND FERRY (MAINLAND TORONTO)');
+      return;
+    }
+  }
+
+  if (!city.cnElevator) return;
+  const elevPos = city.cnElevator.pos;
   const dElev = Math.hypot(player.pos.x - elevPos.x, player.pos.z - elevPos.z);
   const elevCallR = (elevPos.shaftR || 2.35) + 1.9;
 
@@ -3547,6 +3771,14 @@ function updateObservationDeck(dt) {
 
 function handleDeckAction() {
   if (!activeDeckAction) return false;
+  if (activeDeckAction === 'ferry_to_island') {
+    startFerryRide('to_island');
+    return true;
+  }
+  if (activeDeckAction === 'ferry_to_mainland') {
+    startFerryRide('to_mainland');
+    return true;
+  }
   if (activeDeckAction === 'elevator') {
     if (elevatorPanel.open) closeElevatorPanel();
     else openElevatorPanel();
@@ -5511,10 +5743,24 @@ function updateNeighborhood() {
   const lms = city.landmarks;
   let name = "DOWNTOWN TORONTO";
 
-  if (p.y > 50) {
+  if (state.onFerry) {
+    name = "TORONTO HARBOUR FERRY";
+  } else if (p.y > 50) {
     name = p.y > 345.5 ? "CN TOWER • 348m 360° LOOKOUT" : "CN TOWER • 342m GLASS FLOOR";
+  } else if (p.z > 950 || (city.isInsideCentreIsland && city.isInsideCentreIsland(p.x, p.z))) {
+    if (p.z > 1370) name = "CENTRE ISLAND BEACH & LAKE ONTARIO";
+    else if (p.x > 215 && p.z > 1130 && p.z < 1330) {
+      if (Math.hypot(p.x - 240, p.z - 1220) < 22) name = "PIZZA PIZZA • CENTREVILLE";
+      else name = "CENTREVILLE AMUSEMENT PARK";
+    }
+    else if (p.x < 135 && p.z > 1140 && p.z < 1230) name = "WILLIAM MEANY HEDGE MAZE";
+    else if (p.x < 40) name = "OLYMPIC ISLAND PARK";
+    else if (p.z <= 1110) name = "CENTRE ISLAND FERRY TERMINAL";
+    else name = "CENTRE ISLAND PARK & GARDENS";
   } else if (city.isInsidePeaceZone(p.x, p.z)) {
     name = "CN TOWER PLAZA";
+  } else if (Math.hypot(p.x - 708, p.z - 295) < 55) {
+    name = "JACK LAYTON FERRY TERMINAL";
   } else if (lms.roundhouse && Math.hypot(p.x - lms.roundhouse[0], p.z - lms.roundhouse[1]) < 65) {
     name = "ROUNDHOUSE PARK";
   } else if (lms.unionStation && Math.hypot(p.x - lms.unionStation[0], p.z - lms.unionStation[1]) < 85) {
@@ -5578,6 +5824,7 @@ function animate(now) {
     updateCombatTimers(simDt);
     updateMission(simDt);
     updateElevator(simDt);
+    updateFerry(simDt);
     updateObservationDeck(simDt);
     updateTelescope(simDt);
     updateRotatingRestaurant(simDt);
