@@ -3653,6 +3653,24 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         const half = TRENCH_HALF_W + 6;
         addBridgeDeck('John Street Pedestrian Bridge', [-195 - gx * half, cz - gz * half], [-195 + gx * half, cz + gz * half], 7, true, false, 7, true);
       }
+      // Bay Street Underpass & Overpass (carrying Bay St seamlessly across the rail cut)
+      {
+        const cz = getUsrcZ(392), gx = -Math.sin(17 * Math.PI / 180), gz = -Math.cos(17 * Math.PI / 180);
+        const half = TRENCH_HALF_W + 10;
+        addBridgeDeck('Bay Street Underpass', [392 - gx * half, cz - gz * half], [392 + gx * half, cz + gz * half], 24, false, false, 16, false);
+      }
+      // York Street Underpass & Overpass (carrying York St seamlessly across the rail cut)
+      {
+        const cz = getUsrcZ(105), gx = -Math.sin(17 * Math.PI / 180), gz = -Math.cos(17 * Math.PI / 180);
+        const half = TRENCH_HALF_W + 10;
+        addBridgeDeck('York Street Underpass', [105 - gx * half, cz - gz * half], [105 + gx * half, cz + gz * half], 24, false, false, 16, false);
+      }
+      // Union Station Central Concourse Galleria (carrying pedestrian traffic from Front St directly to Scotiabank Arena)
+      {
+        const cz = getUsrcZ(264), gx = -Math.sin(17 * Math.PI / 180), gz = -Math.cos(17 * Math.PI / 180);
+        const half = TRENCH_HALF_W + 12;
+        addBridgeDeck('Union Station Central Concourse', [264 - gx * half, cz - gz * half], [264 + gx * half, cz + gz * half], 48, true, false, 0, false);
+      }
     }
     function addBridgeDeck(name, a, b, w, ped, osm, roadW, arch) {
       let fx = b[0] - a[0], fz = b[1] - a[1]; const len = Math.hypot(fx, fz) || 1; fx /= len; fz /= len;
@@ -4290,6 +4308,20 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
           }
         }
       }
+    });
+
+    // Seamless Bay Street & York Street Underpass Road Connectors
+    // Ensures roadway, markings and traffic flow continuously between Front St and Queens Quay
+    const roadConnectors = [
+      { t: 'secondary', w: 14, pts: [[382.0, -146.2], [392.5, -94.2], [404.2, -38.9]], n: 'Bay Street' },
+      { t: 'primary', w: 14, pts: [[106.2, -72.3], [125.2, -8.0], [144.2, 56.2]], n: 'York Street' }
+    ];
+    roadConnectors.forEach(r => {
+      ribbon(roadGB, r.pts, r.w, 0.05, 8);
+      ribbon(lineGB, offsetLine(r.pts, 0.11), 0.09, 0.06, 4);
+      ribbon(lineGB, offsetLine(r.pts, -0.11), 0.09, 0.06, 4);
+      groundRoads.push({ pts: r.pts, w: r.w, t: r.t, y: 0.05, id: 9980 + groundRoads.length });
+      for (let i = 0; i < r.pts.length - 1; i++) addRoadSeg(r.pts[i][0], r.pts[i][1], r.pts[i + 1][0], r.pts[i + 1][1], r.w / 2, 9980);
     });
 
     // Wet asphalt: glossy puddles reflect the city env-map and the street-lamp highlights
@@ -4979,6 +5011,21 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       if (name === 'CN Tower tickets' || name === 'Skywalk' || name === 'Canadian Pacific Railcar') return;
       // Skip the unnamed OSM CN Tower base plaza polygon & small pod that seal off the CN Tower / Aquarium passage
       if (!name && cx > -365 && cx < -245 && cz > 100 && cz < 190) return;
+
+      // Elevated PATH glass skywalks & pedestrian overpasses crossing streets:
+      // (Render as elevated skybridges at y = 5.2m to 8.6m so street traffic and pedestrians pass freely below)
+      const isSkywalk = !name && (b.h || 0) <= 16 && (
+        bi === 507 || bi === 508 || bi === 509 || bi === 517 || bi === 518 ||
+        bi === 526 || bi === 537 || bi === 567 || bi === 587 || bi === 588 ||
+        (pts.some(([px, pz]) => onRoad(px, pz, 0.5)) && area < 650)
+      );
+      if (isSkywalk) {
+        addBuilding(pts, 8.6, 'glass', 5.2, {
+          tint: [0.65, 0.80, 1.05],
+          uOff: 0, shops: false, roof: true
+        });
+        return; // Ground level is 100% open: cars and pedestrians pass freely below!
+      }
       // Skip the unnamed elevated Skywalk, air-rights canopies, CIBC Square over-track bus deck (#566/#585), and pedestrian bridges over the mainline rail cut
       if (!name && (
         (cx > -185 && cx < -50 && cz > -15 && cz < 110 && area < 3500) ||
@@ -8189,8 +8236,9 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       yorkCanopy.rotation.y = Math.atan2(-sDir[0], -sDir[1]);
       scene.add(yorkCanopy);
 
-      // 7. South Concourse Extensions: Connecting ALL THE WAY BACK TO SCOTIABANK ARENA
-      // The distance from the south wall (v = 36) to Scotiabank Arena (z ~ -14) is ~102m.
+      // 7. South Concourse & Pedestrian Connections to Scotiabank Arena
+      // The railway trench is crossed by open, wide street underpasses along Bay St and York St,
+      // plus the grand Union Station Central Concourse Galleria connecting Front St to Scotiabank Arena.
       const teamwayLen = 100.0;
       const teamwayStart = [frontAnchor[0] + sDir[0] * HEAD_D, frontAnchor[1] + sDir[1] * HEAD_D];
       const TEAMWAY_W = 14.0, TEAMWAY_H = 7.2;
@@ -8202,7 +8250,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         color: 0x334155, roughness: 0.4, metalness: 0.8, side: THREE.DoubleSide
       });
 
-      // A. Bay South Teamway (East Concourse Bridge along Bay Street)
+      // A. Bay South Concourse Arcade (East Concourse overpass along Bay Street)
+      // Overhead concourse canopy: pedestrians and street traffic flow freely below at street level!
       const bayTeamU = HEAD_W / 2 - 28.0; // u ~ +95
       const bayTeamPoly = [
         [teamwayStart[0] + fDir[0] * (bayTeamU - TEAMWAY_W / 2), teamwayStart[1] + fDir[1] * (bayTeamU - TEAMWAY_W / 2)],
@@ -8211,18 +8260,19 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         [teamwayStart[0] + fDir[0] * (bayTeamU - TEAMWAY_W / 2) + sDir[0] * teamwayLen, teamwayStart[1] + fDir[1] * (bayTeamU - TEAMWAY_W / 2) + sDir[1] * teamwayLen]
       ];
       if (polyArea(bayTeamPoly) < 0) bayTeamPoly.reverse();
-      scene.add(new THREE.Mesh(wallsGeo(bayTeamPoly, 0, () => TEAMWAY_H, 12, 10), glassConcourseMat));
-      scene.add(new THREE.Mesh(capGeo(bayTeamPoly, () => TEAMWAY_H), steelFrameMat));
-      addSolid({ type: 'poly', pts: bayTeamPoly, h: TEAMWAY_H, name: 'Bay South Teamway' });
+      // Elevated concourse gallery with clear overhead clearance (y = 5.2m to 8.2m)
+      scene.add(new THREE.Mesh(wallsGeo(bayTeamPoly, 5.2, () => 8.2, 12, 6), glassConcourseMat));
+      scene.add(new THREE.Mesh(capGeo(bayTeamPoly, () => 8.2), steelFrameMat));
 
       // Illuminated signage at the Bay Teamway entrance & midspan
       const [btcx, btcz] = centroid(bayTeamPoly);
-      const bayTeamSign = signMesh(['UNION STATION • BAY SOUTH TEAMWAY', 'DIRECT INDOOR ACCESS TO SCOTIABANK ARENA'], 28, 2.6, { bg: '#0f172a', fg: '#f8fafc', borderColor: '#38bdf8', size: 54 });
-      bayTeamSign.position.set(btcx - fDir[0] * (TEAMWAY_W / 2 + 0.4), TEAMWAY_H - 1.2, btcz - fDir[1] * (TEAMWAY_W / 2 + 0.4));
+      const bayTeamSign = signMesh(['UNION STATION • BAY STREET UNDERPASS & TEAMWAY', 'DIRECT WALKWAY TO SCOTIABANK ARENA • CIBC SQUARE'], 28, 2.6, { bg: '#0f172a', fg: '#f8fafc', borderColor: '#38bdf8', size: 54 });
+      bayTeamSign.position.set(btcx - fDir[0] * (TEAMWAY_W / 2 + 0.4), 6.5, btcz - fDir[1] * (TEAMWAY_W / 2 + 0.4));
       bayTeamSign.rotation.y = Math.atan2(-fDir[0], -fDir[1]);
       scene.add(bayTeamSign);
 
-      // B. York South Teamway (West Concourse Bridge along York Street)
+      // B. York South Concourse Arcade (West Concourse overpass along York Street)
+      // Overhead concourse canopy: York Street is open and passable below!
       const yorkTeamU = -HEAD_W / 2 + 28.0; // u ~ -95
       const yorkTeamPoly = [
         [teamwayStart[0] + fDir[0] * (yorkTeamU - TEAMWAY_W / 2), teamwayStart[1] + fDir[1] * (yorkTeamU - TEAMWAY_W / 2)],
@@ -8231,9 +8281,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         [teamwayStart[0] + fDir[0] * (yorkTeamU - TEAMWAY_W / 2) + sDir[0] * teamwayLen, teamwayStart[1] + fDir[1] * (yorkTeamU - TEAMWAY_W / 2) + sDir[1] * teamwayLen]
       ];
       if (polyArea(yorkTeamPoly) < 0) yorkTeamPoly.reverse();
-      scene.add(new THREE.Mesh(wallsGeo(yorkTeamPoly, 0, () => TEAMWAY_H, 12, 10), glassConcourseMat));
-      scene.add(new THREE.Mesh(capGeo(yorkTeamPoly, () => TEAMWAY_H), steelFrameMat));
-      addSolid({ type: 'poly', pts: yorkTeamPoly, h: TEAMWAY_H, name: 'York South Teamway' });
+      scene.add(new THREE.Mesh(wallsGeo(yorkTeamPoly, 5.2, () => 8.2, 12, 6), glassConcourseMat));
+      scene.add(new THREE.Mesh(capGeo(yorkTeamPoly, () => 8.2), steelFrameMat));
 
       // C. Soaring Zeidler Contemporary Steel & Glass Atrium Canopy
       // Spans centrally across the passenger platforms between the Headhouse and Scotiabank Arena
@@ -8264,7 +8313,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         scene.add(archRib);
       }
 
-      // Bush Train Shed Low Industrial Canopies flanking the central glass atrium
+      // Bush Train Shed Low Industrial Canopies flanking the central glass atrium (overhead roofs)
       const shedMat = new THREE.MeshStandardMaterial({ color: 0x2e3b33, roughness: 0.65, metalness: 0.35, side: THREE.DoubleSide });
       [-1, 1].forEach(side => {
         const swU = side * (ATRIUM_W / 2 + 18.0);
@@ -8275,107 +8324,70 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
           [teamwayStart[0] + fDir[0] * (swU - 14.0) + sDir[0] * ATRIUM_L, teamwayStart[1] + fDir[1] * (swU - 14.0) + sDir[1] * ATRIUM_L]
         ];
         if (polyArea(shedPoly) < 0) shedPoly.reverse();
-        scene.add(new THREE.Mesh(wallsGeo(shedPoly, 0, () => 6.2, 8, 8), shedMat));
+        scene.add(new THREE.Mesh(wallsGeo(shedPoly, 4.5, () => 6.2, 8, 4), shedMat));
         scene.add(new THREE.Mesh(capGeo(shedPoly, () => 6.2), shedMat));
       });
 
-      // D. Union Station South Building: Monumental South Concourse & Transit Terminal
-      // Spans across the entire southern boundary of the station grounds (width 176m, depth 22m, height 18.5m)
-      // facing Scotiabank Arena, Bremner Blvd, and Lake Ontario.
-      // Features:
-      // - Grand 4-storey glass curtain wall facade with illuminated warm interior transit lounges
-      // - Limestone corner anchor pavilions matching Union Station headhouse
-      // - High illuminated station frieze: "UNION STATION • SOUTH CONCOURSE & TRANSIT TERMINAL"
-      // - Covered passenger drop-off colonnade & transit entrances
-      // - Enclosed high-level pedestrian skybridge galleria directly into Scotiabank Arena Gate 1
+      // D. Union Station South Building: Authentic Beaux-Arts Limestone Terminal
+      // Spans across the southern boundary facing Scotiabank Arena, Bremner Blvd, and Lake Ontario.
+      // Real limestone pavilions, classical pilasters, open 44m central Concourse Galleria,
+      // and bronze-framed glass curtain bays on the sides.
       const SOUTH_W = 176.0, SOUTH_D = 22.0, SOUTH_H = 18.5;
       const southAnchorDist = teamwayLen - SOUTH_D; // sits at distance 78m to 100m from Great Hall
       const southCenter = [teamwayStart[0] + sDir[0] * (southAnchorDist + SOUTH_D / 2), teamwayStart[1] + sDir[1] * (southAnchorDist + SOUTH_D / 2)];
       const southRotY = Math.atan2(sDir[0], sDir[1]);
 
-      // South Concourse polygon
-      const southPoly = [
-        [teamwayStart[0] - fDir[0] * (SOUTH_W / 2) + sDir[0] * southAnchorDist, teamwayStart[1] - fDir[1] * (SOUTH_W / 2) + sDir[1] * southAnchorDist],
-        [teamwayStart[0] + fDir[0] * (SOUTH_W / 2) + sDir[0] * southAnchorDist, teamwayStart[1] + fDir[1] * (SOUTH_W / 2) + sDir[1] * southAnchorDist],
-        [teamwayStart[0] + fDir[0] * (SOUTH_W / 2) + sDir[0] * (southAnchorDist + SOUTH_D), teamwayStart[1] + fDir[1] * (SOUTH_W / 2) + sDir[1] * (southAnchorDist + SOUTH_D)],
-        [teamwayStart[0] - fDir[0] * (SOUTH_W / 2) + sDir[0] * (southAnchorDist + SOUTH_D), teamwayStart[1] - fDir[1] * (SOUTH_W / 2) + sDir[1] * (southAnchorDist + SOUTH_D)]
+      // Split into West Pavilion, East Pavilion, and Open Central Galleria
+      const makeSouthPoly = (uStart, uEnd) => [
+        [teamwayStart[0] + fDir[0] * uStart + sDir[0] * southAnchorDist, teamwayStart[1] + fDir[1] * uStart + sDir[1] * southAnchorDist],
+        [teamwayStart[0] + fDir[0] * uEnd + sDir[0] * southAnchorDist, teamwayStart[1] + fDir[1] * uEnd + sDir[1] * southAnchorDist],
+        [teamwayStart[0] + fDir[0] * uEnd + sDir[0] * (southAnchorDist + SOUTH_D), teamwayStart[1] + fDir[1] * uEnd + sDir[1] * (southAnchorDist + SOUTH_D)],
+        [teamwayStart[0] + fDir[0] * uStart + sDir[0] * (southAnchorDist + SOUTH_D), teamwayStart[1] + fDir[1] * uStart + sDir[1] * (southAnchorDist + SOUTH_D)]
       ];
-      if (polyArea(southPoly) < 0) southPoly.reverse();
+      const westSouthPoly = makeSouthPoly(-SOUTH_W / 2, -22.0); // West Pavilion
+      const eastSouthPoly = makeSouthPoly(22.0, SOUTH_W / 2);  // East Pavilion
+      const galleriaRoofPoly = makeSouthPoly(-22.0, 22.0);     // Central 44m open galleria (overhead roof only!)
 
-      // South Building main walls & roof
-      const southMesh = new THREE.Mesh(wallsGeo(southPoly, 0, () => SOUTH_H, 16, 12), uStoneMat);
-      southMesh.castShadow = southMesh.receiveShadow = true;
-      scene.add(southMesh);
-      scene.add(new THREE.Mesh(capGeo(southPoly, () => SOUTH_H), stoneCapMat));
-      addSolid({ type: 'poly', pts: southPoly, h: SOUTH_H, name: 'Union Station South Building' });
+      [westSouthPoly, eastSouthPoly].forEach((sp, spi) => {
+        if (polyArea(sp) < 0) sp.reverse();
+        const sMesh = new THREE.Mesh(wallsGeo(sp, 0, () => SOUTH_H, 16, 12), uStoneMat);
+        sMesh.castShadow = sMesh.receiveShadow = true;
+        scene.add(sMesh);
+        scene.add(new THREE.Mesh(capGeo(sp, () => SOUTH_H), stoneCapMat));
+        addSolid({ type: 'poly', pts: sp, h: SOUTH_H, name: spi ? 'Union Station South East Pavilion' : 'Union Station South West Pavilion' });
 
-      // Grand Multi-Storey South Glass Curtain Wall Atrium (facing Scotiabank Arena)
-      const curtainW = 120.0, curtainH = 14.5;
-      const curtainMat = new THREE.MeshStandardMaterial({
-        color: 0x93c5fd, emissive: 0xffeaae, emissiveIntensity: 0.45, roughness: 0.15, metalness: 0.65, side: THREE.DoubleSide
+        // Architectural glass curtain wall bays on the outer flanks
+        const flankSign = signMesh([spi ? 'CIBC SQUARE • BAY TRANSIT' : 'UP EXPRESS • YORK CONCOURSE'], 18, 2.2, { bg: '#0f172a', fg: '#f8fafc', borderColor: '#38bdf8', size: 50 });
+        const [spcx, spcz] = centroid(sp);
+        flankSign.position.set(spcx + fDir[0] * (spi ? 18 : -18), SOUTH_H - 2.5, spcz);
+        flankSign.rotation.y = southRotY;
+        scene.add(flankSign);
       });
-      const curtainWall = new THREE.Mesh(new THREE.PlaneGeometry(curtainW, curtainH), curtainMat);
-      curtainWall.position.set(
-        southCenter[0] + sDir[0] * (SOUTH_D / 2 + 0.15),
-        2.5 + curtainH / 2,
-        southCenter[1] + sDir[1] * (SOUTH_D / 2 + 0.15)
+
+      // Central Grand Galleria Roof & Arched Portals (Clearance y = 0 to 7.5m is completely open!)
+      if (polyArea(galleriaRoofPoly) < 0) galleriaRoofPoly.reverse();
+      scene.add(new THREE.Mesh(wallsGeo(galleriaRoofPoly, 7.5, () => SOUTH_H, 12, 6), uStoneMat));
+      scene.add(new THREE.Mesh(capGeo(galleriaRoofPoly, () => SOUTH_H), stoneCapMat));
+
+      // Grand Concourse illuminated portal signage across the central galleria
+      const galleriaSign = signMesh([
+        'UNION STATION • GRAND CONCOURSE GALLERIA',
+        'DIRECT ACCESS TO VIA RAIL • GO TRAINS • TTC SUBWAY • SCOTIABANK ARENA'
+      ], 42, 3.2, { bg: '#0f172a', fg: '#fef08a', borderColor: '#f59e0b', size: 54 });
+      galleriaSign.position.set(
+        southCenter[0] + sDir[0] * (SOUTH_D / 2 + 0.3),
+        11.5,
+        southCenter[1] + sDir[1] * (SOUTH_D / 2 + 0.3)
       );
-      curtainWall.rotation.y = southRotY;
-      scene.add(curtainWall);
+      galleriaSign.rotation.y = southRotY;
+      scene.add(galleriaSign);
 
-      // Structural mullion grid over the south glass curtain
-      const mullionMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.8 });
-      for (let mx = -curtainW / 2 + 10; mx < curtainW / 2; mx += 10) {
-        const mul = new THREE.Mesh(new THREE.BoxGeometry(0.3, curtainH, 0.4), mullionMat);
-        const mulPos = [
-          southCenter[0] + sDir[0] * (SOUTH_D / 2 + 0.2) + fDir[0] * mx,
-          southCenter[1] + sDir[1] * (SOUTH_D / 2 + 0.2) + fDir[1] * mx
-        ];
-        mul.position.set(mulPos[0], 2.5 + curtainH / 2, mulPos[1]);
-        mul.rotation.y = southRotY;
-        scene.add(mul);
-      }
-
-      // Monumental South Station Entrance Sign facing Scotiabank Arena
-      const southStationSign = signMesh([
-        'UNION STATION • SOUTH CONCOURSE & TRANSIT TERMINAL',
-        'VIA RAIL CANADA • GO TRANSIT • UP EXPRESS • CIBC SQUARE'
-      ], 42, 3.4, { bg: '#0f172a', fg: '#f8fafc', borderColor: '#38bdf8', size: 54 });
-      southStationSign.position.set(
-        southCenter[0] + sDir[0] * (SOUTH_D / 2 + 0.5),
-        SOUTH_H - 1.8,
-        southCenter[1] + sDir[1] * (SOUTH_D / 2 + 0.5)
-      );
-      southStationSign.rotation.y = southRotY;
-      scene.add(southStationSign);
-
-      // South Covered Passenger Drop-off Colonnade & Warm Portal Lighting
-      const southCanopy = new THREE.Mesh(new THREE.BoxGeometry(curtainW + 8.0, 0.4, 4.2), steelFrameMat);
-      southCanopy.position.set(
-        southCenter[0] + sDir[0] * (SOUTH_D / 2 + 2.1),
-        3.8,
-        southCenter[1] + sDir[1] * (SOUTH_D / 2 + 2.1)
-      );
-      southCanopy.rotation.y = southRotY;
-      scene.add(southCanopy);
-
-      // Warm concourse entrance portals
-      for (let pi = -2; pi <= 2; pi++) {
-        const pOffset = pi * 18.0;
-        const pPt = [
-          southCenter[0] + sDir[0] * (SOUTH_D / 2 + 0.3) + fDir[0] * pOffset,
-          southCenter[1] + sDir[1] * (SOUTH_D / 2 + 0.3) + fDir[1] * pOffset
-        ];
-        const pDoor = new THREE.Mesh(new THREE.PlaneGeometry(6.5, 3.2), new THREE.MeshStandardMaterial({
-          color: 0x334155, emissive: 0xffdf88, emissiveIntensity: 0.9, roughness: 0.2, side: THREE.DoubleSide
-        }));
-        pDoor.position.set(pPt[0], 1.6, pPt[1]);
-        pDoor.rotation.y = southRotY;
-        scene.add(pDoor);
-
-        const pLite = new THREE.PointLight(0xffdf88, 1.4, 16);
-        pLite.position.set(pPt[0] + sDir[0] * 2.2, 3.2, pPt[1] + sDir[1] * 2.2);
-        scene.add(pLite);
+      // Warm illumination globes inside the Central Galleria walkway
+      for (let gi = -18; gi <= 18; gi += 9) {
+        const gPt = [southCenter[0] + fDir[0] * gi, southCenter[1] + fDir[1] * gi];
+        const gLight = new THREE.PointLight(0xffdf88, 1.6, 18);
+        gLight.position.set(gPt[0], 6.5, gPt[1]);
+        scene.add(gLight);
       }
 
       // E. Elevated Skybridge Galleria directly joining Union Station into Scotiabank Arena Gate 1
@@ -11962,6 +11974,46 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         termSign.position.set(706, 9.2, 286);
         termSign.rotation.y = Math.PI - 0.35;
         ftg.add(termSign);
+
+        // Solid Jack Layton Ferry Terminal Pier Deck (x: 696..728, z: 295..345)
+        // Top surface is exactly at y = 0.50, matching floorAt()!
+        const pierWoodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8, metalness: 0.1 });
+        const mainPier = new THREE.Mesh(new THREE.BoxGeometry(28, 1.0, 52), pierWoodMat);
+        mainPier.position.set(712, 0.0, 320);
+        ftg.add(mainPier);
+
+        // Support pilings under the pier into harbour water
+        for (let pz = 296; pz <= 344; pz += 8) {
+          [-13, 13].forEach(px => {
+            const pile = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 2.8, 8), pierWoodMat);
+            pile.position.set(712 + px, WATER_Y + 0.5, pz);
+            ftg.add(pile);
+          });
+        }
+
+        // Broad Ferry Boarding Gangway ramp extending to Ferry "SAM McBRIDE"
+        const gangwayMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.5, metalness: 0.4 });
+        const gangway = new THREE.Mesh(new THREE.BoxGeometry(7.5, 0.35, 8.5), gangwayMat);
+        gangway.position.set(712, 0.65, 316);
+        gangway.rotation.y = -0.35;
+        ftg.add(gangway);
+
+        // Boarding Gate Sign directly over the gangway ramp
+        const boardGateSign = signMesh([
+          'TORONTO ISLAND FERRY • GATE 1',
+          'FERRY "SAM McBRIDE" TO CENTRE ISLAND • [E] TO BOARD'
+        ], 16, 2.2, { bg: '#064e3b', fg: '#fef08a', borderColor: '#10b981', size: 50 });
+        boardGateSign.position.set(712, 4.2, 310);
+        boardGateSign.rotation.y = Math.PI - 0.35;
+        ftg.add(boardGateSign);
+
+        // Safety railings along the pier edges
+        [-13.8, 13.8].forEach(rx => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.1, 48), railSteelMat);
+          rail.position.set(712 + rx, 1.05, 320);
+          ftg.add(rail);
+        });
+
         // 3 Ferry loading gantry arches along the slip
         [[702, 312], [716, 304], [730, 296]].forEach(([gx, gz]) => {
           const arch = new THREE.Mesh(new THREE.BoxGeometry(7.5, 6.5, 1.2), railSteelMat);
@@ -12079,14 +12131,14 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         flagWhite.position.set(0.8, 9.2, 12);
         fg.add(flagWhite);
 
-        // Peaceful Torontonian citizen passengers on the upper deck
+        // Peaceful Torontonian citizen passengers on the upper deck (along side railings and benches)
         const passSpots = [
-          [-3.2, 6.7, -4.5, 0x3b82f6],  // tourist in blue shirt
-          [3.2, 6.7, -3.2, 0xef4444],   // tourist in red jacket with camera
-          [-2.5, 6.7, 4.0, 0x10b981],   // cyclist in green
-          [2.8, 6.7, 5.2, 0xf59e0b],    // passenger in amber coat
-          [0.0, 6.7, -8.0, 0x8b5cf6],   // sightseer at front rail in purple
-          [-3.0, 6.7, 8.5, 0x06b6d4]    // passenger leaning on rail in cyan
+          [-3.4, 6.7, -4.5, 0x3b82f6],  // tourist in blue shirt
+          [3.4, 6.7, -3.2, 0xef4444],   // tourist in red jacket with camera
+          [-3.2, 6.7, 4.0, 0x10b981],   // cyclist in green
+          [3.2, 6.7, 5.2, 0xf59e0b],    // passenger in amber coat
+          [-3.2, 6.7, -7.5, 0x8b5cf6],  // sightseer at port rail in purple
+          [3.2, 6.7, 7.5, 0x06b6d4]     // passenger leaning on starboard rail in cyan
         ];
         passSpots.forEach(([px, py, pz, shirtCol]) => {
           const pass = new THREE.Group();
@@ -12395,38 +12447,39 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       // ---------- A. Base Island Landmasses (North lawns, South beach, Olympic Island) ----------
       {
         // 1. North Island main body (Avenue of the Island, Gardens, Maze, Centreville North)
-        const northTurf = new THREE.Mesh(new THREE.BoxGeometry(580, 2.0, 180), islandTurfMat);
-        northTurf.position.set(160, WATER_Y + 1.0, 1150);
+        // Box height 1.5, position.y = -0.75 -> top surface is at exactly y = 0.00, matching floorAt()!
+        const northTurf = new THREE.Mesh(new THREE.BoxGeometry(580, 1.5, 180), islandTurfMat);
+        northTurf.position.set(160, -0.75, 1150);
         centreIsland.add(northTurf);
 
         // 2. South Island main body (Olympic Island South, Centreville South, Lawn Picnic Areas)
-        const southTurf = new THREE.Mesh(new THREE.BoxGeometry(580, 2.0, 140), islandTurfMat);
-        southTurf.position.set(160, WATER_Y + 1.0, 1310);
+        const southTurf = new THREE.Mesh(new THREE.BoxGeometry(580, 1.5, 140), islandTurfMat);
+        southTurf.position.set(160, -0.75, 1310);
         centreIsland.add(southTurf);
 
         // 3. Olympic Island West Lawn (x: -140..40, z: 1120..1360)
-        const olympicTurf = new THREE.Mesh(new THREE.BoxGeometry(180, 2.0, 220), islandTurfMat);
-        olympicTurf.position.set(-60, WATER_Y + 1.0, 1240);
+        const olympicTurf = new THREE.Mesh(new THREE.BoxGeometry(180, 1.5, 220), islandTurfMat);
+        olympicTurf.position.set(-60, -0.75, 1240);
         centreIsland.add(olympicTurf);
 
-        // 4. Centre Island Beach & Manitou Beach (Golden sand dunes sloping gently into Lake Ontario)
-        const beachSand = new THREE.Mesh(new THREE.BoxGeometry(600, 2.0, 120), islandSandMat);
-        beachSand.position.set(160, WATER_Y + 0.95, 1430);
+        // 4. Centre Island Beach & Manitou Beach (Golden sand dunes along Lake Ontario)
+        const beachSand = new THREE.Mesh(new THREE.BoxGeometry(600, 1.5, 120), islandSandMat);
+        beachSand.position.set(160, -0.75, 1430);
         centreIsland.add(beachSand);
 
-        // Sandy shoreline outer collar for smooth coastal transition
-        const shoreCollar = new THREE.Mesh(new THREE.CylinderGeometry(340, 350, 1.4, 32), islandSandMat);
+        // Sandy shoreline outer collar for smooth coastal transition into lake
+        const shoreCollar = new THREE.Mesh(new THREE.CylinderGeometry(340, 350, 1.2, 32), islandSandMat);
         shoreCollar.scale.set(1.0, 1.0, 0.65);
-        shoreCollar.position.set(170, WATER_Y + 0.5, 1260);
+        shoreCollar.position.set(170, -0.65, 1260);
         centreIsland.add(shoreCollar);
 
         // Long Pond Lagoon Water Surface (nestled between north & south island masses)
-        const lagoonWater1 = new THREE.Mesh(new THREE.BoxGeometry(540, 0.2, 40), islandLagoonMat);
-        lagoonWater1.position.set(160, WATER_Y + 0.25, 1248);
+        const lagoonWater1 = new THREE.Mesh(new THREE.BoxGeometry(540, 0.1, 40), islandLagoonMat);
+        lagoonWater1.position.set(160, WATER_Y, 1248);
         centreIsland.add(lagoonWater1);
 
-        const swanCoveWater = new THREE.Mesh(new THREE.BoxGeometry(50, 0.2, 45), islandLagoonMat);
-        swanCoveWater.position.set(285, WATER_Y + 0.25, 1268);
+        const swanCoveWater = new THREE.Mesh(new THREE.BoxGeometry(50, 0.1, 45), islandLagoonMat);
+        swanCoveWater.position.set(285, WATER_Y, 1268);
         centreIsland.add(swanCoveWater);
       }
 
@@ -12492,15 +12545,16 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       {
         const dtg = new THREE.Group();
         // Main wooden ferry docking pier extending north into harbour
-        const pier = new THREE.Mesh(new THREE.BoxGeometry(18, 1.6, 38), islandBoardwalkMat);
-        pier.position.set(180, 0.8, 1072);
+        // Box height 1.0, position.y = 0.0 -> top surface is at exactly y = 0.50, matching floorAt()!
+        const pier = new THREE.Mesh(new THREE.BoxGeometry(18, 1.0, 38), islandBoardwalkMat);
+        pier.position.set(180, 0.0, 1072);
         dtg.add(pier);
 
         // Pier support pilings in water
         for (let pz = 1056; pz <= 1088; pz += 6) {
           [-8.5, 8.5].forEach(px => {
-            const piling = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 3.5, 8), islandWoodMat);
-            piling.position.set(180 + px, WATER_Y + 0.8, pz);
+            const piling = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 2.8, 8), islandWoodMat);
+            piling.position.set(180 + px, WATER_Y + 0.5, pz);
             dtg.add(piling);
           });
         }
@@ -13070,44 +13124,43 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         centreIsland.add(oig);
       }
 
-      // ---------- I. Weeping Willows & Island Trees ----------
+      // ---------- I. Open Park Plains & Scenic Perimeter Shade Trees ----------
+      // Designed as a vast, open green park vista with clear panoramic sightlines across the whole island
       {
         const treesGroup = new THREE.Group();
-        // 1. Weeping Willows along Long Pond Lagoon banks
-        for (let wx = -100; wx <= 380; wx += 24) {
-          // Avoid bridge crossings at x=10, 180, 240
-          if (Math.abs(wx - 10) < 14 || Math.abs(wx - 180) < 16 || Math.abs(wx - 240) < 16) continue;
-          [1236, 1260].forEach((wz, wi) => {
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.75, 7.0, 8), islandWoodMat);
-            trunk.position.set(wx, 3.5, wz);
-            trunk.rotation.z = (wi === 0 ? 0.12 : -0.12);
-            treesGroup.add(trunk);
+        // 1. Graceful Weeping Willows gently framing lagoon banks near the footbridges
+        const willowSpots = [
+          [-30, 1234, -0.1], [60, 1234, 0.1], [135, 1234, -0.1], [215, 1234, 0.1],
+          [285, 1258, 0.12], [340, 1258, -0.1], [-30, 1262, 0.1], [135, 1262, -0.1]
+        ];
+        willowSpots.forEach(([wx, wz, rz]) => {
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.65, 6.5, 8), islandWoodMat);
+          trunk.position.set(wx, 3.25, wz);
+          trunk.rotation.z = rz;
+          treesGroup.add(trunk);
 
-            // Drooping weeping willow canopy
-            const canopy = new THREE.Mesh(new THREE.ConeGeometry(4.8, 8.5, 8), islandTreeMat1);
-            canopy.position.set(wx, 8.0, wz);
-            treesGroup.add(canopy);
-          });
-        }
+          const canopy = new THREE.Mesh(new THREE.ConeGeometry(4.2, 7.5, 8), islandTreeMat1);
+          canopy.position.set(wx, 7.5, wz);
+          treesGroup.add(canopy);
+        });
 
-        // 2. Sugar Maples & Oaks across lawns
-        for (let ti = 0; ti < 48; ti++) {
-          const tx = -140 + hash(ti * 4.3 + 1) * 600;
-          const tz = 1080 + hash(ti * 7.1 + 3) * 380;
-          // Avoid placing in lagoon, maze or amusement park
-          if (tz >= 1230 && tz <= 1265) continue;
-          if (tx >= 45 && tx <= 125 && tz >= 1145 && tz <= 1225) continue;
-          if (tx >= 230 && tx <= 380 && tz >= 1140 && tz <= 1250) continue;
-          if (Math.abs(tx - 180) < 14) continue; // Avenue promenade
-
+        // 2. Perimeter Shade Trees framing outer meadow boundaries (keeping central plains completely open!)
+        const perimeterSpots = [
+          [-130, 1140], [-130, 1260], [-110, 1340],
+          [-60, 1130], [-60, 1340],
+          [380, 1120], [420, 1160], [420, 1240], [400, 1320], [350, 1360],
+          [0, 1120], [0, 1350],
+          [280, 1120], [320, 1120]
+        ];
+        perimeterSpots.forEach(([tx, tz], ti) => {
           const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.55, 6.0, 8), islandWoodMat);
           trunk.position.set(tx, 3.0, tz);
           treesGroup.add(trunk);
 
-          const crown = new THREE.Mesh(new THREE.DodecahedronGeometry(3.6 + hash(ti) * 2.2), ti % 2 === 0 ? islandTreeMat1 : islandTreeMat2);
+          const crown = new THREE.Mesh(new THREE.DodecahedronGeometry(3.6), ti % 2 === 0 ? islandTreeMat1 : islandTreeMat2);
           crown.position.set(tx, 7.5, tz);
           treesGroup.add(crown);
-        }
+        });
 
         centreIsland.add(treesGroup);
       }
@@ -19861,6 +19914,8 @@ function spawnEnemy(x, z, kind = 'robot', archIdx = 0, isGuard = false, guardTit
   }
 
   const fighterRig = create3DHumanFighter(x, z, kind, archIdx);
+  const groundFloorY = (city && city.floorAt) ? city.floorAt(x, z, 0) : 0;
+  fighterRig.root.position.y = groundFloorY;
   const arch = fighterRig.arch;
   const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
 
@@ -20608,6 +20663,7 @@ function startFerryRide(dir) {
   ferryController.progress = 0;
   ferryController.duration = 7.0;
   state.onFerry = true;
+  if (scene.fog) scene.fog.density = 0.00095;
   audio.playFerryHorn();
 
   const msg = dir === 'to_island'
@@ -20652,9 +20708,14 @@ function updateFerry(dt) {
   ferry.position.set(fx, waterY + bob, fz);
   ferry.rotation.y = heading;
 
-  // Keep player on the ferry upper promenade deck
-  player.pos.set(fx, waterY + 7.2 + EYE_HEIGHT + bob, fz);
+  // Keep player on the forward observation sun deck facing panoramic harbour vista
+  const fwdDist = 8.0;
+  const fwdX = fx - Math.sin(heading) * fwdDist;
+  const fwdZ = fz - Math.cos(heading) * fwdDist;
+  player.pos.set(fwdX, waterY + 6.95 + EYE_HEIGHT + bob, fwdZ);
+  player.yaw = heading;
   player.velocity.set(0, 0, 0);
+  if (scene.fog) scene.fog.density = 0.00095;
 
   if (ferryController.progress >= 1.0) {
     arriveFerry(ferryController.dir);
@@ -20670,7 +20731,9 @@ function arriveFerry(dir) {
   const waterY = (city && city.waterY !== undefined) ? city.waterY : FERRY_WATER_Y;
   if (dir === 'to_island') {
     state.onIsland = true;
-    player.pos.set(180, 1.7, 1088);
+    if (scene.fog) scene.fog.density = 0.00095;
+    const islandFloor = (city && city.floorAt) ? city.floorAt(180, 1088) : 0.5;
+    player.pos.set(180, islandFloor + EYE_HEIGHT, 1088);
     player.yaw = 0; // facing south into the island
     player.velocity.set(0, 0, 0);
     player.isGrounded = true;
@@ -20686,7 +20749,9 @@ function arriveFerry(dir) {
     populateCentreIslandCitizens();
   } else {
     state.onIsland = false;
-    player.pos.set(712, 1.7, 308);
+    if (scene.fog) scene.fog.density = 0.0021;
+    const mainFloor = (city && city.floorAt) ? city.floorAt(712, 308) : 0.5;
+    player.pos.set(712, mainFloor + EYE_HEIGHT, 308);
     player.yaw = Math.PI; // facing north towards Queens Quay & downtown
     player.velocity.set(0, 0, 0);
     player.isGrounded = true;
@@ -20976,13 +21041,15 @@ function updateObservationDeck(dt) {
   // Toronto Island Ferry Docks (Jack Layton Terminal & Centre Island Dock)
   if (feet < 15) {
     const dMainDock = Math.hypot(player.pos.x - 712, player.pos.z - 315);
-    if (dMainDock < 9.5) {
+    const inMainDock = dMainDock < 22 || (player.pos.x >= 695 && player.pos.x <= 735 && player.pos.z >= 295 && player.pos.z <= 348);
+    if (inMainDock) {
       activeDeckAction = 'ferry_to_island';
       setDeckPrompt('[E]', 'BOARD TORONTO ISLAND FERRY (CENTRE ISLAND)');
       return;
     }
     const dIslandDock = Math.hypot(player.pos.x - 180, player.pos.z - 1085);
-    if (dIslandDock < 9.5) {
+    const inIslandDock = dIslandDock < 22 || (player.pos.x >= 165 && player.pos.x <= 195 && player.pos.z >= 1060 && player.pos.z <= 1095);
+    if (inIslandDock) {
       activeDeckAction = 'ferry_to_mainland';
       setDeckPrompt('[E]', 'BOARD TORONTO ISLAND FERRY (MAINLAND TORONTO)');
       return;
@@ -21680,9 +21747,10 @@ window.addEventListener('keydown', (e) => {
     if (state.onFerry) state.onFerry = false;
 
     const dMainDock = Math.hypot(player.pos.x - 712, player.pos.z - 308);
-    if (dMainDock < 18) {
+    if (dMainDock < 22) {
       // Already at mainland ferry dock: toggle to Centre Island dock!
-      player.pos.set(180, 1.7, 1088);
+      const islandFloor = (city && city.floorAt) ? city.floorAt(180, 1088) : 0.5;
+      player.pos.set(180, islandFloor + EYE_HEIGHT, 1088);
       player.yaw = 0; // facing south into Centre Island
       player.velocity.set(0, 0, 0);
       player.isGrounded = true;
@@ -21690,12 +21758,14 @@ window.addEventListener('keydown', (e) => {
       camera.rotation.y = 0;
       camera.rotation.x = 0;
       state.onIsland = true;
+      if (scene.fog) scene.fog.density = 0.00095;
       audio.playFerryArrival();
       showAnnouncement("🌳 CHEAT: TELEPORTED TO CENTRE ISLAND DOCK! 🌸", 3200);
       populateCentreIslandCitizens();
     } else {
       // Teleport to Mainland Ferry Dock (Jack Layton Ferry Terminal)
-      player.pos.set(712, 1.7, 308);
+      const mainFloor = (city && city.floorAt) ? city.floorAt(712, 308) : 0.5;
+      player.pos.set(712, mainFloor + EYE_HEIGHT, 308);
       player.yaw = -0.35; // facing the ferry slip & boarding gantry
       player.velocity.set(0, 0, 0);
       player.isGrounded = true;
@@ -21703,6 +21773,7 @@ window.addEventListener('keydown', (e) => {
       camera.rotation.y = -0.35;
       camera.rotation.x = 0;
       state.onIsland = false;
+      if (scene.fog) scene.fog.density = 0.0021;
       audio.playFerryHorn();
       showAnnouncement("🚢 CHEAT: TELEPORTED TO MAINLAND FERRY DOCK (JACK LAYTON TERMINAL)!", 3200);
     }
@@ -23699,6 +23770,12 @@ function updateEnemies(dt) {
     } else {
       enemy.rig.root.position.x = Math.max(-36, Math.min(36, enemy.rig.root.position.x));
       enemy.rig.root.position.z = Math.max(-36, Math.min(36, enemy.rig.root.position.z));
+    }
+
+    // Update ground NPCs vertical elevation to match bridges, piers, and terrain
+    if (!enemy.isDeckEnemy && city && city.floorAt) {
+      const gFloor = city.floorAt(enemy.rig.root.position.x, enemy.rig.root.position.z, enemy.rig.root.position.y);
+      enemy.rig.root.position.y = gFloor;
     }
 
     // Peace Sanctuary Repulsion: push street enemies away from ground sanctuary

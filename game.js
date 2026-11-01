@@ -2567,6 +2567,8 @@ function spawnEnemy(x, z, kind = 'robot', archIdx = 0, isGuard = false, guardTit
   }
 
   const fighterRig = create3DHumanFighter(x, z, kind, archIdx);
+  const groundFloorY = (city && city.floorAt) ? city.floorAt(x, z, 0) : 0;
+  fighterRig.root.position.y = groundFloorY;
   const arch = fighterRig.arch;
   const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
 
@@ -3314,6 +3316,7 @@ function startFerryRide(dir) {
   ferryController.progress = 0;
   ferryController.duration = 7.0;
   state.onFerry = true;
+  if (scene.fog) scene.fog.density = 0.00095;
   audio.playFerryHorn();
 
   const msg = dir === 'to_island'
@@ -3358,9 +3361,14 @@ function updateFerry(dt) {
   ferry.position.set(fx, waterY + bob, fz);
   ferry.rotation.y = heading;
 
-  // Keep player on the ferry upper promenade deck
-  player.pos.set(fx, waterY + 7.2 + EYE_HEIGHT + bob, fz);
+  // Keep player on the forward observation sun deck facing panoramic harbour vista
+  const fwdDist = 8.0;
+  const fwdX = fx - Math.sin(heading) * fwdDist;
+  const fwdZ = fz - Math.cos(heading) * fwdDist;
+  player.pos.set(fwdX, waterY + 6.95 + EYE_HEIGHT + bob, fwdZ);
+  player.yaw = heading;
   player.velocity.set(0, 0, 0);
+  if (scene.fog) scene.fog.density = 0.00095;
 
   if (ferryController.progress >= 1.0) {
     arriveFerry(ferryController.dir);
@@ -3376,7 +3384,9 @@ function arriveFerry(dir) {
   const waterY = (city && city.waterY !== undefined) ? city.waterY : FERRY_WATER_Y;
   if (dir === 'to_island') {
     state.onIsland = true;
-    player.pos.set(180, 1.7, 1088);
+    if (scene.fog) scene.fog.density = 0.00095;
+    const islandFloor = (city && city.floorAt) ? city.floorAt(180, 1088) : 0.5;
+    player.pos.set(180, islandFloor + EYE_HEIGHT, 1088);
     player.yaw = 0; // facing south into the island
     player.velocity.set(0, 0, 0);
     player.isGrounded = true;
@@ -3392,7 +3402,9 @@ function arriveFerry(dir) {
     populateCentreIslandCitizens();
   } else {
     state.onIsland = false;
-    player.pos.set(712, 1.7, 308);
+    if (scene.fog) scene.fog.density = 0.0021;
+    const mainFloor = (city && city.floorAt) ? city.floorAt(712, 308) : 0.5;
+    player.pos.set(712, mainFloor + EYE_HEIGHT, 308);
     player.yaw = Math.PI; // facing north towards Queens Quay & downtown
     player.velocity.set(0, 0, 0);
     player.isGrounded = true;
@@ -3682,13 +3694,15 @@ function updateObservationDeck(dt) {
   // Toronto Island Ferry Docks (Jack Layton Terminal & Centre Island Dock)
   if (feet < 15) {
     const dMainDock = Math.hypot(player.pos.x - 712, player.pos.z - 315);
-    if (dMainDock < 9.5) {
+    const inMainDock = dMainDock < 22 || (player.pos.x >= 695 && player.pos.x <= 735 && player.pos.z >= 295 && player.pos.z <= 348);
+    if (inMainDock) {
       activeDeckAction = 'ferry_to_island';
       setDeckPrompt('[E]', 'BOARD TORONTO ISLAND FERRY (CENTRE ISLAND)');
       return;
     }
     const dIslandDock = Math.hypot(player.pos.x - 180, player.pos.z - 1085);
-    if (dIslandDock < 9.5) {
+    const inIslandDock = dIslandDock < 22 || (player.pos.x >= 165 && player.pos.x <= 195 && player.pos.z >= 1060 && player.pos.z <= 1095);
+    if (inIslandDock) {
       activeDeckAction = 'ferry_to_mainland';
       setDeckPrompt('[E]', 'BOARD TORONTO ISLAND FERRY (MAINLAND TORONTO)');
       return;
@@ -4386,9 +4400,10 @@ window.addEventListener('keydown', (e) => {
     if (state.onFerry) state.onFerry = false;
 
     const dMainDock = Math.hypot(player.pos.x - 712, player.pos.z - 308);
-    if (dMainDock < 18) {
+    if (dMainDock < 22) {
       // Already at mainland ferry dock: toggle to Centre Island dock!
-      player.pos.set(180, 1.7, 1088);
+      const islandFloor = (city && city.floorAt) ? city.floorAt(180, 1088) : 0.5;
+      player.pos.set(180, islandFloor + EYE_HEIGHT, 1088);
       player.yaw = 0; // facing south into Centre Island
       player.velocity.set(0, 0, 0);
       player.isGrounded = true;
@@ -4396,12 +4411,14 @@ window.addEventListener('keydown', (e) => {
       camera.rotation.y = 0;
       camera.rotation.x = 0;
       state.onIsland = true;
+      if (scene.fog) scene.fog.density = 0.00095;
       audio.playFerryArrival();
       showAnnouncement("🌳 CHEAT: TELEPORTED TO CENTRE ISLAND DOCK! 🌸", 3200);
       populateCentreIslandCitizens();
     } else {
       // Teleport to Mainland Ferry Dock (Jack Layton Ferry Terminal)
-      player.pos.set(712, 1.7, 308);
+      const mainFloor = (city && city.floorAt) ? city.floorAt(712, 308) : 0.5;
+      player.pos.set(712, mainFloor + EYE_HEIGHT, 308);
       player.yaw = -0.35; // facing the ferry slip & boarding gantry
       player.velocity.set(0, 0, 0);
       player.isGrounded = true;
@@ -4409,6 +4426,7 @@ window.addEventListener('keydown', (e) => {
       camera.rotation.y = -0.35;
       camera.rotation.x = 0;
       state.onIsland = false;
+      if (scene.fog) scene.fog.density = 0.0021;
       audio.playFerryHorn();
       showAnnouncement("🚢 CHEAT: TELEPORTED TO MAINLAND FERRY DOCK (JACK LAYTON TERMINAL)!", 3200);
     }
@@ -6405,6 +6423,12 @@ function updateEnemies(dt) {
     } else {
       enemy.rig.root.position.x = Math.max(-36, Math.min(36, enemy.rig.root.position.x));
       enemy.rig.root.position.z = Math.max(-36, Math.min(36, enemy.rig.root.position.z));
+    }
+
+    // Update ground NPCs vertical elevation to match bridges, piers, and terrain
+    if (!enemy.isDeckEnemy && city && city.floorAt) {
+      const gFloor = city.floorAt(enemy.rig.root.position.x, enemy.rig.root.position.z, enemy.rig.root.position.y);
+      enemy.rig.root.position.y = gFloor;
     }
 
     // Peace Sanctuary Repulsion: push street enemies away from ground sanctuary
