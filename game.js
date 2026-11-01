@@ -3319,6 +3319,15 @@ function startFerryRide(dir) {
   if (scene.fog) scene.fog.density = 0.00095;
   audio.playFerryHorn();
 
+  // Face forward at initial boarding, but player can freely look around in 360° during the entire voyage!
+  const p0 = dir === 'to_island' ? { x: 712, z: 320 } : { x: 180, z: 1075 };
+  const p1 = dir === 'to_island' ? { x: 180, z: 1075 } : { x: 712, z: 320 };
+  const initialHeading = Math.atan2(p1.x - p0.x, p1.z - p0.z);
+  player.yaw = initialHeading;
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = initialHeading;
+  camera.rotation.x = 0;
+
   const msg = dir === 'to_island'
     ? '🚢 TORONTO ISLAND FERRY: DEPARTING FOR CENTRE ISLAND...'
     : '🚢 TORONTO ISLAND FERRY: DEPARTING FOR TORONTO MAINLAND...';
@@ -3361,12 +3370,12 @@ function updateFerry(dt) {
   ferry.position.set(fx, waterY + bob, fz);
   ferry.rotation.y = heading;
 
-  // Keep player on the forward observation sun deck facing panoramic harbour vista
+  // Keep player on the forward observation sun deck
+  // Notice: do NOT overwrite player.yaw so the player can freely look around in 360° at the skyline, islands & water!
   const fwdDist = 8.0;
   const fwdX = fx - Math.sin(heading) * fwdDist;
   const fwdZ = fz - Math.cos(heading) * fwdDist;
   player.pos.set(fwdX, waterY + 6.95 + EYE_HEIGHT + bob, fwdZ);
-  player.yaw = heading;
   player.velocity.set(0, 0, 0);
   if (scene.fog) scene.fog.density = 0.00095;
 

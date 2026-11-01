@@ -12687,6 +12687,49 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
           });
         }
 
+        // Interconnected Forest Nature Trails Network
+        // Winding trails threading through the dense tree canopies to connect each secluded clearing
+        const islandTrailMat = new THREE.MeshBasicMaterial({ color: 0x85755b, fog: false });
+        function addTrailPath(pts, width) {
+          const w = width || 4.2;
+          for (let i = 0; i < pts.length - 1; i++) {
+            const [x0, z0] = pts[i], [x1, z1] = pts[i + 1];
+            const dx = x1 - x0, dz = z1 - z0;
+            const len = Math.hypot(dx, dz) || 1;
+            const seg = new THREE.Mesh(new THREE.BoxGeometry(w, 0.08, len + 0.3), islandTrailMat);
+            seg.position.set((x0 + x1) / 2, 0.04, (z0 + z1) / 2);
+            seg.rotation.y = Math.atan2(dx, dz);
+            avg.add(seg);
+            const node = new THREE.Mesh(new THREE.CylinderGeometry(w / 2, w / 2, 0.08, 10), islandTrailMat);
+            node.position.set(x0, 0.04, z0);
+            avg.add(node);
+          }
+          const last = pts[pts.length - 1];
+          const endNode = new THREE.Mesh(new THREE.CylinderGeometry(w / 2, w / 2, 0.08, 10), islandTrailMat);
+          endNode.position.set(last[0], 0.04, last[1]);
+          avg.add(endNode);
+        }
+
+        // 1. West Woods Trail (Avenue Fountain Plaza -> Hedge Maze Entrance)
+        addTrailPath([[180, 1160], [145, 1155], [115, 1150], [85, 1150]], 4.2);
+        // 2. Maze to Olympic Island Footbridge Trail
+        addTrailPath([[85, 1150], [55, 1175], [35, 1205], [10, 1225]], 3.8);
+        // 3. East Woodland Trail (Avenue -> Centreville Amusement Park Gate)
+        addTrailPath([[180, 1145], [215, 1145], [245, 1145]], 4.2);
+        // 4. Centreville Carousel to Pizza Pizza Woods Trail
+        addTrailPath([[245, 1145], [265, 1155], [260, 1180], [240, 1202]], 3.8);
+        // 5. Willow Lagoon Bank Trail (Pizza Pizza -> Swan Cove & Train Depot)
+        addTrailPath([[240, 1205], [265, 1225], [290, 1235], [340, 1235], [360, 1235]], 3.8);
+        // 6. South Dune Forest Trail (Avenue Footbridge -> Centre Island Beach Boardwalk)
+        addTrailPath([[180, 1264], [180, 1295], [182, 1330], [180, 1360], [180, 1380]], 4.5);
+        // 7. South Lagoon Cross-Bank Trail (Olympic Bridge -> Avenue Bridge -> Centreville Bridge)
+        addTrailPath([[10, 1262], [85, 1266], [180, 1264], [240, 1262], [320, 1266]], 3.6);
+        // 8. Olympic Island Cottonwood Forest Trails
+        addTrailPath([[10, 1215], [-25, 1212], [-55, 1210], [-80, 1210]], 4.0);
+        addTrailPath([[-80, 1210], [-80, 1180], [-80, 1130]], 3.8); // To Skyline Lookout
+        addTrailPath([[10, 1245], [-25, 1260], [-55, 1268], [-80, 1270]], 4.0); // South bridge landing to woods
+        addTrailPath([[-80, 1210], [-80, 1270], [-115, 1295], [-150, 1320], [-175, 1335]], 4.0); // Through ancient cottonwoods to Gibraltar Point Lighthouse
+
         centreIsland.add(avg);
       }
 
@@ -13124,42 +13167,211 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         centreIsland.add(oig);
       }
 
-      // ---------- I. Open Park Plains & Scenic Perimeter Shade Trees ----------
-      // Designed as a vast, open green park vista with clear panoramic sightlines across the whole island
+      // ---------- I. Enchanted Toronto Island Forest & Woodland Canopies ----------
+      // Authentic Toronto Island geography: a lush, ancient urban forest with dense canopies
+      // of giant Eastern Cottonwoods (Populus deltoides), weeping willows, sugar maples, and oaks,
+      // where you wander beneath the forest canopy to discover secluded, sunlit clearings!
       {
         const treesGroup = new THREE.Group();
-        // 1. Graceful Weeping Willows gently framing lagoon banks near the footbridges
-        const willowSpots = [
-          [-30, 1234, -0.1], [60, 1234, 0.1], [135, 1234, -0.1], [215, 1234, 0.1],
-          [285, 1258, 0.12], [340, 1258, -0.1], [-30, 1262, 0.1], [135, 1262, -0.1]
-        ];
-        willowSpots.forEach(([wx, wz, rz]) => {
-          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.65, 6.5, 8), islandWoodMat);
-          trunk.position.set(wx, 3.25, wz);
-          trunk.rotation.z = rz;
+
+        // Dedicated materials for distinct island species
+        const islandBarkDark = new THREE.MeshBasicMaterial({ color: 0x3d2b1f, fog: false });  // dark furrowed cottonwood bark
+        const islandBarkWillow = new THREE.MeshBasicMaterial({ color: 0x524332, fog: false }); // weathered willow trunk
+        const islandCottonwoodLeaf1 = new THREE.MeshBasicMaterial({ color: 0x15803d, fog: false }); // lush cottonwood green
+        const islandCottonwoodLeaf2 = new THREE.MeshBasicMaterial({ color: 0x166534, fog: false }); // deep canopy green
+        const islandWillowLeaf = new THREE.MeshBasicMaterial({ color: 0x4d7c0f, fog: false });     // golden-green weeping willow foliage
+        const islandPineLeaf = new THREE.MeshBasicMaterial({ color: 0x052e16, fog: false });       // coastal white pine evergreen
+        const islandOakLeaf = new THREE.MeshBasicMaterial({ color: 0x14532d, fog: false });        // rich oak canopy
+        const islandBushMat = new THREE.MeshBasicMaterial({ color: 0x14532d, fog: false });        // forest understory thicket
+
+        // Helper: Giant Eastern Cottonwood (Populus deltoides)
+        function makeCottonwood(x, z, s, isAncient) {
+          const sc = s || 1.0;
+          const trunkH = (isAncient ? 13.0 : 10.5) * sc;
+          const trunkR = (isAncient ? 0.85 : 0.60) * sc;
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 8), islandBarkDark);
+          trunk.position.set(x, trunkH / 2, z);
           treesGroup.add(trunk);
 
-          const canopy = new THREE.Mesh(new THREE.ConeGeometry(4.2, 7.5, 8), islandTreeMat1);
-          canopy.position.set(wx, 7.5, wz);
-          treesGroup.add(canopy);
-        });
+          // Broad spreading multi-tiered crown
+          const crownR = (isAncient ? 6.2 : 5.0) * sc;
+          const mainCrown = new THREE.Mesh(new THREE.DodecahedronGeometry(crownR), isAncient ? islandCottonwoodLeaf1 : islandCottonwoodLeaf2);
+          mainCrown.position.set(x, trunkH + crownR * 0.4, z);
+          treesGroup.add(mainCrown);
 
-        // 2. Perimeter Shade Trees framing outer meadow boundaries (keeping central plains completely open!)
-        const perimeterSpots = [
-          [-130, 1140], [-130, 1260], [-110, 1340],
-          [-60, 1130], [-60, 1340],
-          [380, 1120], [420, 1160], [420, 1240], [400, 1320], [350, 1360],
-          [0, 1120], [0, 1350],
-          [280, 1120], [320, 1120]
-        ];
-        perimeterSpots.forEach(([tx, tz], ti) => {
-          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.55, 6.0, 8), islandWoodMat);
-          trunk.position.set(tx, 3.0, tz);
+          // Side spreading lobes for wind-sculpted woodland look
+          const lobe1 = new THREE.Mesh(new THREE.DodecahedronGeometry(crownR * 0.72), isAncient ? islandCottonwoodLeaf2 : islandCottonwoodLeaf1);
+          lobe1.position.set(x + crownR * 0.5, trunkH - 0.5, z - crownR * 0.3);
+          treesGroup.add(lobe1);
+
+          const lobe2 = new THREE.Mesh(new THREE.DodecahedronGeometry(crownR * 0.65), islandOakLeaf);
+          lobe2.position.set(x - crownR * 0.45, trunkH + 0.5, z + crownR * 0.4);
+          treesGroup.add(lobe2);
+        }
+
+        // Helper: Old-Growth Weeping Willow
+        function makeWillow(x, z, s, rz) {
+          const sc = s || 1.0;
+          const trunkH = 8.5 * sc;
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.45 * sc, 0.75 * sc, trunkH, 8), islandBarkWillow);
+          trunk.position.set(x, trunkH / 2, z);
+          trunk.rotation.z = rz || 0.12;
           treesGroup.add(trunk);
 
-          const crown = new THREE.Mesh(new THREE.DodecahedronGeometry(3.6), ti % 2 === 0 ? islandTreeMat1 : islandTreeMat2);
-          crown.position.set(tx, 7.5, tz);
+          // Cascading drooping canopy hanging toward water / ground
+          const upperCanopy = new THREE.Mesh(new THREE.ConeGeometry(5.2 * sc, 9.5 * sc, 8), islandWillowLeaf);
+          upperCanopy.position.set(x, trunkH + 2.0 * sc, z);
+          treesGroup.add(upperCanopy);
+
+          const lowerCurtain = new THREE.Mesh(new THREE.ConeGeometry(6.5 * sc, 5.5 * sc, 8), islandWillowLeaf);
+          lowerCurtain.position.set(x, trunkH - 1.2 * sc, z);
+          treesGroup.add(lowerCurtain);
+        }
+
+        // Helper: Mature Island Oak / Sugar Maple
+        function makeOak(x, z, s, isMaple) {
+          const sc = s || 1.0;
+          const trunkH = 8.5 * sc;
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4 * sc, 0.6 * sc, trunkH, 8), islandWoodMat);
+          trunk.position.set(x, trunkH / 2, z);
+          treesGroup.add(trunk);
+
+          const crown = new THREE.Mesh(new THREE.DodecahedronGeometry(5.2 * sc), isMaple ? islandCottonwoodLeaf1 : islandOakLeaf);
+          crown.position.set(x, trunkH + 3.0 * sc, z);
           treesGroup.add(crown);
+        }
+
+        // Helper: Coastal White Pine
+        function makePine(x, z, s) {
+          const sc = s || 1.0;
+          const trunkH = 13.0 * sc;
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28 * sc, 0.45 * sc, trunkH, 7), islandBarkDark);
+          trunk.position.set(x, trunkH / 2, z);
+          treesGroup.add(trunk);
+
+          for (let pTier = 0; pTier < 3; pTier++) {
+            const cone = new THREE.Mesh(new THREE.ConeGeometry((4.5 - pTier * 1.1) * sc, 4.2 * sc, 7), islandPineLeaf);
+            cone.position.set(x, (8.5 + pTier * 2.8) * sc, z);
+            treesGroup.add(cone);
+          }
+        }
+
+        // Protected Clearings & Openings (Preserve sunlit spaces)
+        const clearings = [
+          [165, 195, 1060, 1100],  // Ferry Landing Plaza
+          [173, 187, 1100, 1234],  // Avenue Promenade
+          [166, 194, 1156, 1184],  // Grand Fountain Plaza
+          [44, 126, 1146, 1224],   // William Meany Hedge Maze
+          [255, 345, 1148, 1200],  // Centreville Rides (Carousel & Ferris Wheel)
+          [226, 254, 1198, 1224],  // Pizza Pizza & Dining Patio
+          [350, 370, 1232, 1246],  // Train Depot
+          [-95, -65, 1165, 1195],  // Olympic Meadow 1
+          [-95, -65, 1265, 1295],  // Olympic Meadow 2
+          [-140, 460, 1385, 1490], // Centre Island Beach & Sand Dunes
+          [-195, -165, 1325, 1355] // Gibraltar Point Lighthouse clearing
+        ];
+
+        // Trails corridors (keep 3.2m walking clearance under canopy)
+        const trailPolys = [
+          [[180, 1160], [145, 1155], [115, 1150], [85, 1150]],
+          [[85, 1150], [55, 1175], [35, 1205], [10, 1225]],
+          [[180, 1145], [215, 1145], [245, 1145]],
+          [[245, 1145], [265, 1155], [260, 1180], [240, 1202]],
+          [[240, 1205], [265, 1225], [290, 1235], [340, 1235], [360, 1235]],
+          [[180, 1264], [180, 1295], [182, 1330], [180, 1360], [180, 1380]],
+          [[10, 1262], [85, 1266], [180, 1264], [240, 1262], [320, 1266]],
+          [[10, 1215], [-25, 1212], [-55, 1210], [-80, 1210]],
+          [[-80, 1210], [-80, 1180], [-80, 1130]],
+          [[10, 1245], [-25, 1260], [-55, 1268], [-80, 1270]],
+          [[-80, 1210], [-80, 1270], [-115, 1295], [-150, 1320], [-175, 1335]]
+        ];
+
+        function isNearTrail(px, pz, radius) {
+          const r = radius || 3.2;
+          for (let p = 0; p < trailPolys.length; p++) {
+            const poly = trailPolys[p];
+            for (let i = 0; i < poly.length - 1; i++) {
+              const ax = poly[i][0], az = poly[i][1], bx = poly[i + 1][0], bz = poly[i + 1][1];
+              const dx = bx - ax, dz = bz - az;
+              const L2 = dx * dx + dz * dz;
+              if (L2 === 0) {
+                if (Math.hypot(px - ax, pz - az) < r) return true;
+                continue;
+              }
+              const t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / L2));
+              if (Math.hypot(px - (ax + t * dx), pz - (az + t * dz)) < r) return true;
+            }
+          }
+          return false;
+        }
+
+        function isInClearing(px, pz, pad) {
+          const p = pad || 2.5;
+          for (let c = 0; c < clearings.length; c++) {
+            const [x0, x1, z0, z1] = clearings[c];
+            if (px >= x0 - p && px <= x1 + p && pz >= z0 - p && pz <= z1 + p) return true;
+          }
+          return false;
+        }
+
+        function isInLagoon(px, pz) {
+          return (pz >= 1238 && pz <= 1256 && px >= -90 && px <= 420);
+        }
+
+        // Deterministic procedural woodland distribution across the island
+        const step = 19.5;
+        for (let gx_i = Math.floor(-135 / step); gx_i <= Math.floor(425 / step); gx_i++) {
+          const gx = gx_i * step;
+          for (let gz_i = Math.floor(1080 / step); gz_i <= Math.floor(1380 / step); gz_i++) {
+            const gz = gz_i * step;
+            const h1 = ((Math.sin(gx * 12.9898 + gz * 78.233) * 43758.5453) % 1 + 1) % 1;
+            const h2 = ((Math.cos(gx * 39.346 + gz * 11.135) * 23421.631) % 1 + 1) % 1;
+            const tx = gx + (h1 - 0.5) * (step * 0.72);
+            const tz = gz + (h2 - 0.5) * (step * 0.72);
+
+            if (tx < -135 || tx > 425 || tz < 1080 || tz > 1378) continue;
+            if (tx < -35 && (tz < 1120 || tz > 1355)) continue;
+            if (isInLagoon(tx, tz)) continue;
+            if (isInClearing(tx, tz)) continue;
+            if (isNearTrail(tx, tz, 3.2)) continue;
+
+            const scale = 0.85 + h2 * 0.35;
+            // Classify and place species
+            if ((tz >= 1228 && tz <= 1238) || (tz >= 1256 && tz <= 1268)) {
+              makeWillow(tx, tz, scale, h1 > 0.5 ? 0.12 : -0.12);
+            } else if (tx < -20) {
+              if (h1 > 0.4) makeCottonwood(tx, tz, scale * 1.15, true);
+              else makePine(tx, tz, scale);
+            } else if (tz >= 1270) {
+              if (h1 > 0.45) makeCottonwood(tx, tz, scale, false);
+              else makeOak(tx, tz, scale, false);
+            } else {
+              if (h1 > 0.6) makeOak(tx, tz, scale, true);
+              else if (h1 > 0.3) makeCottonwood(tx, tz, scale, false);
+              else makeOak(tx, tz, scale, false);
+            }
+          }
+        }
+
+        // Understory fern & wild berry thickets along the forest edges
+        const thicketSpots = [
+          [160, 1152], [130, 1162], [100, 1146], [70, 1165],
+          [200, 1142], [225, 1148], [250, 1175], [235, 1215],
+          [270, 1230], [315, 1232], [-40, 1225], [-70, 1215],
+          [-100, 1280], [-140, 1310], [172, 1290], [188, 1315],
+          [174, 1345], [186, 1370], [45, 1264], [120, 1266]
+        ];
+        thicketSpots.forEach(([bx, bz], bi) => {
+          const bush = new THREE.Mesh(new THREE.DodecahedronGeometry(1.5), islandBushMat);
+          bush.scale.set(1.4, 0.65, 1.4);
+          bush.position.set(bx, 0.5, bz);
+          treesGroup.add(bush);
+          // Scatter wild forest blossoms
+          if (bi % 2 === 0) {
+            const blossom = new THREE.Mesh(new THREE.DodecahedronGeometry(0.4), bi % 4 === 0 ? islandFlowerRed : islandFlowerYellow);
+            blossom.position.set(bx + 0.3, 0.8, bz + 0.2);
+            treesGroup.add(blossom);
+          }
         });
 
         centreIsland.add(treesGroup);
@@ -20666,6 +20878,15 @@ function startFerryRide(dir) {
   if (scene.fog) scene.fog.density = 0.00095;
   audio.playFerryHorn();
 
+  // Face forward at initial boarding, but player can freely look around in 360° during the entire voyage!
+  const p0 = dir === 'to_island' ? { x: 712, z: 320 } : { x: 180, z: 1075 };
+  const p1 = dir === 'to_island' ? { x: 180, z: 1075 } : { x: 712, z: 320 };
+  const initialHeading = Math.atan2(p1.x - p0.x, p1.z - p0.z);
+  player.yaw = initialHeading;
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = initialHeading;
+  camera.rotation.x = 0;
+
   const msg = dir === 'to_island'
     ? '🚢 TORONTO ISLAND FERRY: DEPARTING FOR CENTRE ISLAND...'
     : '🚢 TORONTO ISLAND FERRY: DEPARTING FOR TORONTO MAINLAND...';
@@ -20708,12 +20929,12 @@ function updateFerry(dt) {
   ferry.position.set(fx, waterY + bob, fz);
   ferry.rotation.y = heading;
 
-  // Keep player on the forward observation sun deck facing panoramic harbour vista
+  // Keep player on the forward observation sun deck
+  // Notice: do NOT overwrite player.yaw so the player can freely look around in 360° at the skyline, islands & water!
   const fwdDist = 8.0;
   const fwdX = fx - Math.sin(heading) * fwdDist;
   const fwdZ = fz - Math.cos(heading) * fwdDist;
   player.pos.set(fwdX, waterY + 6.95 + EYE_HEIGHT + bob, fwdZ);
-  player.yaw = heading;
   player.velocity.set(0, 0, 0);
   if (scene.fog) scene.fog.density = 0.00095;
 
