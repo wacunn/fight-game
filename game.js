@@ -2609,6 +2609,7 @@ function spawnEnemy(x, z, kind = 'robot', archIdx = 0, isGuard = false, guardTit
     vz: 0,
     isMissionGuard: isGuard,
     guardAnchor: isGuard ? { x, z } : null,
+    isIslandCitizen: (z > 950 || (city && city.isInsideCentreIsland && city.isInsideCentreIsland(x, z)) || (typeof islands !== 'undefined' && islands && islands.isInsideIslands && islands.isInsideIslands(x, z))),
     // Civilian / Snatcher specific fields
     isFleeing: false,
     fleeTimer: 0,
@@ -2802,10 +2803,30 @@ function populateCentreIslandCitizens() {
 
   // Pre-populate Centre Island attractions with peaceful Torontonian citizens & tourists
   const islandSpots = [
-    // Avenue of the Island promenade & formal flower gardens
-    [0, 5060], [-6, 5090], [6, 5110], [0, 5130], [8, 5160], [-8, 5190], [0, 5215],
-    // Grand Fountain plaza
-    [-10, 5130], [10, 5130], [0, 5142],
+    // North Island Ferry Terminal & Arrival Plaza
+    [0, 5015], [15, 5025], [-12, 5020],
+    // Pizza Pizza & Subway outdoor patio
+    [12, 5052], [14, 5064], [6, 5055], [20, 5048], [20, 5066],
+    // Toronto Island BBQ & Beer Co. dining deck & smoker patio
+    [65, 5060], [72, 5070], [60, 5075], [58, 5085], [70, 5085],
+    // Park Washroom & Public Lockers Building
+    [12, 5085], [16, 5092],
+    // First Bridge (North Arrival Bridge over North Lagoon)
+    [28, 5135],
+    // Shaded Wooded Path to Centreville
+    [60, 5175], [100, 5190],
+    // Centreville Turn-of-the-Century Victorian Village Square & Town Hall
+    [180, 5185], [165, 5195], [195, 5205], [175, 5215], [210, 5215], [150, 5215],
+    // Centreville Railway Station Platform (Beasley Bear Express)
+    [160, 5165], [155, 5170],
+    // Far Enough Farm (Historic 1959 Petting Farm, Big Red Barn & Paddocks)
+    [270, 5165], [295, 5180], [320, 5170], [280, 5200], [325, 5200],
+    // Manitou Bridge over Long Pond
+    [0, 5255],
+    // Grand Fountain Plaza
+    [0, 5300], [-8, 5312], [8, 5312], [0, 5324],
+    // Grand Formal Gardens & twin sunken Reflecting Pools (East & West)
+    [-26, 5360], [-26, 5400], [26, 5360], [26, 5400], [0, 5380], [-10, 5350], [10, 5350],
     // William Meany Hedge Maze (South Centre Island, West of Avenue - at the 1888 antique school bell & paths!)
     [-65, 5385], [-55, 5370], [-75, 5370], [-55, 5400], [-75, 5400], [-65, 5410],
     // South Beach Cafe & Grill beachfront patio
@@ -2814,12 +2835,8 @@ function populateCentreIslandCitizens() {
     [-34, 5455], [-28, 5458], [-40, 5458],
     // Beach Lockers & changing rooms
     [-10, 5452],
-    // Centre Island South Beach Boardwalk & 120m Pier
+    // Centre Island South Beach Boardwalk & 120m Pier (Lake Ontario)
     [0, 5470], [0, 5500], [0, 5530], [0, 5560], [-40, 5450], [40, 5450],
-    // Centreville Amusement Park & Pizza Pizza patio
-    [170, 5225], [185, 5220], [175, 5235], [210, 5140], [190, 5125],
-    // Manitou Bridge over Long Pond
-    [0, 5255],
     // Olympic Island Great Lawn (skyline panorama)
     [-160, 5330], [-140, 5320], [-180, 5340],
     // Gibraltar Point 1808 Lighthouse Sanctuary
@@ -2875,7 +2892,8 @@ function setDifficulty(diffKey, announce = true) {
   });
 
   // Scale active enemy population (host only; guests see the host's city)
-  const aliveEnemies = enemies.filter(e => !e.isDead && !e.isRemoteMirror);
+  // Island civilians and peaceful citizens are strictly preserved and never culled!
+  const aliveEnemies = enemies.filter(e => !e.isDead && !e.isRemoteMirror && e.kind !== 'civilian' && !e.isIslandCitizen);
   if (isNetGuest()) {
     // nothing: difficulty of the shared city is the host's setting
   } else if (aliveEnemies.length < cfg.targetEnemies) {
@@ -6474,7 +6492,7 @@ function updateEnemies(dt) {
 
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
-      if (e.isDead || e.isKnockedOut || e.isMissionGuard || e.isDeckEnemy || e.isRemoteMirror) continue;
+      if (e.isDead || e.isKnockedOut || e.isMissionGuard || e.isDeckEnemy || e.isRemoteMirror || e.kind === 'civilian' || e.isIslandCitizen) continue;
 
       const d = nearestPlayerDist(e.rig.root.position.x, e.rig.root.position.z);
       if (d > 115) {
@@ -6485,9 +6503,24 @@ function updateEnemies(dt) {
     }
 
     // Maintain ambient target count
-    const aliveAmbient = enemies.filter(e => !e.isDead && !e.isMissionGuard && !e.isDeckEnemy).length;
+    const aliveAmbient = enemies.filter(e => !e.isDead && !e.isMissionGuard && !e.isDeckEnemy && e.kind !== 'civilian' && !e.isIslandCitizen).length;
     if (aliveAmbient < cfg.targetEnemies) {
       spawnSingleReinforcement();
+    }
+
+    // When player is on the island, ensure peaceful Torontonians & tourists stroll nearby
+    if (player.pos.z > 3500) {
+      const nearbyCitizens = enemies.filter(e => !e.isDead && (e.kind === 'civilian' || e.isIslandCitizen) && nearestPlayerDist(e.rig.root.position.x, e.rig.root.position.z) < 75).length;
+      if (nearbyCitizens < 8) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 18 + Math.random() * 35;
+        const sx = player.pos.x + Math.cos(angle) * dist;
+        const sz = player.pos.z + Math.sin(angle) * dist;
+        if (city && city.canMoveTo && city.canMoveTo(sx, sz, 0.5, 0.55)) {
+          const archIdx = Math.floor(Math.random() * CIVILIAN_ARCHETYPES.length);
+          spawnEnemy(sx, sz, 'civilian', archIdx);
+        }
+      }
     }
   }
 
@@ -7075,7 +7108,7 @@ function updateCombatTimers(dt) {
     const cfg = DIFFICULTY_CONFIGS[state.difficulty || 'medium'] || DIFFICULTY_CONFIGS.medium;
     if (state.spawnTimer >= cfg.spawnInterval) {
       state.spawnTimer = 0;
-      const aliveCount = enemies.filter(e => !e.isDead).length;
+      const aliveCount = enemies.filter(e => !e.isDead && e.kind !== 'civilian' && !e.isIslandCitizen).length;
       if (aliveCount < cfg.targetEnemies) {
         spawnSingleReinforcement();
       }

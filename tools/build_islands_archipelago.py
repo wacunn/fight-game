@@ -138,12 +138,15 @@ CODE = r'''/**
 
     // Lagoons, channels and ponds (water carved out of the land under bridges)
     const CHANNELS = [
+      // North Lagoon Channel: flows between the North Arrival Island and Centreville/park mainland under North Arrival Bridge (x=28, z=Z(118..158))
+      { name: 'North Lagoon Channel', w: 26, pts: [[-120, Z(138)], [-40, Z(138)], [28, Z(138)], [100, Z(138)], [170, Z(145)]] },
       // Manitou Lagoon / Long Pond: spans under Manitou Bridge (0, Z(230..280))
       { name: 'Long Pond', w: 38, pts: [[-290, Z(255)], [-150, Z(255)], [0, Z(255)], [80, Z(255)], [180, Z(255)], [330, Z(260)]] },
       // Blockhouse Bay: runs between Olympic Island and Gibraltar Point, passing under Olympic-Gibraltar bridge (x=-340, z=Z(318))
       { name: 'Blockhouse Bay', w: 36, pts: [[-340, Z(220)], [-340, Z(280)], [-340, Z(318)], [-350, Z(380)], [-420, Z(430)]] },
-      // South Lagoon: winds behind Centre Island beach dunes, passing under Avenue South Lagoon bridge (x=0, z=Z(355))
-      { name: 'South Lagoon', w: 32, pts: [[-180, Z(360)], [-80, Z(355)], [0, Z(355)], [80, Z(355)], [180, Z(360)], [260, Z(370)]] },
+      // South Lagoon: winds behind Centre Island dunes flanking the formal gardens to the west and east
+      { name: 'South Lagoon West', w: 26, pts: [[-260, Z(370)], [-180, Z(360)], [-100, Z(365)], [-52, Z(340)]] },
+      { name: 'South Lagoon East', w: 26, pts: [[52, Z(340)], [100, Z(365)], [180, Z(360)], [260, Z(370)]] },
       // Algonquin Canal: runs between Algonquin & Ward's Island, passing under Ward-Algonquin bridge (x=750, z=Z(60))
       { name: 'Algonquin Canal', w: 28, pts: [[750, Z(-60)], [750, Z(0)], [750, Z(60)], [750, Z(100)], [750, Z(180)]] },
       // Hanlan Canal: runs between Hanlan's Point and Gibraltar Point, passing under Gibraltar-Hanlan bridge (x=-590, z=Z(182))
@@ -234,16 +237,26 @@ CODE = r'''/**
     // Paths (Park roads, trails, boardwalk) & Clearings
     // ------------------------------------------------------------------------
     const PATHS = [
-      { name: 'Avenue of the Islands', w: 12, kind: 'gravel', pts: [[0, Z(-5)], [0, Z(470)]] },
-      { name: 'Maze Promenade Link', w: 6, kind: 'gravel', pts: [[0, Z(175)], [70, Z(175)]] },
-      { name: 'Cibola Avenue', w: 6, kind: 'paved', pts: [[0, Z(25)], [150, Z(45)], [338, Z(66)], [392, Z(94)], [520, Z(100)], [620, Z(70)], [729, Z(46)], [776, Z(74)], [880, Z(100)], [1100, Z(100)], [1150, Z(70)], [1150, Z(-12)]] },
-      { name: 'Manitou Road', w: 5, kind: 'paved', pts: [[0, Z(200)], [-60, Z(215)], [-170, Z(222)], [-260, Z(228)], [-335, Z(236)], [-420, Z(250)], [-520, Z(210)], [-568, Z(197)], [-612, Z(160)], [-690, Z(85)], [-720, Z(-95)]] },
+      // North Island Ferry Promenade: starts at Ferry Terminal (0, Z(-5)), curves gently east, then south towards the first bridge
+      { name: 'North Island Promenade', w: 10, kind: 'paved', pts: [[0, Z(-5)], [0, Z(15)], [14, Z(35)], [24, Z(60)], [28, Z(90)], [28, Z(120)]] },
+      // Avenue of the Islands south: continues south across Manitou Bridge towards Grand Fountain (Z(310)), Formal Gardens (Z(345-415)), and South Beach (Z(455))
+      { name: 'Avenue of the Islands', w: 10, kind: 'gravel', pts: [[28, Z(158)], [12, Z(195)], [0, Z(230)], [0, Z(280)], [0, Z(465)]] },
+      // Wooded Path to Centreville: shaded winding trail branching east into the dense forest to discover Centreville
+      { name: 'Wooded Path to Centreville', w: 6, kind: 'gravel', pts: [[28, Z(158)], [55, Z(175)], [90, Z(190)], [125, Z(200)], [150, Z(200)]] },
+      // Centreville Village Midway: paved promenade through turn-of-the-century Victorian village square
+      { name: 'Centreville Village Midway', w: 8, kind: 'paved', pts: [[150, Z(200)], [175, Z(200)], [205, Z(195)], [235, Z(190)]] },
+      // Far Enough Farm Lane: rustic trail leading east to the historic farm
+      { name: 'Far Enough Farm Lane', w: 5, kind: 'gravel', pts: [[235, Z(190)], [265, Z(185)], [295, Z(180)], [330, Z(175)]] },
+      { name: 'Maze Promenade Link', w: 6, kind: 'gravel', pts: [[0, Z(385)], [-30, Z(385)]] },
+      { name: 'West Garden Promenade', w: 4, kind: 'gravel', pts: [[-10, Z(330)], [-36, Z(330)], [-36, Z(425)], [-10, Z(425)]] },
+      { name: 'East Garden Promenade', w: 4, kind: 'gravel', pts: [[10, Z(330)], [36, Z(330)], [36, Z(425)], [10, Z(425)]] },
+      { name: 'Cibola Avenue', w: 6, kind: 'paved', pts: [[28, Z(60)], [80, Z(70)], [150, Z(60)], [338, Z(66)], [392, Z(94)], [520, Z(100)], [620, Z(70)], [729, Z(46)], [776, Z(74)], [880, Z(100)], [1100, Z(100)], [1150, Z(70)], [1150, Z(-12)]] },
+      { name: 'Manitou Road', w: 5, kind: 'paved', pts: [[0, Z(280)], [-60, Z(265)], [-170, Z(255)], [-260, Z(248)], [-335, Z(240)], [-420, Z(250)], [-520, Z(210)], [-568, Z(197)], [-612, Z(160)], [-690, Z(85)], [-720, Z(-95)]] },
       { name: 'Hanlan\'s Point Road', w: 6, kind: 'paved', pts: [[-720, Z(-95)], [-800, Z(-60)], [-960, Z(-130)]] },
-      { name: 'Olympic Island Trail', w: 5, kind: 'gravel', pts: [[0, Z(320)], [-22, Z(320)], [-68, Z(320)], [-160, Z(320)], [-268, Z(322)], [-312, Z(322)], [-400, Z(330)], [-480, Z(308)]] },
+      { name: 'Olympic Island Trail', w: 5, kind: 'gravel', pts: [[0, Z(280)], [-22, Z(290)], [-68, Z(310)], [-160, Z(320)], [-268, Z(322)], [-312, Z(322)], [-400, Z(330)], [-480, Z(308)]] },
       { name: 'Lighthouse Trail', w: 4, kind: 'gravel', pts: [[-420, Z(250)], [-470, Z(300)]] },
       { name: 'Lakeshore Avenue', w: 6, kind: 'paved', pts: [[-620, Z(440)], [-300, Z(455)], [-60, Z(452)], [0, Z(450)], [300, Z(440)]] },
       { name: 'The Boardwalk', w: 5, kind: 'boardwalk', pts: [[300, Z(440)], [600, Z(412)], [800, Z(362)], [1000, Z(292)], [1150, Z(222)], [1245, Z(130)]] },
-      { name: 'Centreville Loop', w: 4, kind: 'gravel', pts: [[0, Z(140)], [80, Z(140)], [140, Z(95)], [260, Z(110)], [270, Z(200)], [220, Z(255)], [120, Z(250)], [0, Z(240)]] },
       { name: 'Ward\'s Lane', w: 3, kind: 'gravel', pts: [[900, Z(0)], [1140, Z(0)]] },
       { name: 'Algonquin Lane', w: 3, kind: 'gravel', pts: [[420, Z(62)], [600, Z(62)]] }
     ];
@@ -251,12 +264,13 @@ CODE = r'''/**
 
     // Lawns, gardens, and clearings where trees are kept clear
     const CLEARINGS = [
-      { r: [-45, 45, Z(-35), Z(245)] }, // Avenue of the Islands and formal gardens
+      { r: [-25, 85, Z(-20), Z(112)] }, // North Island: Ferry Terminal, Pizza Pizza, Subway, Washrooms/Lockers & BBQ Restaurant patio
+      { r: [-45, 45, Z(280), Z(435)] }, // Avenue of the Islands south: Grand Fountain, Formal Gardens & Reflecting Pools
       { c: [-160, Z(330), 65] }, // Olympic Island Great Lawn (skyline panorama)
-      { r: [50, 300, Z(80), Z(270)] }, // Centreville Amusement Park
+      { r: [135, 245, Z(155), Z(245)] }, // Centreville Turn-of-the-Century Victorian Village
+      { r: [265, 345, Z(140), Z(225)] }, // Far Enough Farm (Big Red Barn, Silo, Paddocks)
       { r: [-105, -25, Z(350), Z(425)] }, // William Meany Hedge Maze (South part, WEST of Avenue)
       { r: [-55, 55, Z(435), Z(475)] }, // South Beach Pavilion, Restaurant & Bike Rental
-      { r: [28, 98, Z(22), Z(92)] }, // Formal parterre garden
       { c: [-780, Z(0), 85] }, // Hanlan's ball fields
       { c: [-480, Z(320), 38] }, // Gibraltar lighthouse sanctuary
       { r: [412, 702, Z(22), Z(112)] }, // Algonquin cottages
@@ -516,11 +530,11 @@ CODE = r'''/**
     // Bridges over lagoons (Arched Timber Footbridges with Railings & Stone Abutments)
     // ------------------------------------------------------------------------
     const bridges = [
+      { name: 'North Arrival Bridge', x0: 28, z0: Z(118), x1: 28, z1: Z(158), w: 8.0, archH: 2.2, yBase: 0.55 },
       { name: 'Manitou Bridge', x0: 0, z0: Z(230), x1: 0, z1: Z(280), w: 9.0, archH: 2.4, yBase: 0.55 },
       { name: 'Olympic-Gibraltar Bridge', x0: -370, z0: Z(318), x1: -310, z1: Z(318), w: 7.0, archH: 2.3, yBase: 0.55 },
       { name: 'Algonquin Bridge', x0: 330, z0: Z(65), x1: 395, z1: Z(95), w: 7.2, archH: 2.5, yBase: 0.55 },
       { name: 'Ward-Algonquin Footbridge', x0: 720, z0: Z(45), x1: 780, z1: Z(75), w: 6.5, archH: 2.4, yBase: 0.55 },
-      { name: 'Avenue South Lagoon Bridge', x0: 0, z0: Z(335), x1: 0, z1: Z(375), w: 10.0, archH: 2.4, yBase: 0.55 },
       { name: 'Gibraltar-Hanlan Bridge', x0: -566, z0: Z(200), x1: -614, z1: Z(164), w: 6.5, archH: 2.3, yBase: 0.55 }
     ];
 
@@ -932,71 +946,453 @@ CODE = r'''/**
     }
 
     // ------------------------------------------------------------------------
-    // Landmark: Avenue of the Islands - Flowerbeds, Grand Fountain, Formal Garden
+    // Landmark: North Island Arrival Concessions & Amenities
+    // Walking south from Centre Island Ferry Dock along the path curving east then south:
+    // 1. Pizza Pizza food kiosk & outdoor umbrella patio at (12, Z(48))
+    // 2. Subway fresh sub sandwich kiosk at (12, Z(66))
+    // 3. Park Washroom & Public Lockers Building with drinking fountain at (12, Z(88))
+    // 4. Toronto Island BBQ & Beer Co.: large waterfront restaurant & smoker deck to the east at (65, Z(65))
+    //    situated north of the First Bridge (North Arrival Bridge at z=Z(118..158))!
+    // ------------------------------------------------------------------------
+    {
+      const conGrp = new THREE.Group();
+
+      // --- 1. PIZZA PIZZA KIOSK at (12, Z(48)) ---
+      const ppBuilding = new THREE.Mesh(
+        new THREE.BoxGeometry(8.5, 3.8, 6.0),
+        new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.6 })
+      );
+      ppBuilding.position.set(12, 1.9, Z(48));
+      conGrp.add(ppBuilding);
+      rectOb(7.5, 16.5, Z(45), Z(51)); // solid interior
+
+      // Service counter & canopy awning
+      const ppAwning = new THREE.Mesh(
+        new THREE.BoxGeometry(9.0, 0.4, 2.2),
+        new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.4 })
+      );
+      ppAwning.position.set(12, 3.4, Z(44.8));
+      conGrp.add(ppAwning);
+
+      const ppSign = makeSign(
+        ['PIZZA PIZZA', 'FRESH SLICES & DRINKS • CENTRE ISLAND CONCESSIONS'],
+        8.2, 1.8,
+        { bg: '#ea580c', fg: '#ffffff', borderColor: '#facc15' }
+      );
+      ppSign.position.set(12, 4.4, Z(44.8));
+      conGrp.add(ppSign);
+
+      // Outdoor dining patio tables with orange umbrellas
+      [Z(44), Z(52)].forEach((oz, ti) => {
+        const tbl = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.8, 12), woodMat);
+        tbl.position.set(20, GROUND_Y + 0.4, oz);
+        conGrp.add(tbl);
+        circOb(20, oz, 1.1);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6), metalMat);
+        pole.position.set(20, GROUND_Y + 1.2, oz);
+        conGrp.add(pole);
+        const umb = new THREE.Mesh(new THREE.ConeGeometry(1.5, 0.6, 10), new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.5 }));
+        umb.position.set(20, GROUND_Y + 2.3, oz);
+        conGrp.add(umb);
+      });
+
+      // --- 2. SUBWAY KIOSK at (12, Z(66)) ---
+      const subBuilding = new THREE.Mesh(
+        new THREE.BoxGeometry(8.5, 3.8, 6.0),
+        new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.6 })
+      );
+      subBuilding.position.set(12, 1.9, Z(66));
+      conGrp.add(subBuilding);
+      rectOb(7.5, 16.5, Z(63), Z(69)); // solid interior
+
+      const subAwning = new THREE.Mesh(
+        new THREE.BoxGeometry(9.0, 0.4, 2.2),
+        new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 })
+      );
+      subAwning.position.set(12, 3.4, Z(62.8));
+      conGrp.add(subAwning);
+
+      const subSign = makeSign(
+        ['SUBWAY', 'FRESH SUBS & SALADS • EAT FRESH'],
+        8.2, 1.8,
+        { bg: '#15803d', fg: '#facc15', borderColor: '#ffffff' }
+      );
+      subSign.position.set(12, 4.4, Z(62.8));
+      conGrp.add(subSign);
+
+      // Outdoor dining patio tables with yellow & green umbrellas
+      [Z(62), Z(70)].forEach((oz, ti) => {
+        const tbl = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.8, 12), woodMat);
+        tbl.position.set(20, GROUND_Y + 0.4, oz);
+        conGrp.add(tbl);
+        circOb(20, oz, 1.1);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6), metalMat);
+        pole.position.set(20, GROUND_Y + 1.2, oz);
+        conGrp.add(pole);
+        const umb = new THREE.Mesh(new THREE.ConeGeometry(1.5, 0.6, 10), new THREE.MeshStandardMaterial({ color: ti === 0 ? 0xfacc15 : 0x16a34a, roughness: 0.5 }));
+        umb.position.set(20, GROUND_Y + 2.3, oz);
+        conGrp.add(umb);
+      });
+
+      // --- 3. PARK WASHROOM & PUBLIC LOCKERS BUILDING at (12, Z(88)) ---
+      const washBuilding = new THREE.Mesh(
+        new THREE.BoxGeometry(11.0, 4.2, 8.0),
+        new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.7 })
+      );
+      washBuilding.position.set(12, 2.1, Z(88));
+      conGrp.add(washBuilding);
+      rectOb(6.2, 17.8, Z(83.8), Z(92.2)); // solid interior
+
+      // Cedar board-and-batten hip roof
+      const washRoof = new THREE.Mesh(
+        new THREE.ConeGeometry(8.5, 2.4, 4),
+        new THREE.MeshStandardMaterial({ color: 0x1e3a29, roughness: 0.7 })
+      );
+      washRoof.rotation.y = Math.PI / 4;
+      washRoof.position.set(12, 5.2, Z(88));
+      conGrp.add(washRoof);
+
+      // Blue public locker banks mounted along exterior east wall facing the path
+      const lockerBank = new THREE.Mesh(
+        new THREE.BoxGeometry(0.4, 2.2, 5.0),
+        new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.4, metalness: 0.5 })
+      );
+      lockerBank.position.set(17.8, 1.5, Z(88));
+      conGrp.add(lockerBank);
+
+      // Locker canopy
+      const lockerCanopy = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 5.6), darkWoodMat);
+      lockerCanopy.position.set(18.2, 2.7, Z(88));
+      conGrp.add(lockerCanopy);
+
+      const lockerSign = makeSign(
+        ['PUBLIC LOCKERS', 'SECURE DAY STORAGE • COIN / DIGITAL'],
+        4.8, 0.9,
+        { bg: '#0369a1', fg: '#ffffff', borderColor: '#38bdf8', titleSize: 34, subSize: 20 }
+      );
+      lockerSign.position.set(18.1, 3.1, Z(88));
+      lockerSign.rotation.y = Math.PI / 2;
+      conGrp.add(lockerSign);
+
+      const washSign = makeSign(
+        ['PUBLIC RESTROOMS', 'TORONTO ISLAND PARK • MEN & WOMEN'],
+        7.5, 1.4,
+        { bg: '#1e3a8a', fg: '#f8fafc', borderColor: '#60a5fa' }
+      );
+      washSign.position.set(12, 3.6, Z(83.8));
+      conGrp.add(washSign);
+
+      // Stainless steel drinking water fountain
+      const fountainPed = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.0, 8), metalMat);
+      fountainPed.position.set(19.5, 0.5, Z(84));
+      conGrp.add(fountainPed);
+      const fountainBasin = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.2, 0.2, 8), metalMat);
+      fountainBasin.position.set(19.5, 1.0, Z(84));
+      conGrp.add(fountainBasin);
+
+      // --- 4. TORONTO ISLAND BBQ & BEER CO. RESTAURANT at (65, Z(65)) ---
+      // Situated to the east, north of the first bridge, overlooking the water & skyline
+      const bbqBuilding = new THREE.Mesh(
+        new THREE.BoxGeometry(16.0, 6.2, 12.0),
+        new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.8 })
+      );
+      bbqBuilding.position.set(65, 3.1, Z(65));
+      conGrp.add(bbqBuilding);
+      rectOb(56.5, 73.5, Z(58.5), Z(71.5)); // building interior blocks collision
+
+      const bbqRoof = new THREE.Mesh(
+        new THREE.ConeGeometry(12.0, 3.5, 4),
+        new THREE.MeshStandardMaterial({ color: 0x1c1917, roughness: 0.6 })
+      );
+      bbqRoof.rotation.y = Math.PI / 4;
+      bbqRoof.position.set(65, 7.6, Z(65));
+      conGrp.add(bbqRoof);
+
+      // Grand Restaurant Sign facing arrival path
+      const bbqSign = makeSign(
+        ['TORONTO ISLAND BBQ & BEER CO.', 'SLOW-SMOKED BBQ • LOCAL CRAFT BEER • SKYLINE PATIO'],
+        13.5, 2.4,
+        { bg: '#451a03', fg: '#fef08a', borderColor: '#d97706' }
+      );
+      bbqSign.position.set(56.8, 5.2, Z(65));
+      bbqSign.rotation.y = -Math.PI / 2;
+      conGrp.add(bbqSign);
+
+      // Sprawling raised outdoor dining deck patio overlooking water
+      const patioDeck = new THREE.Mesh(
+        new THREE.BoxGeometry(22.0, 0.35, 24.0),
+        new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.7 })
+      );
+      patioDeck.position.set(65, GROUND_Y + 0.18, Z(80));
+      conGrp.add(patioDeck);
+
+      // Perimeter wooden railing around patio
+      const patioRail = new THREE.Mesh(
+        new THREE.BoxGeometry(22.2, 1.0, 0.15),
+        darkWoodMat
+      );
+      patioRail.position.set(65, GROUND_Y + 0.7, Z(92));
+      conGrp.add(patioRail);
+
+      // Outdoor bar counter on patio
+      const barCounter = new THREE.Mesh(new THREE.BoxGeometry(6.0, 1.1, 1.4), darkWoodMat);
+      barCounter.position.set(65, GROUND_Y + 0.7, Z(75));
+      conGrp.add(barCounter);
+      rectOb(61.8, 68.2, Z(74.1), Z(75.9));
+
+      // Smoker BBQ pit with chimney
+      const smoker = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.8, 1.6), new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.4, metalness: 0.8 }));
+      smoker.position.set(54, GROUND_Y + 0.9, Z(74));
+      conGrp.add(smoker);
+      const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 3.2, 8), metalMat);
+      stack.position.set(54, GROUND_Y + 2.8, Z(74));
+      conGrp.add(stack);
+      circOb(54, Z(74), 1.2);
+
+      // 6 Outdoor picnic tables with patio umbrellas on the BBQ deck
+      [-6, 6].forEach(ox => {
+        [Z(81), Z(86), Z(90)].forEach(oz => {
+          const tbl = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.8, 12), woodMat);
+          tbl.position.set(65 + ox, GROUND_Y + 0.6, oz);
+          conGrp.add(tbl);
+          circOb(65 + ox, oz, 1.2);
+
+          const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6), metalMat);
+          pole.position.set(65 + ox, GROUND_Y + 1.4, oz);
+          conGrp.add(pole);
+
+          const umb = new THREE.Mesh(new THREE.ConeGeometry(1.6, 0.65, 10), new THREE.MeshStandardMaterial({ color: ox < 0 ? 0xdc2626 : 0x16a34a, roughness: 0.5 }));
+          umb.position.set(65 + ox, GROUND_Y + 2.5, oz);
+          conGrp.add(umb);
+        });
+      });
+
+      // Overhead pergola with festive string lights
+      [-9, 9].forEach(px => {
+        [Z(73), Z(91)].forEach(pz => {
+          const post = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3.2, 0.3), darkWoodMat);
+          post.position.set(65 + px, GROUND_Y + 1.6, pz);
+          conGrp.add(post);
+        });
+      });
+
+      islandsGroup.add(conGrp);
+    }
+
+    // ------------------------------------------------------------------------
+    // Landmark: Avenue of the Islands - Grand Fountain, Formal Gardens & Flanking Reflecting Pools
+    // Walking south from Centre Dock, cross Manitou Bridge (z ~ Z(255)) to reach the Grand Fountain at Z(310),
+    // followed by the Grand Formal Gardens and twin sunken Reflecting Pools (Z(345) - Z(415)) east & west of the path!
     // ------------------------------------------------------------------------
     let fountainSpray = null;
+    const poolJets = [];
     {
       const avg = new THREE.Group();
-      const flowerCols = [0xef4444, 0xfacc15, 0xa855f7, 0xf472b6, 0xffffff, 0xfb923c];
+      const flowerCols = [0xef4444, 0xfacc15, 0xa855f7, 0xf472b6, 0xffffff, 0xfb923c, 0x3b82f6];
       const blooms = [];
-      for (let fz = Z(30); fz <= Z(210); fz += 24) {
-        if (Math.abs(fz - Z(130)) < 14) continue; // leave room for the Grand Fountain
-        [-9.5, 9.5].forEach((fx, fi) => {
-          const bed = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.45, 12), stoneMat);
+
+      // 1. North Avenue of the Islands (from Dock z=Z(24) to Manitou Bridge z=Z(216))
+      // Flanked by park flowerbeds, benches, and Victorian cast-iron lampposts
+      for (let fz = Z(24); fz <= Z(216); fz += 24) {
+        [-8.5, 8.5].forEach((fx, fi) => {
+          const bed = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.45, 12), stoneMat);
           bed.position.set(fx, GROUND_Y + 0.1, fz);
           avg.add(bed);
-          rectOb(fx - 1.75, fx + 1.75, fz - 6, fz + 6);
+          rectOb(fx - 1.6, fx + 1.6, fz - 6, fz + 6);
           const col = flowerCols[(fi + Math.round(fz / 24)) % flowerCols.length];
           for (let fl = -5; fl <= 5; fl += 0.9) {
-            for (let w = -1.1; w <= 1.1; w += 0.73) blooms.push([fx + w, fz + fl, col]);
+            for (let w = -1.0; w <= 1.0; w += 0.7) blooms.push([fx + w, fz + fl, col]);
           }
         });
       }
 
-      // Formal garden parterre with sundial
-      const gx0 = 30, gx1 = 96, gz0 = Z(24), gz1 = Z(90);
-      const hedges = [];
-      const hedge = (x0, z0, x1, z1) => {
-        const len = Math.hypot(x1 - x0, z1 - z0);
-        const h = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.85, len), hedgeMat);
-        h.position.set((x0 + x1) / 2, GROUND_Y + 0.42, (z0 + z1) / 2);
-        h.rotation.y = Math.atan2(x1 - x0, z1 - z0);
-        avg.add(h);
-        rectOb(Math.min(x0, x1) - 0.4, Math.max(x0, x1) + 0.4, Math.min(z0, z1) - 0.4, Math.max(z0, z1) + 0.4);
-      };
-      hedge(gx0, gz0, gx1, gz0); hedge(gx1, gz0, gx1, gz1); hedge(gx1, gz1, gx0, gz1); hedge(gx0, gz1, gx0, gz0);
-      hedge(gx0 + 16, gz0 + 14, gx1 - 16, gz0 + 14); hedge(gx0 + 16, gz1 - 14, gx1 - 16, gz1 - 14);
-      const dial = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 1.1, 8), stoneMat);
-      dial.position.set((gx0 + gx1) / 2, GROUND_Y + 0.55, (gz0 + gz1) / 2);
-      avg.add(dial);
-      circOb((gx0 + gx1) / 2, (gz0 + gz1) / 2, 0.5);
+      // 2. Grand Fountain Plaza (Immediately south of Manitou Bridge, at x = 0, z = Z(310) = 5310)
+      const fz = Z(310);
 
-      // Grand Fountain at Avenue centre
-      const fz = Z(130);
-      const pool = new THREE.Mesh(new THREE.CylinderGeometry(10, 10.8, 1.2, 24), stoneMat);
-      pool.position.set(0, GROUND_Y + 0.4, fz);
+      // Circular flagstone plaza paving
+      const plazaPaving = new THREE.Mesh(new THREE.CircleGeometry(14.5, 32), stoneMat);
+      plazaPaving.rotation.x = -Math.PI / 2;
+      plazaPaving.position.set(0, GROUND_Y + 0.02, fz);
+      avg.add(plazaPaving);
+
+      // Outer fountain pool coping wall (radius 10.2m, height 1.15m)
+      const pool = new THREE.Mesh(new THREE.CylinderGeometry(10.2, 10.8, 1.2, 32), stoneMat);
+      pool.position.set(0, GROUND_Y + 0.45, fz);
       avg.add(pool);
 
-      const waterSurf = new THREE.Mesh(new THREE.CircleGeometry(9.4, 24), new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.1, metalness: 0.4 }));
+      const waterSurf = new THREE.Mesh(new THREE.CircleGeometry(9.6, 32), new THREE.MeshStandardMaterial({
+        color: 0x38bdf8, roughness: 0.1, metalness: 0.35, transparent: true, opacity: 0.9
+      }));
       waterSurf.rotation.x = -Math.PI / 2;
       waterSurf.position.set(0, GROUND_Y + 0.95, fz);
       avg.add(waterSurf);
 
-      const tier1 = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 5.0, 1.4, 16), stoneMat);
-      tier1.position.set(0, GROUND_Y + 1.4, fz);
+      // Multi-tiered classical carved stone tiers
+      const tier1 = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 5.2, 1.4, 20), stoneMat);
+      tier1.position.set(0, GROUND_Y + 1.45, fz);
       avg.add(tier1);
-      const tier2 = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.4, 1.6, 16), stoneMat);
-      tier2.position.set(0, GROUND_Y + 2.7, fz);
+      const tier1Water = new THREE.Mesh(new THREE.CircleGeometry(4.3, 20), new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.1 }));
+      tier1Water.rotation.x = -Math.PI / 2;
+      tier1Water.position.set(0, GROUND_Y + 2.16, fz);
+      avg.add(tier1Water);
+
+      const tier2 = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.5, 1.5, 16), stoneMat);
+      tier2.position.set(0, GROUND_Y + 2.85, fz);
       avg.add(tier2);
 
+      // Central soaring geyser spray (animated scale in update)
       fountainSpray = new THREE.Mesh(
-        new THREE.ConeGeometry(0.8, 6.0, 12, 1, true),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, fog: false })
+        new THREE.ConeGeometry(0.9, 7.5, 14, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.82, fog: false })
       );
-      fountainSpray.position.set(0, GROUND_Y + 6.0, fz);
+      fountainSpray.position.set(0, GROUND_Y + 6.8, fz);
       avg.add(fountainSpray);
 
-      // Instanced flower blooms
+      // 8 perimeter arched water streams spouting inward
+      for (let j = 0; j < 8; j++) {
+        const ang = (j / 8) * Math.PI * 2;
+        const stream = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.08, 0.16, 4.2, 6),
+          new THREE.MeshBasicMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.75, fog: false })
+        );
+        const sx = Math.cos(ang) * 6.5, sz = Math.sin(ang) * 6.5;
+        stream.position.set(sx, GROUND_Y + 2.2, fz + sz);
+        stream.rotation.x = -Math.sin(ang) * 0.45;
+        stream.rotation.z = Math.cos(ang) * 0.45;
+        avg.add(stream);
+      }
+
+      // Plaza ornamental stone urns and curved resting benches around the fountain
+      for (let k = 0; k < 4; k++) {
+        const ba = (k / 4) * Math.PI * 2 + Math.PI / 4;
+        const bx = Math.cos(ba) * 12.8, bz = Math.sin(ba) * 12.8;
+        const bch = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.45, 0.8), darkWoodMat);
+        bch.position.set(bx, GROUND_Y + 0.45, fz + bz);
+        bch.rotation.y = -ba + Math.PI / 2;
+        avg.add(bch);
+
+        const urn = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.35, 0.9, 10), stoneMat);
+        const ux = Math.cos(ba + 0.35) * 13.2, uz = Math.sin(ba + 0.35) * 13.2;
+        urn.position.set(ux, GROUND_Y + 0.45, fz + uz);
+        avg.add(urn);
+        for (let u = 0; u < 5; u++) blooms.push([ux + (rnd() - 0.5) * 0.5, fz + uz + (rnd() - 0.5) * 0.5, 0xef4444]);
+      }
+      circOb(0, fz, 10.6);
+
+      // 3. Grand Formal Gardens & Sunken Reflecting Pools (Water areas in the ground, z = Z(345) to Z(415))
+      // Symmetrically placed to the WEST (x = -26) and EAST (x = +26) of Avenue of the Island!
+      [-26, 26].forEach((poolX, pIdx) => {
+        const pZ0 = Z(345), pZ1 = Z(415), pLen = pZ1 - pZ0, pW = 14;
+        const pMidZ = (pZ0 + pZ1) / 2;
+
+        // Cut limestone coping rim enclosing the pool
+        const copingT = 0.8;
+        // North & South rim caps
+        [-pLen / 2, pLen / 2].forEach(oz => {
+          const cap = new THREE.Mesh(new THREE.BoxGeometry(pW + copingT * 2, 0.35, copingT), stoneMat);
+          cap.position.set(poolX, GROUND_Y + 0.16, pMidZ + oz);
+          avg.add(cap);
+        });
+        // East & West rim sides
+        [-pW / 2, pW / 2].forEach(ox => {
+          const side = new THREE.Mesh(new THREE.BoxGeometry(copingT, 0.35, pLen), stoneMat);
+          side.position.set(poolX + ox, GROUND_Y + 0.16, pMidZ);
+          avg.add(side);
+        });
+
+        // Sunken reflecting pool water surface
+        const poolWater = new THREE.Mesh(
+          new THREE.PlaneGeometry(pW - 0.2, pLen - 0.2),
+          new THREE.MeshStandardMaterial({
+            color: 0x0284c7,
+            roughness: 0.12,
+            metalness: 0.5,
+            transparent: true,
+            opacity: 0.88
+          })
+        );
+        poolWater.rotation.x = -Math.PI / 2;
+        poolWater.position.set(poolX, GROUND_Y + 0.06, pMidZ);
+        avg.add(poolWater);
+
+        // Submerged pool floor (dark aquamarine stone tiling)
+        const poolFloor = new THREE.Mesh(
+          new THREE.PlaneGeometry(pW, pLen),
+          new THREE.MeshStandardMaterial({ color: 0x0c4a6e, roughness: 0.8 })
+        );
+        poolFloor.rotation.x = -Math.PI / 2;
+        poolFloor.position.set(poolX, GROUND_Y - 0.8, pMidZ);
+        avg.add(poolFloor);
+
+        // 3 stone bubbler fountain pedestals spaced along each pool's centerline
+        [-24, 0, 24].forEach((oz, jetIdx) => {
+          const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.8, 0.6, 12), stoneMat);
+          ped.position.set(poolX, GROUND_Y - 0.1, pMidZ + oz);
+          avg.add(ped);
+
+          const spray = new THREE.Mesh(
+            new THREE.ConeGeometry(0.35, 2.4, 8, 1, true),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, fog: false })
+          );
+          spray.position.set(poolX, GROUND_Y + 1.2, pMidZ + oz);
+          avg.add(spray);
+          poolJets.push(spray);
+        });
+
+        // Floating lily pads & water lilies in the reflecting pools
+        const padMat = new THREE.MeshLambertMaterial({ color: 0x15803d });
+        const padGeo = new THREE.CircleGeometry(0.55, 10);
+        for (let l = 0; l < 18; l++) {
+          const lox = (rnd() - 0.5) * (pW - 2.8);
+          const loz = (rnd() - 0.5) * (pLen - 6.0);
+          const pad = new THREE.Mesh(padGeo, padMat);
+          pad.rotation.x = -Math.PI / 2;
+          pad.position.set(poolX + lox, GROUND_Y + 0.08, pMidZ + loz);
+          avg.add(pad);
+
+          if (l % 2 === 0) {
+            const bloom = new THREE.Mesh(new THREE.DodecahedronGeometry(0.18, 0), new THREE.MeshBasicMaterial({ color: (l % 4 === 0) ? 0xf472b6 : 0xffffff, fog: false }));
+            bloom.position.set(poolX + lox, GROUND_Y + 0.22, pMidZ + loz);
+            avg.add(bloom);
+          }
+        }
+
+        // Flanking Formal Parterre Gardens & Flowerbeds on outer side of each reflecting pool
+        const gardenOuterX = poolX + (pIdx === 0 ? -12.5 : 12.5);
+        for (let gz = pZ0 + 5; gz <= pZ1 - 5; gz += 16) {
+          const gBed = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.35, 12), stoneMat);
+          gBed.position.set(gardenOuterX, GROUND_Y + 0.1, gz);
+          avg.add(gBed);
+          rectOb(gardenOuterX - 2.25, gardenOuterX + 2.25, gz - 6, gz + 6);
+
+          const col = flowerCols[Math.floor(rnd() * flowerCols.length)];
+          for (let fl = -5; fl <= 5; fl += 0.8) {
+            for (let w = -1.6; w <= 1.6; w += 0.8) blooms.push([gardenOuterX + w, gz + fl, col]);
+          }
+
+          // Ornamental boxwood hedge borders
+          const hBorder = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.65, 13), hedgeMat);
+          hBorder.position.set(gardenOuterX + (pIdx === 0 ? -2.6 : 2.6), GROUND_Y + 0.32, gz);
+          avg.add(hBorder);
+        }
+
+        // Benches along the garden promenades
+        for (let bz = pZ0 + 12; bz <= pZ1 - 12; bz += 22) {
+          // Inner bench facing pool
+          const b1 = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.45, 0.7), darkWoodMat);
+          b1.position.set(poolX + (pIdx === 0 ? 8.5 : -8.5), GROUND_Y + 0.45, bz);
+          avg.add(b1);
+          // Outer bench facing garden
+          const b2 = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.45, 0.7), darkWoodMat);
+          b2.position.set(poolX + (pIdx === 0 ? -8.5 : 8.5), GROUND_Y + 0.45, bz);
+          avg.add(b2);
+        }
+
+        // Deep water obstacle inside pool prevents walking into water
+        rectOb(poolX - pW / 2 - 0.4, poolX + pW / 2 + 0.4, pZ0 - 0.4, pZ1 + 0.4);
+      });
+
+      // 4. Instanced flower blooms for all Avenue & Parterre garden beds
       const m4 = new THREE.Matrix4(), col = new THREE.Color();
       const flGeo = new THREE.DodecahedronGeometry(0.18, 0);
       const flMesh = new THREE.InstancedMesh(flGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }), blooms.length);
@@ -1006,6 +1402,7 @@ CODE = r'''/**
         flMesh.setColorAt(i, col.setHex(c));
       });
       avg.add(flMesh);
+
       islandsGroup.add(avg);
     }
 
@@ -1132,22 +1529,160 @@ CODE = r'''/**
     }
 
     // ------------------------------------------------------------------------
-    // Landmark: Centreville Amusement Park (Ferris Wheel, Carousel, Food Court)
+    // Landmark: Centreville Turn-of-the-Century Victorian Village
+    // Discovered down the wooded path east of the First Bridge (at x=140..245, z=Z(155..245)):
+    // - Victorian Town Hall with 18m Clock & Bell Tower, portico stairs, and bell
+    // - Centreville General Store with wooden porch veranda, rocking chairs, apple barrels
+    // - Old-Fashioned Sweet Shoppe & Ice Cream Parlour with striped candy awnings
+    // - Carousel Cafe & Bakery with buttercup clapboard, flower boxes & cafe seating
+    // - Antique 1907 Dentzel Carousel in 16-sided Victorian rotunda with rotating painted horses
+    // - Giant 26m Ferris Wheel in YZ plane with 12 rotating passenger carts
     // ------------------------------------------------------------------------
     let ferrisWheelMesh = null, carouselTop = null;
     {
       const cvg = new THREE.Group();
 
-      // Giant Rotating 26m Ferris Wheel at (190, Z(125)) facing West towards Centreville / Avenue
-      const fwGrp = new THREE.Group();
-      fwGrp.position.set(190, 14.5, Z(125));
+      // 1. VICTORIAN TOWN HALL (EST. 1900) at (180, Z(185))
+      const thHall = new THREE.Mesh(
+        new THREE.BoxGeometry(16.0, 7.5, 12.0),
+        new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.6 }) // cream clapboard
+      );
+      thHall.position.set(180, 3.75, Z(185));
+      cvg.add(thHall);
+      rectOb(171.5, 188.5, Z(178.5), Z(191.5)); // interior blocks
 
-      // Horizontal central steel axle along X-axis
+      // Burgundy mansard trim roof
+      const thRoof = new THREE.Mesh(
+        new THREE.ConeGeometry(12.0, 3.2, 4),
+        new THREE.MeshStandardMaterial({ color: 0x831843, roughness: 0.5 })
+      );
+      thRoof.rotation.y = Math.PI / 4;
+      thRoof.position.set(180, 8.8, Z(185));
+      cvg.add(thRoof);
+
+      // Central Four-Sided Victorian Clock Tower & Belfry (18m tall)
+      const towerBase = new THREE.Mesh(
+        new THREE.BoxGeometry(4.2, 7.0, 4.2),
+        new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.6 })
+      );
+      towerBase.position.set(180, 11.0, Z(185));
+      cvg.add(towerBase);
+
+      // 4 Illuminated Clock Faces
+      const clkGeo = new THREE.CircleGeometry(1.2, 16);
+      const clkMat = new THREE.MeshBasicMaterial({ color: 0xfef9c3, side: THREE.DoubleSide, fog: false });
+      [[0, -2.12, 0], [0, 2.12, Math.PI], [-2.12, 0, Math.PI / 2], [2.12, 0, -Math.PI / 2]].forEach(([ox, oz, ry]) => {
+        const cFace = new THREE.Mesh(clkGeo, clkMat);
+        cFace.position.set(180 + ox, 11.5, Z(185) + oz);
+        cFace.rotation.y = ry;
+        cvg.add(cFace);
+      });
+
+      // Copper Spire on top of clock tower
+      const spire = new THREE.Mesh(
+        new THREE.ConeGeometry(2.4, 5.5, 4),
+        new THREE.MeshStandardMaterial({ color: 0x0d9488, roughness: 0.4, metalness: 0.5 })
+      );
+      spire.rotation.y = Math.PI / 4;
+      spire.position.set(180, 17.2, Z(185));
+      cvg.add(spire);
+
+      // Front porch stairs & banner
+      const thSign = makeSign(
+        ['CENTREVILLE TOWN HALL', 'ESTABLISHED 1900 • HISTORIC VILLAGE SQUARE'],
+        9.5, 1.8,
+        { bg: '#831843', fg: '#fef08a', borderColor: '#f472b6' }
+      );
+      thSign.position.set(180, 5.2, Z(178.6));
+      cvg.add(thSign);
+
+      // 2. CENTREVILLE GENERAL STORE at (150, Z(215))
+      const gsBuilding = new THREE.Mesh(
+        new THREE.BoxGeometry(12.0, 4.8, 9.0),
+        new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.7 })
+      );
+      gsBuilding.position.set(150, 2.4, Z(215));
+      cvg.add(gsBuilding);
+      rectOb(143.5, 156.5, Z(210), Z(220));
+
+      const gsRoof = new THREE.Mesh(new THREE.ConeGeometry(8.5, 2.5, 4), darkWoodMat);
+      gsRoof.rotation.y = Math.PI / 4;
+      gsRoof.position.set(150, 5.8, Z(215));
+      cvg.add(gsRoof);
+
+      // Wooden boardwalk veranda porch with rocking chairs & apple barrels
+      const gsPorch = new THREE.Mesh(new THREE.BoxGeometry(12.4, 0.3, 3.2), woodMat);
+      gsPorch.position.set(150, GROUND_Y + 0.15, Z(208.5));
+      cvg.add(gsPorch);
+
+      [-3.5, 3.5].forEach(ox => {
+        const chair = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 0.8), darkWoodMat);
+        chair.position.set(150 + ox, GROUND_Y + 0.6, Z(208.5));
+        cvg.add(chair);
+      });
+
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.9, 10), woodMat);
+      barrel.position.set(145, GROUND_Y + 0.6, Z(208.5));
+      cvg.add(barrel);
+
+      const gsSign = makeSign(
+        ['CENTREVILLE GENERAL STORE', 'OLD-FASHIONED CANDY • SUNDRIES & SOUVENIRS'],
+        9.0, 1.6,
+        { bg: '#14532d', fg: '#fef08a', borderColor: '#86efac' }
+      );
+      gsSign.position.set(150, 4.2, Z(207.2));
+      cvg.add(gsSign);
+
+      // 3. OLD-FASHIONED SWEET SHOPPE & ICE CREAM PARLOUR at (210, Z(215))
+      const ssBuilding = new THREE.Mesh(
+        new THREE.BoxGeometry(12.0, 4.8, 9.0),
+        new THREE.MeshStandardMaterial({ color: 0xfdf2f8, roughness: 0.4 })
+      );
+      ssBuilding.position.set(210, 2.4, Z(215));
+      cvg.add(ssBuilding);
+      rectOb(203.5, 216.5, Z(210), Z(220));
+
+      // Candy-striped pink and white scalloped awnings
+      const ssAwning = new THREE.Mesh(
+        new THREE.BoxGeometry(12.4, 0.4, 2.4),
+        new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.3 })
+      );
+      ssAwning.position.set(210, 3.6, Z(209));
+      cvg.add(ssAwning);
+
+      const ssSign = makeSign(
+        ['OLD FASHIONED SWEET SHOPPE', 'HAND-SCOOPED ICE CREAM • WAFFLE CONES & FUDGE'],
+        9.8, 1.6,
+        { bg: '#9d174d', fg: '#fdf2f8', borderColor: '#f472b6' }
+      );
+      ssSign.position.set(210, 4.5, Z(209));
+      cvg.add(ssSign);
+
+      // 4. CAROUSEL CAFE & BAKERY at (150, Z(180))
+      const ccBuilding = new THREE.Mesh(
+        new THREE.BoxGeometry(11.0, 4.5, 8.0),
+        new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.6 })
+      );
+      ccBuilding.position.set(150, 2.25, Z(180));
+      cvg.add(ccBuilding);
+      rectOb(144, 156, Z(175.5), Z(184.5));
+
+      const ccSign = makeSign(
+        ['CAROUSEL CAFE & BAKERY', 'FRESH PASTRIES • GOURMET COFFEE • PATIO'],
+        8.8, 1.5,
+        { bg: '#854d0e', fg: '#fef9c3', borderColor: '#fde047' }
+      );
+      ccSign.position.set(150, 4.1, Z(175.8));
+      cvg.add(ccSign);
+
+      // 5. GIANT 26M FERRIS WHEEL at (225, Z(225)) facing West along village square
+      const fwGrp = new THREE.Group();
+      fwGrp.position.set(225, 14.5, Z(225));
+
       const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 6.2, 10), metalMat);
       axle.rotation.z = Math.PI / 2;
       fwGrp.add(axle);
 
-      // Two steel A-frame towers (West at x = -2.6, East at x = +2.6)
       [-2.6, 2.6].forEach(lx => {
         const leg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.48, 15.5, 8), metalMat);
         leg1.position.set(lx, -7.0, -5.0);
@@ -1159,10 +1694,8 @@ CODE = r'''/**
         fwGrp.add(leg2);
       });
 
-      // Rotating Wheel in the YZ plane (axle along X)
       const wheelWheel = new THREE.Group();
       const rOuter = 11.5, rInner = 9.0;
-      // Outer rims
       const rim1 = new THREE.Mesh(new THREE.TorusGeometry(rOuter, 0.22, 8, 36), metalMat);
       rim1.rotation.y = Math.PI / 2;
       rim1.position.x = -1.3;
@@ -1172,7 +1705,6 @@ CODE = r'''/**
       rim2.position.x = 1.3;
       wheelWheel.add(rim2);
 
-      // Inner rims
       const irim1 = new THREE.Mesh(new THREE.TorusGeometry(rInner, 0.16, 8, 32), metalMat);
       irim1.rotation.y = Math.PI / 2;
       irim1.position.x = -1.3;
@@ -1186,7 +1718,6 @@ CODE = r'''/**
       const cartCols = [0xef4444, 0x3b82f6, 0xfacc15, 0x10b981, 0xa855f7, 0xf97316];
       for (let i = 0; i < nSpokes; i++) {
         const ang = (i / nSpokes) * Math.PI * 2;
-        // Spokes lie in YZ plane
         const sp1 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, rOuter * 2, 6), metalMat);
         sp1.rotation.x = ang;
         sp1.position.x = -1.3;
@@ -1196,13 +1727,11 @@ CODE = r'''/**
         sp2.position.x = 1.3;
         wheelWheel.add(sp2);
 
-        // Cross-bracing between rims
         const cross = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.6, 6), metalMat);
         cross.rotation.z = Math.PI / 2;
         cross.position.set(0, Math.sin(ang) * rOuter, Math.cos(ang) * rOuter);
         wheelWheel.add(cross);
 
-        // Passenger cart
         const cart = new THREE.Mesh(
           new THREE.BoxGeometry(2.0, 1.4, 1.6),
           new THREE.MeshStandardMaterial({ color: cartCols[i % cartCols.length], roughness: 0.4 })
@@ -1213,19 +1742,19 @@ CODE = r'''/**
       fwGrp.add(wheelWheel);
       ferrisWheelMesh = wheelWheel;
       cvg.add(fwGrp);
-      circOb(190, Z(125), 5.5);
+      circOb(225, Z(225), 5.5);
 
-      // Vintage Spinning Carousel at (210, Z(140))
+      // 6. ANTIQUE 1907 DENTZEL CAROUSEL at (180, Z(225))
       const carBase = new THREE.Mesh(new THREE.CylinderGeometry(8.5, 9.0, 0.8, 20), woodMat);
-      carBase.position.set(210, GROUND_Y + 0.4, Z(140));
+      carBase.position.set(180, GROUND_Y + 0.4, Z(225));
       cvg.add(carBase);
 
       const carCenter = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 5.0, 12), metalMat);
-      carCenter.position.set(210, GROUND_Y + 2.8, Z(140));
+      carCenter.position.set(180, GROUND_Y + 2.8, Z(225));
       cvg.add(carCenter);
 
       carouselTop = new THREE.Group();
-      carouselTop.position.set(210, GROUND_Y + 4.8, Z(140));
+      carouselTop.position.set(180, GROUND_Y + 4.8, Z(225));
       const canopy = new THREE.Mesh(
         new THREE.ConeGeometry(9.5, 3.2, 20),
         new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.5 })
@@ -1245,36 +1774,520 @@ CODE = r'''/**
         carouselTop.add(horse);
       }
       cvg.add(carouselTop);
-      circOb(210, Z(140), 9.2);
+      circOb(180, Z(225), 9.2);
 
-      // Centreville Food Court & Pizza Pizza at (170, Z(225))
-      const fcBuilding = new THREE.Mesh(
-        new THREE.BoxGeometry(26, 5.2, 22),
-        new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.6 })
+      islandsGroup.add(cvg);
+    }
+
+    // ------------------------------------------------------------------------
+    // Landmark: The Centreville Miniature Train (Beasley Bear Express)
+    // Runs on miniature narrow-gauge tracks looping around Centreville, through the woods,
+    // and past Far Enough Farm!
+    // ------------------------------------------------------------------------
+    let miniTrain = null, miniTrainPuff = null;
+    const TRAIN_TRACK = [
+      [160, Z(165)],
+      [205, Z(165)],
+      [245, Z(150)],
+      [290, Z(145)],
+      [320, Z(170)],
+      [305, Z(205)],
+      [250, Z(235)],
+      [190, Z(240)],
+      [140, Z(220)],
+      [140, Z(185)]
+    ];
+
+    function evalTrainTrack(tNorm) {
+      const n = TRAIN_TRACK.length;
+      const f = ((tNorm % 1) + 1) % 1 * n;
+      const idx = Math.floor(f);
+      const frac = f - idx;
+      const p0 = TRAIN_TRACK[(idx - 1 + n) % n];
+      const p1 = TRAIN_TRACK[idx % n];
+      const p2 = TRAIN_TRACK[(idx + 1) % n];
+      const p3 = TRAIN_TRACK[(idx + 2) % n];
+      const t = frac, t2 = t * t, t3 = t2 * t;
+      const cat = (a, b, c, d) => 0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+      const x = cat(p0[0], p1[0], p2[0], p3[0]);
+      const z = cat(p0[1], p1[1], p2[1], p3[1]);
+      const dtFrac = 0.01;
+      const tN = t + dtFrac, tN2 = tN * tN, tN3 = tN2 * tN;
+      const catN = (a, b, c, d) => 0.5 * ((2 * b) + (-a + c) * tN + (2 * a - 5 * b + 4 * c - d) * tN2 + (-a + 3 * b - 3 * c + d) * tN3);
+      const nx = catN(p0[0], p1[0], p2[0], p3[0]);
+      const nz = catN(p0[1], p1[1], p2[1], p3[1]);
+      return { x, z, yaw: Math.atan2(nx - x, nz - z) };
+    }
+
+    {
+      const trGrp = new THREE.Group();
+
+      // 1. CENTREVILLE RAILWAY STATION PLATFORM at (160, Z(165))
+      const plat = new THREE.Mesh(new THREE.BoxGeometry(14.0, 0.4, 4.5), woodMat);
+      plat.position.set(160, GROUND_Y + 0.2, Z(161));
+      trGrp.add(plat);
+      rectOb(152.5, 167.5, Z(158.5), Z(163.5));
+
+      const depotRoof = new THREE.Mesh(new THREE.BoxGeometry(14.4, 0.3, 4.8), darkWoodMat);
+      depotRoof.position.set(160, 3.6, Z(161));
+      trGrp.add(depotRoof);
+
+      [-6, 0, 6].forEach(px => {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.25, 3.2, 0.25), darkWoodMat);
+        post.position.set(160 + px, 1.8, Z(161));
+        trGrp.add(post);
+      });
+
+      const stSign = makeSign(
+        ['CENTREVILLE RAILWAY STATION', 'BEASLEY BEAR EXPRESS • MINIATURE TRAIN TOUR'],
+        11.5, 1.8,
+        { bg: '#1e3a8a', fg: '#fef08a', borderColor: '#3b82f6' }
       );
-      fcBuilding.position.set(170, 3.1, Z(225));
-      cvg.add(fcBuilding);
-      rectOb(156, 184, Z(214), Z(236)); // Interior walls block collision!
+      stSign.position.set(160, 4.2, Z(163.4));
+      trGrp.add(stSign);
 
-      const pizzaSign = makeSign(
-        ['PIZZA PIZZA', 'CENTREVILLE FOOD COURT • FRESH SLICES & PATIO'],
-        14, 2.2,
-        { bg: '#ea580c', fg: '#ffffff', borderColor: '#facc15' }
+      // Station brass boarding bell
+      const bell = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.35, 8), new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.8, roughness: 0.2 }));
+      bell.position.set(155, 2.8, Z(163));
+      trGrp.add(bell);
+
+      // 2. RAILWAY TRACKS (Ballast bed, wooden crossties, and dual steel rails)
+      const numTies = 140;
+      const tieGeo = new THREE.BoxGeometry(1.6, 0.12, 0.25);
+      const tieMesh = new THREE.InstancedMesh(tieGeo, darkWoodMat, numTies);
+      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1), up = new THREE.Vector3(0, 1, 0);
+
+      for (let i = 0; i < numTies; i++) {
+        const tr = evalTrainTrack(i / numTies);
+        q.setFromAxisAngle(up, tr.yaw);
+        m4.compose(v.set(tr.x, GROUND_Y + 0.06, tr.z), q, one);
+        tieMesh.setMatrixAt(i, m4);
+      }
+      trGrp.add(tieMesh);
+
+      // Dual shiny steel rails
+      [-0.55, 0.55].forEach(side => {
+        const railCurve = [];
+        for (let i = 0; i <= numTies; i++) {
+          const tr = evalTrainTrack(i / numTies);
+          const ox = Math.cos(tr.yaw) * side, oz = -Math.sin(tr.yaw) * side;
+          railCurve.push(new THREE.Vector3(tr.x + ox, GROUND_Y + 0.14, tr.z + oz));
+        }
+        const rPath = new THREE.CatmullRomCurve3(railCurve, true);
+        const railGeo = new THREE.TubeGeometry(rPath, 90, 0.04, 6, true);
+        const railMesh = new THREE.Mesh(railGeo, metalMat);
+        trGrp.add(railMesh);
+      });
+
+      // 3. ANIMATED MINIATURE STEAM TRAIN
+      miniTrain = new THREE.Group();
+
+      // Steam Locomotive
+      const loco = new THREE.Group();
+      // Boiler
+      const boiler = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.55, 0.55, 2.2, 12),
+        new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.3, metalness: 0.7 })
       );
-      pizzaSign.position.set(170, 6.2, Z(213.8));
-      cvg.add(pizzaSign);
+      boiler.rotation.x = Math.PI / 2;
+      boiler.position.set(0, 0.75, 0.3);
+      loco.add(boiler);
 
-      // Dining patio tables outside
-      [-10, 10].forEach(ox => {
-        [Z(204), Z(208)].forEach(oz => {
-          const table = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.8, 12), woodMat);
-          table.position.set(170 + ox, GROUND_Y + 0.4, oz);
-          cvg.add(table);
-          circOb(170 + ox, oz, 1.2);
+      // Driver Cab
+      const cab = new THREE.Mesh(
+        new THREE.BoxGeometry(1.3, 1.4, 1.1),
+        new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.4 })
+      );
+      cab.position.set(0, 1.1, -0.9);
+      loco.add(cab);
+
+      // Red Cowcatcher (pilot) at front
+      const cow = new THREE.Mesh(
+        new THREE.ConeGeometry(0.65, 0.7, 4),
+        new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.5 })
+      );
+      cow.rotation.x = -Math.PI / 2;
+      cow.rotation.y = Math.PI / 4;
+      cow.position.set(0, 0.35, 1.6);
+      loco.add(cow);
+
+      // Smokestack with steam puff
+      const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.1, 0.6, 8), metalMat);
+      stack.position.set(0, 1.45, 1.1);
+      loco.add(stack);
+
+      miniTrainPuff = new THREE.Mesh(
+        new THREE.SphereGeometry(0.28, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.75, fog: false })
+      );
+      miniTrainPuff.position.set(0, 1.85, 1.0);
+      loco.add(miniTrainPuff);
+
+      // Brass Headlamp
+      const lamp = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.16, 0.16, 0.25, 8),
+        new THREE.MeshBasicMaterial({ color: 0xfef08a, fog: false })
+      );
+      lamp.rotation.x = Math.PI / 2;
+      lamp.position.set(0, 1.1, 1.4);
+      loco.add(lamp);
+
+      // Coal Tender
+      const tender = new THREE.Mesh(
+        new THREE.BoxGeometry(1.2, 0.8, 1.3),
+        new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.8 })
+      );
+      tender.position.set(0, 0.65, -2.2);
+      loco.add(tender);
+
+      // 3 Open-air Passenger Coaches
+      [-4.0, -6.0, -8.0].forEach((cz, ci) => {
+        const coach = new THREE.Group();
+        coach.position.set(0, 0, cz);
+
+        // Green carriage body
+        const body = new THREE.Mesh(
+          new THREE.BoxGeometry(1.3, 0.65, 1.7),
+          new THREE.MeshStandardMaterial({ color: ci % 2 === 0 ? 0x15803d : 0xca8a04, roughness: 0.5 })
+        );
+        body.position.y = 0.55;
+        coach.add(body);
+
+        // Canopy roof
+        const cRoof = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.1, 1.8), darkWoodMat);
+        cRoof.position.y = 1.35;
+        coach.add(cRoof);
+
+        // Canopy support posts
+        [-0.6, 0.6].forEach(px => {
+          [-0.75, 0.75].forEach(pz => {
+            const p = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 6), metalMat);
+            p.position.set(px, 0.95, pz);
+            coach.add(p);
+          });
+        });
+
+        loco.add(coach);
+      });
+
+      miniTrain.add(loco);
+      trGrp.add(miniTrain);
+
+      islandsGroup.add(trGrp);
+    }
+
+    // ------------------------------------------------------------------------
+    // Landmark: Far Enough Farm (Est. 1959)
+    // Located beyond Centreville to the east (x=265..345, z=Z(140..225)):
+    // - Cedar Entrance Archway
+    // - Big Classic Red Barn with gambrel roof, hayloft & golden rooster weather vane
+    // - Farm Silo (white corrugated concrete with galvanized silver dome)
+    // - Vintage Red Farmall Tractor
+    // - Cedar post-and-rail fences & paddocks with sheep, cows, horses, goats & pigs!
+    // ------------------------------------------------------------------------
+    {
+      const farmGrp = new THREE.Group();
+
+      // 1. CEDAR ENTRANCE ARCHWAY at (255, Z(185))
+      [-3.2, 3.2].forEach(ox => {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 4.8, 8), darkWoodMat);
+        post.position.set(255, 2.4, Z(185) + ox);
+        farmGrp.add(post);
+        circOb(255, Z(185) + ox, 0.4);
+      });
+      const archBeam = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 7.2), darkWoodMat);
+      archBeam.position.set(255, 4.8, Z(185));
+      farmGrp.add(archBeam);
+
+      const farmSign = makeSign(
+        ['FAR ENOUGH FARM', 'ESTABLISHED 1959 • FREE HISTORIC PETTING FARM'],
+        11.5, 1.8,
+        { bg: '#7f1d1d', fg: '#fef3c7', borderColor: '#f59e0b' }
+      );
+      farmSign.position.set(255, 5.8, Z(185));
+      farmSign.rotation.y = -Math.PI / 2;
+      farmGrp.add(farmSign);
+
+      // 2. THE BIG RED BARN at (295, Z(185))
+      const barnBody = new THREE.Mesh(
+        new THREE.BoxGeometry(20.0, 6.5, 13.0),
+        new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.7 })
+      );
+      barnBody.position.set(295, 3.25, Z(185));
+      farmGrp.add(barnBody);
+      rectOb(284, 306, Z(177.5), Z(192.5)); // Barn walls block collision
+
+      // Gambrel Barn Roof (Traditional double-sloped red roof with white fascia)
+      const roofLower = new THREE.Mesh(
+        new THREE.BoxGeometry(20.4, 3.2, 13.4),
+        new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 0.6 })
+      );
+      roofLower.position.set(295, 7.8, Z(185));
+      farmGrp.add(roofLower);
+
+      const roofUpper = new THREE.Mesh(
+        new THREE.ConeGeometry(9.2, 3.6, 4),
+        new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 0.6 })
+      );
+      roofUpper.rotation.y = Math.PI / 4;
+      roofUpper.position.set(295, 10.8, Z(185));
+      farmGrp.add(roofUpper);
+
+      // Rooftop Cupola with Golden Rooster Weather Vane
+      const cupola = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.6, 2.0), new THREE.MeshStandardMaterial({ color: 0xf8fafc }));
+      cupola.position.set(295, 12.8, Z(185));
+      farmGrp.add(cupola);
+
+      const vanePole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.6, 6), metalMat);
+      vanePole.position.set(295, 14.0, Z(185));
+      farmGrp.add(vanePole);
+
+      const rooster = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.1), new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.8 }));
+      rooster.position.set(295, 14.6, Z(185));
+      farmGrp.add(rooster);
+
+      // White double barn doors with cross-bucks
+      const doorL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4.2, 2.5), new THREE.MeshStandardMaterial({ color: 0xf8fafc }));
+      doorL.position.set(284.9, 2.1, Z(183.5));
+      farmGrp.add(doorL);
+      const doorR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4.2, 2.5), new THREE.MeshStandardMaterial({ color: 0xf8fafc }));
+      doorR.position.set(284.9, 2.1, Z(186.5));
+      farmGrp.add(doorR);
+
+      // Straw bales stacked near barn entrance
+      [-1.2, 0, 1.2].forEach((oz, bi) => {
+        const bale = new THREE.Mesh(
+          new THREE.BoxGeometry(1.4, 0.7, 0.9),
+          new THREE.MeshStandardMaterial({ color: 0xfde047, roughness: 0.9 })
+        );
+        bale.position.set(283.5, GROUND_Y + 0.35 + (bi === 1 ? 0.7 : 0), Z(180) + oz);
+        farmGrp.add(bale);
+        circOb(283.5, Z(180) + oz, 0.6);
+      });
+
+      // 3. FARM SILO at (312, Z(175))
+      const silo = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.8, 2.8, 13.0, 16),
+        new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.6 })
+      );
+      silo.position.set(312, 6.5, Z(175));
+      farmGrp.add(silo);
+      circOb(312, Z(175), 3.0); // solid silo
+
+      // Galvanized metal dome cap
+      const siloDome = new THREE.Mesh(
+        new THREE.SphereGeometry(2.82, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5),
+        metalMat
+      );
+      siloDome.position.set(312, 13.0, Z(175));
+      farmGrp.add(siloDome);
+
+      // 4. VINTAGE RED FARMALL TRACTOR at (282, Z(192))
+      const trGrpTractor = new THREE.Group();
+      trGrpTractor.position.set(282, GROUND_Y, Z(192));
+      trGrpTractor.rotation.y = 0.4;
+
+      // Red chassis and engine hood
+      const hood = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 2.4), new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.4 }));
+      hood.position.set(0, 0.9, 0.4);
+      trGrpTractor.add(hood);
+
+      // Big rear tractor wheels
+      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.9 });
+      [-0.8, 0.8].forEach(wx => {
+        const rWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.35, 14), wheelMat);
+        rWheel.rotation.z = Math.PI / 2;
+        rWheel.position.set(wx, 0.9, -0.6);
+        trGrpTractor.add(rWheel);
+      });
+
+      // Front small steering wheels
+      [-0.5, 0.5].forEach(wx => {
+        const fWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.22, 10), wheelMat);
+        fWheel.rotation.z = Math.PI / 2;
+        fWheel.position.set(wx, 0.45, 1.4);
+        trGrpTractor.add(fWheel);
+      });
+
+      // Vertical exhaust pipe
+      const exPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2, 6), metalMat);
+      exPipe.position.set(0.4, 1.7, 0.9);
+      trGrpTractor.add(exPipe);
+
+      farmGrp.add(trGrpTractor);
+      circOb(282, Z(192), 1.5);
+
+      // 5. POST-AND-RAIL FENCES & ANIMAL PADDOCKS
+      // Paddock A: Sheep Pasture at (278, Z(165))
+      // Paddock B: Horse / Pony Corral at (324, Z(200))
+      // Paddock C: Holstein Dairy Cows at (324, Z(160))
+      // Paddock D: Goats & Pigs at (278, Z(205))
+      const padFences = [
+        [268, 288, Z(154), Z(176)], // Sheep
+        [312, 336, Z(188), Z(214)], // Horses
+        [312, 336, Z(148), Z(174)], // Cows
+        [268, 288, Z(196), Z(216)]  // Goats & Pigs
+      ];
+
+      padFences.forEach(([x0, x1, z0, z1]) => {
+        // Wooden corner posts
+        [[x0, z0], [x1, z0], [x0, z1], [x1, z1]].forEach(([px, pz]) => {
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 1.4, 6), darkWoodMat);
+          post.position.set(px, GROUND_Y + 0.7, pz);
+          farmGrp.add(post);
+        });
+        // Perimeter rails
+        const lenX = x1 - x0, lenZ = z1 - z0;
+        [0.4, 0.9].forEach(ry => {
+          const r1 = new THREE.Mesh(new THREE.BoxGeometry(lenX, 0.1, 0.08), woodMat);
+          r1.position.set((x0 + x1) / 2, GROUND_Y + ry, z0);
+          farmGrp.add(r1);
+          const r2 = new THREE.Mesh(new THREE.BoxGeometry(lenX, 0.1, 0.08), woodMat);
+          r2.position.set((x0 + x1) / 2, GROUND_Y + ry, z1);
+          farmGrp.add(r2);
+          const r3 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, lenZ), woodMat);
+          r3.position.set(x0, GROUND_Y + ry, (z0 + z1) / 2);
+          farmGrp.add(r3);
+          const r4 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, lenZ), woodMat);
+          r4.position.set(x1, GROUND_Y + ry, (z0 + z1) / 2);
+          farmGrp.add(r4);
         });
       });
 
-      islandsGroup.add(cvg);
+      // 6. ANIMALS IN THE PADDOCKS
+      // A. Sheep in Sheep Pasture (fluffy white bodies, black faces & legs)
+      const sheepMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.9 });
+      const sheepFaceMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.8 });
+      [
+        [273, Z(160), 0.5], [280, Z(163), -0.8], [276, Z(170), 1.2], [283, Z(168), 2.1]
+      ].forEach(([sx, sz, srot]) => {
+        const shp = new THREE.Group();
+        shp.position.set(sx, GROUND_Y, sz);
+        shp.rotation.y = srot;
+
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 8), sheepMat);
+        body.scale.set(1.4, 1.0, 1.0);
+        body.position.y = 0.65;
+        shp.add(body);
+
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.4), sheepFaceMat);
+        head.position.set(0.85, 0.85, 0);
+        shp.add(head);
+
+        [-0.4, 0.4].forEach(lx => {
+          [-0.25, 0.25].forEach(lz => {
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.45, 6), sheepFaceMat);
+            leg.position.set(lx, 0.22, lz);
+            shp.add(leg);
+          });
+        });
+
+        farmGrp.add(shp);
+        circOb(sx, sz, 0.7);
+      });
+
+      // B. Horses in Horse Corral (chestnut & black horses)
+      const horseCols = [0x78350f, 0x1c1917];
+      [
+        [320, Z(196), 0.3, horseCols[0]], [328, Z(206), -1.1, horseCols[1]]
+      ].forEach(([hx, hz, hrot, col]) => {
+        const hrs = new THREE.Group();
+        hrs.position.set(hx, GROUND_Y, hz);
+        hrs.rotation.y = hrot;
+
+        const hMat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.6 });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.9, 0.8), hMat);
+        body.position.y = 1.35;
+        hrs.add(body);
+
+        const neck = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.9, 0.4), hMat);
+        neck.position.set(0.9, 1.8, 0);
+        neck.rotation.z = -0.4;
+        hrs.add(neck);
+
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.4, 0.35), hMat);
+        head.position.set(1.3, 2.1, 0);
+        hrs.add(head);
+
+        [-0.6, 0.6].forEach(lx => {
+          [-0.25, 0.25].forEach(lz => {
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9, 6), hMat);
+            leg.position.set(lx, 0.45, lz);
+            hrs.add(leg);
+          });
+        });
+
+        farmGrp.add(hrs);
+        circOb(hx, hz, 1.1);
+      });
+
+      // C. Holstein Dairy Cows (black-and-white spotted cows)
+      const cowMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.7 });
+      const cowSpotMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.7 });
+      [
+        [320, Z(156), 0.6], [328, Z(165), -0.7]
+      ].forEach(([cx, cz, crot]) => {
+        const cw = new THREE.Group();
+        cw.position.set(cx, GROUND_Y, cz);
+        cw.rotation.y = crot;
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.1, 0.9), cowMat);
+        body.position.y = 1.25;
+        cw.add(body);
+
+        const spot = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.92), cowSpotMat);
+        spot.position.set(0.2, 1.25, 0);
+        cw.add(spot);
+
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.55, 0.5), cowMat);
+        head.position.set(1.3, 1.6, 0);
+        cw.add(head);
+
+        [-0.7, 0.7].forEach(lx => {
+          [-0.3, 0.3].forEach(lz => {
+            const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.75, 6), cowSpotMat);
+            leg.position.set(lx, 0.38, lz);
+            cw.add(leg);
+          });
+        });
+
+        farmGrp.add(cw);
+        circOb(cx, cz, 1.2);
+      });
+
+      // D. Goats & Pigs in Paddock D
+      // Cable spool climbing ramp for goats
+      const spool = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.8, 10), woodMat);
+      spool.position.set(278, GROUND_Y + 0.4, Z(206));
+      farmGrp.add(spool);
+      circOb(278, Z(206), 1.2);
+
+      // Goat standing on spool
+      const goatMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.7 });
+      const gt = new THREE.Group();
+      gt.position.set(278, GROUND_Y + 0.8, Z(206));
+      const gBody = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.55, 0.45), goatMat);
+      gBody.position.y = 0.5;
+      gt.add(gBody);
+      const gHead = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.3), goatMat);
+      gHead.position.set(0.5, 0.8, 0);
+      gt.add(gHead);
+      farmGrp.add(gt);
+
+      // Pink Pigs near shelter
+      const pigMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.6 });
+      [[273, Z(211)], [283, Z(210)]].forEach(([px, pz]) => {
+        const pg = new THREE.Group();
+        pg.position.set(px, GROUND_Y, pz);
+        const pBody = new THREE.Mesh(new THREE.SphereGeometry(0.48, 8, 8), pigMat);
+        pBody.scale.set(1.3, 0.9, 0.9);
+        pBody.position.y = 0.42;
+        pg.add(pBody);
+        farmGrp.add(pg);
+        circOb(px, pz, 0.6);
+      });
+
+      islandsGroup.add(farmGrp);
     }
 
     // ------------------------------------------------------------------------
@@ -1696,6 +2709,7 @@ CODE = r'''/**
     // ------------------------------------------------------------------------
     // Wildlife: Flocks of Canada Geese grazing on lawns & Seagulls along the pier
     // ------------------------------------------------------------------------
+    const grazingGeese = [];
     {
       const wg = new THREE.Group();
       const gooseBodyMat = new THREE.MeshStandardMaterial({ color: 0x4a433b, roughness: 0.8 });
@@ -1704,6 +2718,7 @@ CODE = r'''/**
 
       function makeCanadaGoose() {
         const g = new THREE.Group();
+        g.scale.setScalar(1.25); // easily visible
         const body = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 8), gooseBodyMat);
         body.scale.set(1.4, 0.75, 0.85);
         body.position.y = 0.35;
@@ -1712,9 +2727,11 @@ CODE = r'''/**
         neck.position.set(0.32, 0.6, 0);
         neck.rotation.z = -0.3;
         g.add(neck);
+        g.neck = neck;
         const head = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), gooseBlackMat);
         head.position.set(0.42, 0.85, 0);
         g.add(head);
+        g.head = head;
         const chin = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.16), gooseWhiteMat);
         chin.position.set(0.41, 0.83, 0);
         g.add(chin);
@@ -1725,11 +2742,13 @@ CODE = r'''/**
         return g;
       }
 
-      // Flocks grazing peacefully on lawns
+      // Flocks grazing peacefully on lawns across the islands
       const gooseFlocks = [
-        { cx: -160, cz: Z(325), count: 8, r: 18 },
-        { cx: 16, cz: Z(85), count: 5, r: 10 },
-        { cx: -16, cz: Z(110), count: 5, r: 10 },
+        { cx: 16, cz: Z(25), count: 6, r: 8 }, // Ferry Dock arrival lawn
+        { cx: 32, cz: Z(105), count: 5, r: 8 }, // Near First Bridge & BBQ patio
+        { cx: 0, cz: Z(315), count: 6, r: 10 }, // Near Grand Fountain
+        { cx: 260, cz: Z(150), count: 6, r: 12 }, // Far Enough Farm pasture
+        { cx: -160, cz: Z(325), count: 8, r: 18 }, // Olympic Island Great Lawn
         { cx: 110, cz: Z(230), count: 6, r: 12 },
         { cx: 580, cz: Z(290), count: 6, r: 14 },
         { cx: -25, cz: Z(430), count: 5, r: 10 }
@@ -1745,6 +2764,7 @@ CODE = r'''/**
             goose.position.set(gx, y, gz);
             goose.rotation.y = rnd() * Math.PI * 2;
             wg.add(goose);
+            grazingGeese.push({ obj: goose, phase: rnd() * 6.28, speed: 1.5 + rnd() });
           }
         }
       });
@@ -1883,54 +2903,186 @@ CODE = r'''/**
     }
 
     // ------------------------------------------------------------------------
-    // Distant 3D Toronto Skyline across Toronto Harbour
+    // Distant 3D Toronto Skyline across Toronto Harbour (Illuminated Night Skyline)
+    // Towering skyscrapers with glowing office window grids, illuminated crowns,
+    // Rogers Centre blue ring, and the illuminated CN Tower with LED shaft tracks,
+    // observation deck window band, and flashing aviation beacons!
     // ------------------------------------------------------------------------
+    let cnBeacon = null, towerBeacons = [];
     {
       const skyGrp = new THREE.Group();
       const skyZ = Z(-1600);
-      // CN Tower (553m)
+
+      // Procedural 256x512 glowing window texture for skyscraper facades
+      const winCan = document.createElement('canvas');
+      winCan.width = 256;
+      winCan.height = 512;
+      const wg = winCan.getContext('2d');
+      if (wg) {
+        wg.fillStyle = '#090d16'; // dark facade background
+        wg.fillRect(0, 0, 256, 512);
+        const winCols = ['#fef08a', '#fde047', '#fed7aa', '#bae6fd', '#e0f2fe', '#ffffff'];
+        for (let wy = 8; wy < 504; wy += 14) {
+          for (let wx = 6; wx < 250; wx += 10) {
+            if (Math.random() < 0.65) {
+              wg.fillStyle = winCols[Math.floor(Math.random() * winCols.length)];
+              wg.fillRect(wx, wy, 6, 8);
+            }
+          }
+        }
+      }
+      const winTex = new THREE.CanvasTexture(winCan);
+      winTex.wrapS = THREE.RepeatWrapping;
+      winTex.wrapT = THREE.RepeatWrapping;
+      const litTowerMat = new THREE.MeshBasicMaterial({ map: winTex, fog: false });
+
+      // CN Tower (553m) - Full Architectural Detail & Lighting
       const cn = new THREE.Group();
+      // Hexagonal tripod base (0-90m)
       const base = new THREE.Mesh(new THREE.ConeGeometry(22, 180, 3), concreteMat);
       base.position.y = 90;
       cn.add(base);
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 5.8, 260, 12), concreteMat);
-      shaft.position.y = 230;
+
+      // Main concrete shaft (90-340m)
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(4.4, 6.2, 250, 12), concreteMat);
+      shaft.position.y = 215;
       cn.add(shaft);
-      const pod = new THREE.Mesh(new THREE.CylinderGeometry(18, 14, 16, 16), concreteMat);
-      pod.position.y = 350;
+
+      // Dual continuous vertical LED light strips on shaft (Cyan and Magenta)
+      const ledStrip1 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 248, 0.3),
+        new THREE.MeshBasicMaterial({ color: 0x38bdf8, fog: false }) // brilliant cyan LED
+      );
+      ledStrip1.position.set(0, 215, 4.6);
+      cn.add(ledStrip1);
+
+      const ledStrip2 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 248, 0.3),
+        new THREE.MeshBasicMaterial({ color: 0xec4899, fog: false }) // brilliant magenta LED
+      );
+      ledStrip2.position.set(0, 215, -4.6);
+      cn.add(ledStrip2);
+
+      // 7-story Main Observation Deck Pod (342-360m)
+      const pod = new THREE.Mesh(new THREE.CylinderGeometry(19, 14, 18, 16), concreteMat);
+      pod.position.y = 351;
       cn.add(pod);
-      const glassBand = new THREE.Mesh(new THREE.CylinderGeometry(18.2, 18.2, 4.5, 16), glassMat);
-      glassBand.position.y = 350;
-      cn.add(glassBand);
-      const skyPod = new THREE.Mesh(new THREE.CylinderGeometry(9, 7.5, 9, 12), concreteMat);
-      skyPod.position.y = 430;
+
+      // 360-degree glowing observation window band
+      const podWindows = new THREE.Mesh(
+        new THREE.CylinderGeometry(19.2, 19.2, 5.0, 16),
+        new THREE.MeshBasicMaterial({ color: 0xfef08a, fog: false })
+      );
+      podWindows.position.y = 351;
+      cn.add(podWindows);
+
+      // SkyPod (upper observation pod at 447m)
+      const skyPod = new THREE.Mesh(new THREE.CylinderGeometry(8.5, 7.0, 10, 12), concreteMat);
+      skyPod.position.y = 432;
       cn.add(skyPod);
-      const spire = new THREE.Mesh(new THREE.ConeGeometry(1.6, 120, 8), metalMat);
-      spire.position.y = 495;
+      const skyPodBand = new THREE.Mesh(
+        new THREE.CylinderGeometry(8.6, 8.6, 3.2, 12),
+        new THREE.MeshBasicMaterial({ color: 0xfef9c3, fog: false })
+      );
+      skyPodBand.position.y = 432;
+      cn.add(skyPodBand);
+
+      // Transmission Spire / Antenna Mast (447-553m)
+      const spire = new THREE.Mesh(new THREE.ConeGeometry(1.8, 118, 8), metalMat);
+      spire.position.y = 496;
       cn.add(spire);
+
+      // Flashing summit aviation obstruction beacon at 553m
+      cnBeacon = new THREE.Mesh(
+        new THREE.SphereGeometry(2.4, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xef4444, fog: false })
+      );
+      cnBeacon.position.y = 553;
+      cn.add(cnBeacon);
+
       cn.position.set(-280, 0, skyZ);
       skyGrp.add(cn);
 
-      // Rogers Centre dome
-      const dome = new THREE.Mesh(new THREE.SphereGeometry(44, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.48), concreteMat);
+      // Rogers Centre Dome with blue perimeter ring
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(46, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.48), concreteMat);
       dome.position.set(-440, 22, skyZ + 40);
       skyGrp.add(dome);
 
-      // Financial District Skyscrapers
-      const tower = (tx, tw, th, td, col, dz) => {
-        const b = new THREE.Mesh(new THREE.BoxGeometry(tw, th, td), new THREE.MeshStandardMaterial({ color: col, roughness: 0.3, metalness: 0.6 }));
-        b.position.set(tx, th / 2, skyZ + (dz || 0));
+      const domeRing = new THREE.Mesh(
+        new THREE.TorusGeometry(46.2, 1.2, 8, 32),
+        new THREE.MeshBasicMaterial({ color: 0x1d4ed8, fog: false }) // bright blue stadium glow
+      );
+      domeRing.rotation.x = Math.PI / 2;
+      domeRing.position.set(-440, 24, skyZ + 40);
+      skyGrp.add(domeRing);
+
+      // Financial District Skyscrapers with illuminated windows and architectural crowns:
+      // 1. First Canadian Place (298m) - White illuminated mechanical penthouse roof
+      const fcp = new THREE.Mesh(new THREE.BoxGeometry(36, 298, 36), litTowerMat);
+      fcp.position.set(100, 149, skyZ);
+      skyGrp.add(fcp);
+      const fcpCrown = new THREE.Mesh(new THREE.BoxGeometry(32, 12, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }));
+      fcpCrown.position.set(100, 304, skyZ);
+      skyGrp.add(fcpCrown);
+      const fcpB1 = new THREE.Mesh(new THREE.SphereGeometry(1.5, 6, 6), new THREE.MeshBasicMaterial({ color: 0xef4444, fog: false }));
+      fcpB1.position.set(100, 311, skyZ);
+      skyGrp.add(fcpB1);
+      towerBeacons.push(fcpB1);
+
+      // 2. Scotia Plaza (275m) - Deep red chevron / pyramid crown
+      const scotia = new THREE.Mesh(new THREE.BoxGeometry(32, 275, 32), litTowerMat);
+      scotia.position.set(180, 137.5, skyZ + 20);
+      skyGrp.add(scotia);
+      const scotiaCrown = new THREE.Mesh(new THREE.ConeGeometry(18, 22, 4), new THREE.MeshBasicMaterial({ color: 0xdc2626, fog: false }));
+      scotiaCrown.rotation.y = Math.PI / 4;
+      scotiaCrown.position.set(180, 286, skyZ + 20);
+      skyGrp.add(scotiaCrown);
+
+      // 3. TD Centre (222m) - Mies van der Rohe dark bronze towers with green illuminated TD logo band
+      const td = new THREE.Mesh(new THREE.BoxGeometry(42, 222, 42), litTowerMat);
+      td.position.set(-40, 111, skyZ - 10);
+      skyGrp.add(td);
+      const tdCrown = new THREE.Mesh(new THREE.BoxGeometry(42.5, 6, 42.5), new THREE.MeshBasicMaterial({ color: 0x16a34a, fog: false }));
+      tdCrown.position.set(-40, 225, skyZ - 10);
+      skyGrp.add(tdCrown);
+
+      // 4. Royal Bank Plaza (180m) - Gold reflective towers with golden crown
+      const rbc = new THREE.Mesh(new THREE.BoxGeometry(36, 180, 36), litTowerMat);
+      rbc.position.set(-120, 90, skyZ + 15);
+      skyGrp.add(rbc);
+      const rbcCrown = new THREE.Mesh(new THREE.BoxGeometry(36.5, 6, 36.5), new THREE.MeshBasicMaterial({ color: 0xf59e0b, fog: false }));
+      rbcCrown.position.set(-120, 183, skyZ + 15);
+      skyGrp.add(rbcCrown);
+
+      // 5. Bay Wellington / Brookfield Place (260m) - Glowing glass pyramid crown
+      const bwp = new THREE.Mesh(new THREE.BoxGeometry(34, 260, 34), litTowerMat);
+      bwp.position.set(280, 130, skyZ + 10);
+      skyGrp.add(bwp);
+      const bwpCrown = new THREE.Mesh(new THREE.ConeGeometry(17, 16, 4), new THREE.MeshBasicMaterial({ color: 0x38bdf8, fog: false }));
+      bwpCrown.rotation.y = Math.PI / 4;
+      bwpCrown.position.set(280, 268, skyZ + 10);
+      skyGrp.add(bwpCrown);
+
+      // 40 additional illuminated skyline towers stretching along the harbour shore
+      for (let k = 0; k < 42; k++) {
+        const tx = -720 + k * 35 + (k % 3) * 6;
+        if (Math.abs(tx - (-280)) < 30 || Math.abs(tx - (-440)) < 40) continue; // avoid clipping CN Tower / dome
+        const th = 60 + (k * 43) % 150 + (k % 5) * 18;
+        const tw = 20 + (k * 7) % 18, tdLen = 20 + (k * 11) % 16;
+        const dz = 30 + (k * 19) % 140;
+        const b = new THREE.Mesh(new THREE.BoxGeometry(tw, th, tdLen), litTowerMat);
+        b.position.set(tx, th / 2, skyZ + dz);
         skyGrp.add(b);
-      };
-      tower(100, 36, 298, 36, 0xf1f5f9);
-      tower(180, 32, 275, 32, 0x991b1b);
-      tower(-40, 42, 222, 42, 0x18181b);
-      tower(280, 34, 260, 34, 0x38bdf8);
-      tower(-120, 38, 210, 38, 0xc9a24a);
-      tower(420, 48, 140, 38, 0x0284c7);
-      for (let k = 0; k < 40; k++) {
-        tower(-700 + k * 36 + rnd() * 10, 18 + rnd() * 20, 40 + rnd() * 140, 18 + rnd() * 16, [0x334155, 0x475569, 0x1e3a5f, 0x64748b][k % 4], 60 + rnd() * 120);
+
+        // Lit rooftop crown band on taller towers
+        if (th > 140) {
+          const crMat = new THREE.MeshBasicMaterial({ color: [0x38bdf8, 0xfacc15, 0xef4444, 0x10b981, 0xa855f7][k % 5], fog: false });
+          const cr = new THREE.Mesh(new THREE.BoxGeometry(tw + 0.5, 4.0, tdLen + 0.5), crMat);
+          cr.position.set(tx, th + 2.0, skyZ + dz);
+          skyGrp.add(cr);
+        }
       }
+
       islandsGroup.add(skyGrp);
     }
 
@@ -1976,13 +3128,22 @@ CODE = r'''/**
       for (const c of CHANNELS) {
         if (distLine(x, z, c.pts) < c.w / 2 + 10) return c.name.toUpperCase();
       }
+      // Specific landmarks
+      if (x >= 260 && x <= 345 && z >= Z(140) && z <= Z(225)) return 'FAR ENOUGH FARM • PETTING FARM';
+      if (x >= 135 && x <= 245 && z >= Z(155) && z <= Z(245)) return 'CENTREVILLE TURN-OF-THE-CENTURY VILLAGE';
+      if (Math.hypot(x - 160, z - Z(165)) < 16) return 'CENTREVILLE RAILWAY STATION';
+      if (x >= 25 && x <= 135 && z >= Z(155) && z <= Z(210)) return 'WOODED PATH TO CENTREVILLE';
+      if (x >= 50 && x <= 80 && z >= Z(50) && z <= Z(95)) return 'TORONTO ISLAND BBQ & BEER CO. PATIO';
+      if (Math.hypot(x - 12, z - Z(48)) < 12) return 'PIZZA PIZZA • ISLAND CONCESSIONS';
+      if (Math.hypot(x - 12, z - Z(66)) < 12) return 'SUBWAY • FRESH SUBS';
+      if (Math.hypot(x - 12, z - Z(88)) < 14) return 'PARK WASHROOMS & PUBLIC LOCKERS';
+      if (x >= -25 && x <= 45 && z >= Z(-15) && z <= Z(115)) return 'CENTRE ISLAND ARRIVAL PLAZA';
+      if (Math.hypot(x, z - Z(310)) < 26) return 'AVENUE OF THE ISLANDS • GRAND FOUNTAIN';
+      if (Math.abs(x) < 45 && z >= Z(330) && z <= Z(425)) return 'GRAND FORMAL GARDENS & REFLECTING POOLS';
       if (x >= -105 && x <= -25 && z >= Z(350) && z <= Z(425)) return 'WILLIAM MEANY HEDGE MAZE';
       if (Math.hypot(x - 34, z - Z(455)) < 22) return 'SOUTH BEACH CAFE & PATIO';
       if (Math.hypot(x + 34, z - Z(455)) < 22) return 'TORONTO ISLAND BICYCLE RENTAL';
       if (Math.hypot(x + 10, z - Z(452)) < 15) return 'BEACH LOCKERS & PAVILION';
-      if (Math.hypot(x - 170, z - Z(225)) < 24) return 'FOOD COURT • CENTREVILLE';
-      if (x >= 50 && x <= 300 && z >= Z(80) && z <= Z(270)) return 'CENTREVILLE AMUSEMENT PARK';
-      if (x >= 28 && x <= 98 && z >= Z(22) && z <= Z(92)) return 'FORMAL GARDEN';
       if (Math.hypot(x + 480, z - Z(320)) < 45) return 'GIBRALTAR POINT • 1808 LIGHTHOUSE';
       if (Math.hypot(x + 160, z - Z(330)) < 70) return 'OLYMPIC ISLAND';
       if (Math.hypot(x + 780, z - Z(0)) < 85) return 'HANLAN\'S POINT • BALL DIAMONDS';
@@ -1997,7 +3158,7 @@ CODE = r'''/**
       if (x > 760) return 'WARD\'S ISLAND • SUMMER VILLAGE';
       if (x < -560) return 'HANLAN\'S POINT';
       if (forestDensity(x, z, L) > 0.5) return 'ISLAND WOODS • FOREST TRAIL';
-      if (Math.abs(x) < 45 && z < Z(245)) return 'AVENUE OF THE ISLANDS • GARDENS';
+      if (Math.abs(x) < 45 && z < Z(245)) return 'AVENUE OF THE ISLANDS';
       if (x < -280) return 'GIBRALTAR POINT WOODS';
       return 'CENTRE ISLAND PARK';
     }
@@ -2005,7 +3166,7 @@ CODE = r'''/**
     // ------------------------------------------------------------------------
     // Animation Loop
     // ------------------------------------------------------------------------
-    let tTime = 0, ferryT = 0;
+    let tTime = 0, ferryT = 0, miniTrainT = 0;
     function update(dt, playerPos) {
       tTime += dt;
       if (ferrisWheelMesh) ferrisWheelMesh.rotation.x += dt * 0.22;
@@ -2014,6 +3175,38 @@ CODE = r'''/**
       if (lighthouseBeacon) lighthouseBeacon.rotation.y += dt * 1.8;
       if (radarDish) radarDish.rotation.y += dt * 3.2;
 
+      // Miniature Steam Train moving smoothly along track loop
+      if (miniTrain) {
+        miniTrainT = (miniTrainT + dt * 0.016) % 1.0;
+        const tr = evalTrainTrack(miniTrainT);
+        miniTrain.position.set(tr.x, GROUND_Y + 0.12, tr.z);
+        miniTrain.rotation.y = tr.yaw;
+        if (miniTrainPuff) {
+          miniTrainPuff.scale.setScalar(0.85 + Math.sin(tTime * 12.0) * 0.35);
+          miniTrainPuff.position.y = 1.85 + Math.sin(tTime * 8.0) * 0.12;
+        }
+      }
+
+      // Flashing CN Tower & skyscraper obstruction beacons
+      if (cnBeacon) {
+        const flash = (Math.sin(tTime * 3.5) > 0.3) ? 1.0 : 0.12;
+        cnBeacon.visible = flash > 0.5;
+        towerBeacons.forEach(b => { b.visible = flash > 0.5; });
+      }
+
+      // Bubbler fountain jets in the twin reflecting pools
+      poolJets.forEach((jet, ji) => {
+        jet.scale.y = 0.85 + Math.sin(tTime * 5.0 + ji * 1.4) * 0.3;
+      });
+
+      // Canada Geese pecking & bobbing
+      grazingGeese.forEach(g => {
+        if (g.obj.neck) {
+          g.obj.neck.rotation.x = Math.sin(tTime * g.speed + g.phase) * 0.35;
+        }
+      });
+
+      // Swimming swans & wildlife
       swimmers.forEach(sw => {
         sw.s += sw.dir * sw.speed * dt;
         if (sw.s < 3) { sw.s = 3; sw.dir = 1; }
@@ -2103,12 +3296,17 @@ CODE = r'''/**
       ctx.fillStyle = '#f8fafc';
       [
         ['FERRY', 0, Z(-5)],
-        ['AIRPORT', -1260, Z(-200)],
-        ['LIGHTHOUSE', -480, Z(320)],
-        ['CENTREVILLE', 170, Z(150)],
+        ['BBQ', 65, Z(65)],
+        ['VILLAGE', 180, Z(185)],
+        ['TRAIN', 160, Z(165)],
+        ['FARM', 295, Z(185)],
+        ['FOUNTAIN', 0, Z(310)],
+        ['GARDENS', 0, Z(380)],
         ['MAZE', -65, Z(385)],
         ['CAFE', 34, Z(455)],
         ['BIKES', -34, Z(455)],
+        ['AIRPORT', -1260, Z(-200)],
+        ['LIGHTHOUSE', -480, Z(320)],
         ['WARD\'S', 1000, Z(30)],
         ['ALGONQUIN', 520, Z(60)],
         ['HANLAN\'S', -760, Z(-40)],
@@ -2158,10 +3356,20 @@ CODE = r'''/**
       update,
       landmarks: {
         centreDock: [0, Z(0)],
-        avenueGardens: [0, Z(130)],
+        pizzaPizza: [12, Z(48)],
+        subway: [12, Z(66)],
+        islandLockers: [12, Z(88)],
+        islandBBQ: [65, Z(65)],
+        northBridge: [28, Z(138)],
+        woodedPath: [75, Z(185)],
+        centreville: [180, Z(185)],
+        centrevilleTrain: [160, Z(165)],
+        farEnoughFarm: [295, Z(185)],
+        grandFountain: [0, Z(310)],
+        avenueGardens: [0, Z(380)],
+        westReflectingPool: [-26, Z(380)],
+        eastReflectingPool: [26, Z(380)],
         hedgeMaze: [-65, Z(385)], // William Meany Hedge Maze (South Centre Island, West of Avenue)
-        centreville: [190, Z(130)],
-        pizzaPizza: [170, Z(225)], // Centreville food court
         centreBeach: [0, Z(455)],
         beachCafe: [34, Z(455)],
         bikeRental: [-34, Z(455)],
@@ -2177,7 +3385,7 @@ CODE = r'''/**
         wardsDock: [1140, Z(-5)],
         wardsBeach: [1210, Z(120)],
         wardsCafe: [1050, Z(85)],
-        formalGarden: [63, Z(57)],
+        formalGarden: [0, Z(380)],
         longPond: [100, Z(255)]
       },
       stats: {
@@ -2190,8 +3398,7 @@ CODE = r'''/**
   }
 
   window.buildTorontoIslands = buildTorontoIslands;
-})();
-'''
+})();'''
 
 def main():
     print(f"Writing complete Toronto Islands code to {OUTPUT_FILE} ...")
