@@ -228,7 +228,8 @@
       { r: [-45, 45, Z(-35), Z(245)] }, // Avenue of the Islands and formal gardens
       { c: [-160, Z(330), 65] }, // Olympic Island Great Lawn (skyline panorama)
       { r: [50, 300, Z(80), Z(270)] }, // Centreville Amusement Park
-      { r: [65, 145, Z(135), Z(215)] }, // William Meany Hedge Maze (EAST side of Avenue)
+      { r: [-105, -25, Z(350), Z(425)] }, // William Meany Hedge Maze (South part, WEST of Avenue)
+      { r: [-55, 55, Z(435), Z(475)] }, // South Beach Pavilion, Restaurant & Bike Rental
       { r: [28, 98, Z(22), Z(92)] }, // Formal parterre garden
       { c: [-780, Z(0), 85] }, // Hanlan's ball fields
       { c: [-480, Z(320), 38] }, // Gibraltar lighthouse sanctuary
@@ -983,12 +984,12 @@
     }
 
     // ------------------------------------------------------------------------
-    // Landmark: William Meany Hedge Maze (Authentic Real-World Location on EAST side)
-    // Situated at x = 105, z = Z(175) with Dirt-colored ground and the 1888 antique school bell!
+    // Landmark: William Meany Hedge Maze (South part, WEST of Avenue of the Island)
+    // Situated at x = -65, z = Z(385) with Dirt-colored ground and the 1888 antique school bell!
     // ------------------------------------------------------------------------
     {
       const hmg = new THREE.Group();
-      const hx = 105, hz = Z(175);
+      const hx = -65, hz = Z(385);
 
       // Earth-toned packed dirt ground so green cedar hedges stand out sharply
       const mazeGround = new THREE.Mesh(new THREE.BoxGeometry(76, 0.08, 76), dirtMat);
@@ -996,13 +997,14 @@
       mazeGround.receiveShadow = true;
       hmg.add(mazeGround);
 
-      // Entrance Gate Arch & Commemorative Plaque Sign
+      // Entrance Gate Arch & Commemorative Plaque Sign facing east towards Avenue path
       const mSign = makeSign(
-        ['WILLIAM MEANY HEDGE MAZE', 'DONATED 2015 • HISTORIC 1888 SCHOOL BELL'],
+        ['WILLIAM MEANY HEDGE MAZE', 'HISTORIC 1888 SCHOOL BELL • DONATED 2015'],
         18, 2.4,
         { bg: '#14532d', fg: '#bbf7d0', borderColor: '#22c55e' }
       );
-      mSign.position.set(hx, 3.8, hz - 37);
+      mSign.position.set(hx + 37, 3.8, hz);
+      mSign.rotation.y = -Math.PI / 2;
       hmg.add(mSign);
 
       function addMazeWall(wx, wz, ww, wd) {
@@ -1012,12 +1014,11 @@
         rectOb(hx + wx - ww / 2, hx + wx + ww / 2, hz + wz - wd / 2, hz + wz + wd / 2);
       }
 
-      // Outer perimeter hedge walls with entrance openings facing north & west
-      addMazeWall(-20, -36, 32, 1.4);
-      addMazeWall(20, -36, 32, 1.4);
-      addMazeWall(-36, -20, 1.4, 32);
-      addMazeWall(-36, 20, 1.4, 32);
-      addMazeWall(36, 0, 1.4, 72);
+      // Outer perimeter hedge walls with entrance opening facing EAST towards Avenue
+      addMazeWall(36, -20, 1.4, 32);
+      addMazeWall(36, 20, 1.4, 32);
+      addMazeWall(-36, 0, 1.4, 72);
+      addMazeWall(0, -36, 72, 1.4);
       addMazeWall(0, 36, 72, 1.4);
 
       // Concentric inner hedge rings & labyrinth turns
@@ -1111,48 +1112,76 @@
     {
       const cvg = new THREE.Group();
 
-      // Giant Rotating 26m Ferris Wheel at (190, Z(125))
+      // Giant Rotating 26m Ferris Wheel at (190, Z(125)) facing West towards Centreville / Avenue
       const fwGrp = new THREE.Group();
       fwGrp.position.set(190, 14.5, Z(125));
 
-      [-4.5, 4.5].forEach(lx => {
-        const leg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 15.5, 8), metalMat);
-        leg1.position.set(190 + lx, 7.5, Z(120));
+      // Horizontal central steel axle along X-axis
+      const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 6.2, 10), metalMat);
+      axle.rotation.z = Math.PI / 2;
+      fwGrp.add(axle);
+
+      // Two steel A-frame towers (West at x = -2.6, East at x = +2.6)
+      [-2.6, 2.6].forEach(lx => {
+        const leg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.48, 15.5, 8), metalMat);
+        leg1.position.set(lx, -7.0, -5.0);
         leg1.rotation.x = -0.35;
-        cvg.add(leg1);
-        const leg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 15.5, 8), metalMat);
-        leg2.position.set(190 + lx, 7.5, Z(130));
+        fwGrp.add(leg1);
+        const leg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.48, 15.5, 8), metalMat);
+        leg2.position.set(lx, -7.0, 5.0);
         leg2.rotation.x = 0.35;
-        cvg.add(leg2);
+        fwGrp.add(leg2);
       });
 
+      // Rotating Wheel in the YZ plane (axle along X)
       const wheelWheel = new THREE.Group();
       const rOuter = 11.5, rInner = 9.0;
-      const rim1 = new THREE.Mesh(new THREE.TorusGeometry(rOuter, 0.22, 8, 32), metalMat);
-      rim1.position.z = -1.2;
+      // Outer rims
+      const rim1 = new THREE.Mesh(new THREE.TorusGeometry(rOuter, 0.22, 8, 36), metalMat);
+      rim1.rotation.y = Math.PI / 2;
+      rim1.position.x = -1.3;
       wheelWheel.add(rim1);
-      const rim2 = new THREE.Mesh(new THREE.TorusGeometry(rOuter, 0.22, 8, 32), metalMat);
-      rim2.position.z = 1.2;
+      const rim2 = new THREE.Mesh(new THREE.TorusGeometry(rOuter, 0.22, 8, 36), metalMat);
+      rim2.rotation.y = Math.PI / 2;
+      rim2.position.x = 1.3;
       wheelWheel.add(rim2);
+
+      // Inner rims
+      const irim1 = new THREE.Mesh(new THREE.TorusGeometry(rInner, 0.16, 8, 32), metalMat);
+      irim1.rotation.y = Math.PI / 2;
+      irim1.position.x = -1.3;
+      wheelWheel.add(irim1);
+      const irim2 = new THREE.Mesh(new THREE.TorusGeometry(rInner, 0.16, 8, 32), metalMat);
+      irim2.rotation.y = Math.PI / 2;
+      irim2.position.x = 1.3;
+      wheelWheel.add(irim2);
 
       const nSpokes = 12;
       const cartCols = [0xef4444, 0x3b82f6, 0xfacc15, 0x10b981, 0xa855f7, 0xf97316];
       for (let i = 0; i < nSpokes; i++) {
         const ang = (i / nSpokes) * Math.PI * 2;
-        const sp1 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, rOuter * 2, 6), metalMat);
-        sp1.rotation.z = ang;
-        sp1.position.z = -1.2;
+        // Spokes lie in YZ plane
+        const sp1 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, rOuter * 2, 6), metalMat);
+        sp1.rotation.x = ang;
+        sp1.position.x = -1.3;
         wheelWheel.add(sp1);
-        const sp2 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, rOuter * 2, 6), metalMat);
-        sp2.rotation.z = ang;
-        sp2.position.z = 1.2;
+        const sp2 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, rOuter * 2, 6), metalMat);
+        sp2.rotation.x = ang;
+        sp2.position.x = 1.3;
         wheelWheel.add(sp2);
 
+        // Cross-bracing between rims
+        const cross = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.6, 6), metalMat);
+        cross.rotation.z = Math.PI / 2;
+        cross.position.set(0, Math.sin(ang) * rOuter, Math.cos(ang) * rOuter);
+        wheelWheel.add(cross);
+
+        // Passenger cart
         const cart = new THREE.Mesh(
-          new THREE.BoxGeometry(1.8, 1.4, 2.0),
+          new THREE.BoxGeometry(2.0, 1.4, 1.6),
           new THREE.MeshStandardMaterial({ color: cartCols[i % cartCols.length], roughness: 0.4 })
         );
-        cart.position.set(Math.cos(ang) * rOuter, Math.sin(ang) * rOuter, 0);
+        cart.position.set(0, Math.sin(ang) * rOuter, Math.cos(ang) * rOuter);
         wheelWheel.add(cart);
       }
       fwGrp.add(wheelWheel);
@@ -1474,6 +1503,259 @@
     }
 
     // ------------------------------------------------------------------------
+    // Landmark: South Beach & Pier Pavilion Complex (Cafe/Grill, Bike Rental, Lockers)
+    // Located at the head of the 120m pier along the South Beach Boardwalk (z ~ Z(455))
+    // ------------------------------------------------------------------------
+    {
+      const sbg = new THREE.Group();
+
+      // 1. South Beach Cafe & Grill with Outdoor Beachfront Patio (x = 34, z = Z(455))
+      const cafeDeck = new THREE.Mesh(new THREE.BoxGeometry(28, 0.3, 20), woodMat);
+      cafeDeck.position.set(34, 0.65, Z(455));
+      sbg.add(cafeDeck);
+
+      const cafeBldg = new THREE.Mesh(new THREE.BoxGeometry(22, 4.8, 11), darkWoodMat);
+      cafeBldg.position.set(34, 2.9, Z(448));
+      sbg.add(cafeBldg);
+
+      const cafeRoof = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 13.5, 2.4, 4, 1), new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.8 }));
+      cafeRoof.scale.set(1.1, 1, 0.7);
+      cafeRoof.rotation.y = Math.PI / 4;
+      cafeRoof.position.set(34, 5.8, Z(448));
+      sbg.add(cafeRoof);
+
+      const cafeSign = makeSign(
+        ['SOUTH BEACH CAFE & GRILL', 'BEACHFRONT PATIO • BURGERS • ICE CREAM • REFRESHMENTS'],
+        20, 2.2,
+        { bg: '#854d0e', fg: '#fef08a', borderColor: '#eab308' }
+      );
+      cafeSign.position.set(34, 5.0, Z(453.7));
+      sbg.add(cafeSign);
+
+      // Outdoor Dining Pergola with picnic tables & umbrellas
+      [-8, 0, 8].forEach(px => {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3.2, 0.3), darkWoodMat);
+        post.position.set(34 + px, 2.1, Z(461));
+        sbg.add(post);
+      });
+      const pergolaBeam = new THREE.Mesh(new THREE.BoxGeometry(19, 0.25, 0.3), darkWoodMat);
+      pergolaBeam.position.set(34, 3.7, Z(461));
+      sbg.add(pergolaBeam);
+
+      // Patio Tables with Umbrellas
+      const tableGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.1, 12);
+      const umbrellaGeo = new THREE.ConeGeometry(2.0, 0.9, 12);
+      const uColors = [0x3b82f6, 0xfacc15, 0xef4444, 0x10b981];
+      [[-7, Z(457)], [0, Z(457)], [7, Z(457)], [-7, Z(462)], [0, Z(462)], [7, Z(462)]].forEach(([tx, tz], i) => {
+        const tbl = new THREE.Mesh(tableGeo, woodMat);
+        tbl.position.set(34 + tx, 1.35, tz);
+        sbg.add(tbl);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.8, 6), metalMat);
+        pole.position.set(34 + tx, 2.0, tz);
+        sbg.add(pole);
+        const umb = new THREE.Mesh(umbrellaGeo, new THREE.MeshStandardMaterial({ color: uColors[i % uColors.length], roughness: 0.6 }));
+        umb.position.set(34 + tx, 3.2, tz);
+        sbg.add(umb);
+      });
+      rectOb(23, 45, Z(442), Z(454));
+
+      // 2. Toronto Island Bicycle Rental Building (x = -34, z = Z(455))
+      const bikeDeck = new THREE.Mesh(new THREE.BoxGeometry(26, 0.3, 18), woodMat);
+      bikeDeck.position.set(-34, 0.65, Z(455));
+      sbg.add(bikeDeck);
+
+      const bikeBldg = new THREE.Mesh(new THREE.BoxGeometry(20, 4.4, 10), new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.6 }));
+      bikeBldg.position.set(-34, 2.7, Z(448));
+      sbg.add(bikeBldg);
+
+      const bikeRoof = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 12.5, 2.2, 4, 1), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 }));
+      bikeRoof.scale.set(1.1, 1, 0.7);
+      bikeRoof.rotation.y = Math.PI / 4;
+      bikeRoof.position.set(-34, 5.4, Z(448));
+      sbg.add(bikeRoof);
+
+      const bikeSign = makeSign(
+        ['TORONTO ISLAND BICYCLE RENTAL', 'QUADRICYCLES (SURREYS) • TANDEM BIKES • CRUISERS'],
+        20, 2.2,
+        { bg: '#991b1b', fg: '#fef9c3', borderColor: '#f87171' }
+      );
+      bikeSign.position.set(-34, 4.8, Z(453.2));
+      sbg.add(bikeSign);
+
+      // Staged Quadricycle (4-wheel Surrey) Carts & Tandem Bicycles
+      function makeSurrey(col, sx, sz) {
+        const sg = new THREE.Group();
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 2.8), new THREE.MeshStandardMaterial({ color: col, roughness: 0.4 }));
+        frame.position.y = 0.5;
+        sg.add(frame);
+        [-0.8, 0.8].forEach(wx => {
+          [-1.1, 1.1].forEach(wz => {
+            const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.12, 12), metalMat);
+            wh.rotation.z = Math.PI / 2;
+            wh.position.set(wx, 0.35, wz);
+            sg.add(wh);
+          });
+        });
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.15, 2.9), new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.6 }));
+        canopy.position.y = 1.85;
+        sg.add(canopy);
+        [-0.75, 0.75].forEach(cx => {
+          [-1.3, 1.3].forEach(cz => {
+            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.35, 6), metalMat);
+            post.position.set(cx, 1.2, cz);
+            sg.add(post);
+          });
+        });
+        sg.position.set(sx, 0.65, sz);
+        return sg;
+      }
+      sbg.add(makeSurrey(0xef4444, -40, Z(459)));
+      sbg.add(makeSurrey(0x2563eb, -34, Z(459)));
+      sbg.add(makeSurrey(0x16a34a, -28, Z(459)));
+      rectOb(-44, -24, Z(443), Z(453));
+
+      // 3. Beach Lockers & Changing Pavilion (x = -10, z = Z(452))
+      const lockerBldg = new THREE.Mesh(new THREE.BoxGeometry(12, 4.2, 9), new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 }));
+      lockerBldg.position.set(-10, 2.6, Z(450));
+      sbg.add(lockerBldg);
+
+      const lockerSign = makeSign(
+        ['BEACH LOCKERS & CHANGING ROOMS', 'PUBLIC WASHROOMS • RINSE SHOWERS'],
+        13, 1.7,
+        { bg: '#1e3a8a', fg: '#bae6fd', borderColor: '#38bdf8' }
+      );
+      lockerSign.position.set(-10, 4.5, Z(454.7));
+      sbg.add(lockerSign);
+
+      // Outdoor Fresh-Water Rinse Showers on concrete pad
+      const showerPad = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.1, 3.5), new THREE.MeshStandardMaterial({ color: 0x94a3b8 }));
+      showerPad.position.set(-10, 0.6, Z(457.5));
+      sbg.add(showerPad);
+      [-0.8, 0.8].forEach(sx => {
+        const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.6, 8), metalMat);
+        pipe.position.set(-10 + sx, 1.8, Z(457.5));
+        sbg.add(pipe);
+        const head = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.05, 0.1, 8), metalMat);
+        head.position.set(-10 + sx, 3.0, Z(457.5));
+        sbg.add(head);
+      });
+      rectOb(-16, -4, Z(445), Z(455));
+
+      // 4. Lifeguard Watchtower at pier entrance (x = 0, z = Z(466))
+      const lgTower = new THREE.Group();
+      [-1.4, 1.4].forEach(tx => {
+        [-1.4, 1.4].forEach(tz => {
+          const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 5.6, 6), woodMat);
+          leg.position.set(tx, 2.8, tz);
+          lgTower.add(leg);
+        });
+      });
+      const lgDeck = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.3, 3.6), woodMat);
+      lgDeck.position.y = 5.4;
+      lgTower.add(lgDeck);
+      const lgRoof = new THREE.Mesh(new THREE.ConeGeometry(2.8, 1.2, 4), new THREE.MeshStandardMaterial({ color: 0xdc2626 }));
+      lgRoof.rotation.y = Math.PI / 4;
+      lgRoof.position.y = 7.4;
+      lgTower.add(lgRoof);
+      const lgFlag = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.7, 1.2), new THREE.MeshBasicMaterial({ color: 0xdc2626, fog: false }));
+      lgFlag.position.set(0, 8.4, 0.6);
+      lgTower.add(lgFlag);
+      lgTower.position.set(0, 0.55, Z(466));
+      sbg.add(lgTower);
+      circOb(0, Z(466), 1.6);
+
+      islandsGroup.add(sbg);
+    }
+
+    // ------------------------------------------------------------------------
+    // Wildlife: Flocks of Canada Geese grazing on lawns & Seagulls along the pier
+    // ------------------------------------------------------------------------
+    {
+      const wg = new THREE.Group();
+      const gooseBodyMat = new THREE.MeshStandardMaterial({ color: 0x4a433b, roughness: 0.8 });
+      const gooseBlackMat = new THREE.MeshStandardMaterial({ color: 0x171717, roughness: 0.7 });
+      const gooseWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc });
+
+      function makeCanadaGoose() {
+        const g = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 8), gooseBodyMat);
+        body.scale.set(1.4, 0.75, 0.85);
+        body.position.y = 0.35;
+        g.add(body);
+        const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.5, 8), gooseBlackMat);
+        neck.position.set(0.32, 0.6, 0);
+        neck.rotation.z = -0.3;
+        g.add(neck);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), gooseBlackMat);
+        head.position.set(0.42, 0.85, 0);
+        g.add(head);
+        const chin = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.16), gooseWhiteMat);
+        chin.position.set(0.41, 0.83, 0);
+        g.add(chin);
+        const bill = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.16, 6), gooseBlackMat);
+        bill.rotation.z = -Math.PI / 2;
+        bill.position.set(0.54, 0.84, 0);
+        g.add(bill);
+        return g;
+      }
+
+      // Flocks grazing peacefully on lawns
+      const gooseFlocks = [
+        { cx: -160, cz: Z(325), count: 8, r: 18 },
+        { cx: 16, cz: Z(85), count: 5, r: 10 },
+        { cx: -16, cz: Z(110), count: 5, r: 10 },
+        { cx: 110, cz: Z(230), count: 6, r: 12 },
+        { cx: 580, cz: Z(290), count: 6, r: 14 },
+        { cx: -25, cz: Z(430), count: 5, r: 10 }
+      ];
+
+      gooseFlocks.forEach(flock => {
+        for (let i = 0; i < flock.count; i++) {
+          const a = rnd() * Math.PI * 2, d = rnd() * flock.r;
+          const gx = flock.cx + Math.cos(a) * d, gz = flock.cz + Math.sin(a) * d;
+          if (landField(gx, gz) > 2) {
+            const goose = makeCanadaGoose();
+            const y = terrainH(gx, gz);
+            goose.position.set(gx, y, gz);
+            goose.rotation.y = rnd() * Math.PI * 2;
+            wg.add(goose);
+          }
+        }
+      });
+
+      // Seagulls perched along the Centre Island Pier railings
+      const gullWhite = new THREE.MeshBasicMaterial({ color: 0xf1f5f9 });
+      const gullGrey = new THREE.MeshBasicMaterial({ color: 0x94a3b8 });
+      const gullBeak = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+      function makeSeagull() {
+        const sg = new THREE.Group();
+        const b = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), gullWhite);
+        b.scale.set(1.4, 0.7, 0.8);
+        sg.add(b);
+        const w = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.08, 0.35), gullGrey);
+        w.position.set(-0.05, 0.08, 0);
+        sg.add(w);
+        const bk = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.16, 5), gullBeak);
+        bk.rotation.z = -Math.PI / 2;
+        bk.position.set(0.28, 0.05, 0);
+        sg.add(bk);
+        return sg;
+      }
+
+      for (let pz = Z(475); pz <= Z(580); pz += 12) {
+        [-5.8, 5.8].forEach(px => {
+          if (rnd() < 0.6) {
+            const gull = makeSeagull();
+            gull.position.set(px, 1.5, pz);
+            gull.rotation.y = px > 0 ? -1.2 : 1.2;
+            wg.add(gull);
+          }
+        });
+      }
+      islandsGroup.add(wg);
+    }
+
+    // ------------------------------------------------------------------------
     // Wildlife and Boats: Swimming Swans, Moored Canoes, Harbour Ferry
     // ------------------------------------------------------------------------
     function lanePoint(ch, dist) {
@@ -1668,7 +1950,10 @@
       for (const c of CHANNELS) {
         if (distLine(x, z, c.pts) < c.w / 2 + 10) return c.name.toUpperCase();
       }
-      if (x >= 65 && x <= 145 && z >= Z(135) && z <= Z(215)) return 'WILLIAM MEANY HEDGE MAZE';
+      if (x >= -105 && x <= -25 && z >= Z(350) && z <= Z(425)) return 'WILLIAM MEANY HEDGE MAZE';
+      if (Math.hypot(x - 34, z - Z(455)) < 22) return 'SOUTH BEACH CAFE & PATIO';
+      if (Math.hypot(x + 34, z - Z(455)) < 22) return 'TORONTO ISLAND BICYCLE RENTAL';
+      if (Math.hypot(x + 10, z - Z(452)) < 15) return 'BEACH LOCKERS & PAVILION';
       if (Math.hypot(x - 170, z - Z(225)) < 24) return 'FOOD COURT • CENTREVILLE';
       if (x >= 50 && x <= 300 && z >= Z(80) && z <= Z(270)) return 'CENTREVILLE AMUSEMENT PARK';
       if (x >= 28 && x <= 98 && z >= Z(22) && z <= Z(92)) return 'FORMAL GARDEN';
@@ -1795,7 +2080,9 @@
         ['AIRPORT', -1260, Z(-200)],
         ['LIGHTHOUSE', -480, Z(320)],
         ['CENTREVILLE', 170, Z(150)],
-        ['MAZE', 105, Z(175)],
+        ['MAZE', -65, Z(385)],
+        ['CAFE', 34, Z(455)],
+        ['BIKES', -34, Z(455)],
         ['WARD\'S', 1000, Z(30)],
         ['ALGONQUIN', 520, Z(60)],
         ['HANLAN\'S', -760, Z(-40)],
@@ -1846,10 +2133,13 @@
       landmarks: {
         centreDock: [0, Z(0)],
         avenueGardens: [0, Z(130)],
-        hedgeMaze: [105, Z(175)], // Authenticated real-world location on east side of Avenue of the Island
+        hedgeMaze: [-65, Z(385)], // William Meany Hedge Maze (South Centre Island, West of Avenue)
         centreville: [190, Z(130)],
         pizzaPizza: [170, Z(225)], // Centreville food court
         centreBeach: [0, Z(455)],
+        beachCafe: [34, Z(455)],
+        bikeRental: [-34, Z(455)],
+        beachLockers: [-10, Z(452)],
         centrePier: [0, Z(530)],
         olympicIsland: [-160, Z(330)],
         gibraltarLighthouse: [-480, Z(320)],

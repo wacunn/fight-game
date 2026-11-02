@@ -847,6 +847,9 @@
     ];
 
     function isInsideCentreIsland(x, z, pad) {
+      if (typeof window !== 'undefined' && window.islands && window.islands.isInsideIslands && window.islands.isInsideIslands(x, z)) {
+        return true;
+      }
       const p = pad || 0;
       if (x < -170 - p || x > 490 + p || z < 1050 - p || z > 1500 + p) return false;
       if (pointInPoly(x, z, CENTRE_ISLAND_POLY)) return true;
@@ -900,6 +903,10 @@
       if (z <= getShorelineZ(x) - p) return false;
       // Jack Layton Ferry Terminal pier & boarding slip extension into slip
       if (x >= 692 - p && x <= 738 + p && z >= 280 - p && z <= 348 + p) return false;
+      if (typeof window !== 'undefined' && window.buildTorontoIslands) {
+        // Dedicated archipelago is active; open harbour water across south of Queens Quay
+        return true;
+      }
       // Centre Island dock pier
       if (x >= 165 - p && x <= 195 + p && z >= 1050 - p && z <= 1092 + p) return false;
       // Centre Island south breakwater jetty
@@ -10820,7 +10827,11 @@
         wardsIsland.add(wSign);
       }
 
-      scene.add(islandsGroup);
+      if (typeof window !== 'undefined' && window.buildTorontoIslands) {
+        islandsGroup.visible = false;
+      } else {
+        scene.add(islandsGroup);
+      }
     }
 
     // ---------- Minimap pre-render ----------

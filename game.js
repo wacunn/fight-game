@@ -2717,6 +2717,8 @@ function populateEnemies() {
       if (spawned) spawnedCount++;
       else break;
     }
+    // Pre-populate peaceful citizens and tourists on Centre Island
+    populateCentreIslandCitizens();
   } else {
     const spawns = [
       [-8, -18, 0], [8, -18, 1], [-20, 16, 2], [20, 16, 3],
@@ -2797,17 +2799,23 @@ function spawnAdditionalEnemies(count) {
 
 function populateCentreIslandCitizens() {
   if (!city) return;
-  // Check if player is on dedicated archipelago (z > 3500) or near the inlined island (z ~ 1150)
-  const isArchipelago = (player && player.pos && player.pos.z > 3500) || (state && state.onIsland && player && player.pos && player.pos.z > 3500);
 
-  // Pre-populate Centre Island attractions with peaceful Torontonian citizens
-  const islandSpots = isArchipelago ? [
+  // Pre-populate Centre Island attractions with peaceful Torontonian citizens & tourists
+  const islandSpots = [
     // Avenue of the Island promenade & formal flower gardens
     [0, 5060], [-6, 5090], [6, 5110], [0, 5130], [8, 5160], [-8, 5190], [0, 5215],
     // Grand Fountain plaza
     [-10, 5130], [10, 5130], [0, 5142],
-    // William Meany Hedge Maze (East side of Avenue - at the 1888 antique school bell & paths!)
-    [105, 5175], [95, 5160], [115, 5160], [90, 5185], [120, 5185], [105, 5145],
+    // William Meany Hedge Maze (South Centre Island, West of Avenue - at the 1888 antique school bell & paths!)
+    [-65, 5385], [-55, 5370], [-75, 5370], [-55, 5400], [-75, 5400], [-65, 5410],
+    // South Beach Cafe & Grill beachfront patio
+    [34, 5455], [28, 5458], [40, 5458], [34, 5462],
+    // Toronto Island Bicycle Rental & Surrey quadricycles
+    [-34, 5455], [-28, 5458], [-40, 5458],
+    // Beach Lockers & changing rooms
+    [-10, 5452],
+    // Centre Island South Beach Boardwalk & 120m Pier
+    [0, 5470], [0, 5500], [0, 5530], [0, 5560], [-40, 5450], [40, 5450],
     // Centreville Amusement Park & Pizza Pizza patio
     [170, 5225], [185, 5220], [175, 5235], [210, 5140], [190, 5125],
     // Manitou Bridge over Long Pond
@@ -2816,24 +2824,12 @@ function populateCentreIslandCitizens() {
     [-160, 5330], [-140, 5320], [-180, 5340],
     // Gibraltar Point 1808 Lighthouse Sanctuary
     [-480, 5305], [-460, 5330],
-    // Centre Island South Beach & 120m Pier
-    [0, 5470], [0, 5520], [0, 5560], [-40, 5450], [40, 5450],
     // Ward's Island Summer Village & Ward's Cafe patio
     [1050, 5085], [1040, 5070], [1020, 5040], [1140, 5000],
     // Algonquin Island cottage lanes & footbridge
     [540, 5080], [520, 5060], [750, 5060],
     // Hanlan's Point dock & ball diamonds
     [-720, 4920], [-780, 5000]
-  ] : [
-    // Inlined Centre Island fallback spots
-    [178, 1120], [183, 1140], [177, 1195], [182, 1215],
-    [172, 1170], [188, 1170],
-    [236, 1208], [244, 1208], [248, 1200], [240, 1218],
-    [85, 1165], [65, 1185],
-    [330, 1205], [270, 1175], [300, 1215], [360, 1235],
-    [140, 1410], [180, 1430], [220, 1415], [260, 1425],
-    [180, 1248], [180, 1465],
-    [-60, 1220], [-80, 1260]
   ];
 
   islandSpots.forEach(([ix, iz], idx) => {
@@ -3351,30 +3347,33 @@ const ferryController = {
 const FERRY_WATER_Y = -0.65;
 
 // Clean, realistic 4-waypoint navigation route through Toronto Inner Harbour:
+// Clean, realistic navigation route through Toronto Inner Harbour:
 // W0: Jack Layton Ferry Terminal open-water slip (x=726, z=330)
-// W1: Clear open harbour water south of all mainland piers & buildings (x=732, z=520)
-// W2: Wide-open mid-harbour scenic cruise corridor (x=460, z=780)
-// W3: Centre Island Ferry Terminal lagoon slip (x=180, z=1075)
-// Guarantees >16m clearance from EVERY building and mainland pier along the entire route!
+// W1: Clear open harbour water south of all mainland piers & buildings (x=732, z=650)
+// W2: Wide-open mid-harbour scenic cruise corridor (x=500, z=2200)
+// W3: Approaching Toronto Islands archipelago (x=220, z=3800)
+// W4: Centre Island Ferry Terminal slip on dedicated archipelago (x=0, z=4975)
 const FERRY_WAYPOINTS = [
   { x: 726, z: 330 },
-  { x: 732, z: 520 },
-  { x: 460, z: 780 },
-  { x: 180, z: 1075 }
+  { x: 732, z: 650 },
+  { x: 500, z: 2200 },
+  { x: 220, z: 3800 },
+  { x: 0, z: 4975 }
 ];
 
 function evalFerrySpline(prog, dir) {
   const p = Math.max(0, Math.min(1, prog));
   const waypoints = dir === 'to_island'
     ? FERRY_WAYPOINTS
-    : [FERRY_WAYPOINTS[3], FERRY_WAYPOINTS[2], FERRY_WAYPOINTS[1], FERRY_WAYPOINTS[0]];
+    : FERRY_WAYPOINTS.slice().reverse();
 
-  const p_minus_1 = dir === 'to_island' ? { x: 726, z: 250 } : { x: 180, z: 1150 };
-  const p_plus_1 = dir === 'to_island' ? { x: 180, z: 1150 } : { x: 726, z: 250 };
-  const pts = [p_minus_1, waypoints[0], waypoints[1], waypoints[2], waypoints[3], p_plus_1];
+  const p_minus_1 = dir === 'to_island' ? { x: 726, z: 200 } : { x: 0, z: 5050 };
+  const p_plus_1 = dir === 'to_island' ? { x: 0, z: 5050 } : { x: 726, z: 200 };
+  const pts = [p_minus_1, ...waypoints, p_plus_1];
 
-  const seg_t = p * 3.0;
-  const seg = Math.min(2, Math.floor(seg_t));
+  const numSegs = waypoints.length - 1;
+  const seg_t = p * numSegs;
+  const seg = Math.min(numSegs - 1, Math.floor(seg_t));
   const t = seg_t - seg;
 
   const p0 = pts[seg];
@@ -3402,7 +3401,7 @@ function startFerryRide(dir) {
   ferryController.dir = dir;
   ferryController.isMoving = true;
   ferryController.progress = 0;
-  ferryController.duration = 7.0;
+  ferryController.duration = 8.5;
   state.onFerry = true;
   if (scene.fog) scene.fog.density = 0.00095;
   audio.playFerryHorn();
@@ -3475,16 +3474,16 @@ function arriveFerry(dir) {
   if (dir === 'to_island') {
     state.onIsland = true;
     if (scene.fog) scene.fog.density = 0.00095;
-    const islandFloor = (city && city.floorAt) ? city.floorAt(180, 1088) : 0.5;
-    player.pos.set(180, islandFloor + EYE_HEIGHT, 1088);
-    player.yaw = 0; // facing south into the island
+    const islandFloor = (city && city.floorAt) ? city.floorAt(0, 5000) : 0.55;
+    player.pos.set(0, islandFloor + EYE_HEIGHT, 5000);
+    player.yaw = 0; // facing south down Avenue of the Island
     player.velocity.set(0, 0, 0);
     player.isGrounded = true;
     camera.rotation.order = 'YXZ';
     camera.rotation.y = 0;
 
     if (ferry) {
-      ferry.position.set(180, waterY, 1075);
+      ferry.position.set(0, waterY, 4975);
       ferry.rotation.y = 0;
     }
 
@@ -3790,8 +3789,10 @@ function updateObservationDeck(dt) {
       setDeckPrompt('[E]', 'BOARD TORONTO ISLAND FERRY (CENTRE ISLAND)');
       return;
     }
+    const dArchDock = Math.hypot(player.pos.x - 0, player.pos.z - 5000);
+    const inArchDock = dArchDock < 28 || (Math.abs(player.pos.x) <= 20 && player.pos.z >= 4960 && player.pos.z <= 5030);
     const dIslandDock = Math.hypot(player.pos.x - 180, player.pos.z - 1085);
-    const inIslandDock = dIslandDock < 22 || (player.pos.x >= 165 && player.pos.x <= 195 && player.pos.z >= 1060 && player.pos.z <= 1095);
+    const inIslandDock = inArchDock || dIslandDock < 22 || (player.pos.x >= 165 && player.pos.x <= 195 && player.pos.z >= 1060 && player.pos.z <= 1095);
     if (inIslandDock) {
       activeDeckAction = 'ferry_to_mainland';
       setDeckPrompt('[E]', 'BOARD TORONTO ISLAND FERRY (MAINLAND TORONTO)');
