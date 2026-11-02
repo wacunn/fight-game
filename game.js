@@ -2801,60 +2801,99 @@ function spawnAdditionalEnemies(count) {
 function populateCentreIslandCitizens() {
   if (!city) return;
 
-  // Pre-populate Centre Island attractions with peaceful Torontonian citizens & tourists
+  // Pre-populate Centre Island attractions with generous Torontonian citizens & tourists (160+ people)
   const islandSpots = [
     // North Island Ferry Terminal & Arrival Plaza
-    [0, 5015], [15, 5025], [-12, 5020],
-    // Pizza Pizza & Subway outdoor patio
-    [12, 5052], [14, 5064], [6, 5055], [20, 5048], [20, 5066],
-    // Toronto Island BBQ & Beer Co. dining deck & smoker patio
-    [65, 5060], [72, 5070], [60, 5075], [58, 5085], [70, 5085],
+    [0, 5005], [0, 5015], [-6, 5010], [6, 5010], [12, 5018], [-12, 5018], [18, 5025], [-8, 5028],
+    [5, 5032], [-5, 5032], [14, 5035], [22, 5038], [10, 5040], [-10, 5040], [2, 5022],
+
+    // Pizza Pizza & Subway outdoor dining patio
+    [12, 5044], [12, 5052], [14, 5064], [6, 5055], [6, 5065], [16, 5048], [16, 5058],
+    [20, 5044], [20, 5052], [20, 5062], [20, 5070], [24, 5048], [24, 5066], [8, 5048],
+
+    // Toronto Island BBQ & Beer Co. dining deck, smoker patio & bar
+    [62, 5060], [68, 5060], [74, 5062], [60, 5070], [66, 5070], [72, 5070], [58, 5080],
+    [64, 5080], [70, 5080], [76, 5075], [56, 5088], [62, 5088], [68, 5088], [74, 5085],
+    [80, 5070], [80, 5080],
+
     // Park Washroom & Public Lockers Building
-    [12, 5085], [16, 5092],
+    [12, 5082], [14, 5088], [16, 5092], [18, 5085], [20, 5085], [10, 5092], [22, 5090], [14, 5095],
+
     // First Bridge (North Arrival Bridge over North Lagoon)
-    [28, 5135],
+    [28, 5122], [28, 5128], [28, 5135], [28, 5142], [28, 5150], [26, 5125], [30, 5132], [26, 5145], [30, 5152],
+
     // Shaded Wooded Path to Centreville
-    [60, 5175], [100, 5190],
+    [40, 5165], [48, 5170], [55, 5172], [62, 5176], [70, 5180], [78, 5184], [85, 5188], [92, 5190],
+    [100, 5192], [108, 5195], [115, 5196], [122, 5198], [130, 5200], [138, 5200],
+
     // Centreville Turn-of-the-Century Victorian Village Square & Town Hall
-    [180, 5185], [165, 5195], [195, 5205], [175, 5215], [210, 5215], [150, 5215],
+    [155, 5195], [160, 5190], [165, 5195], [170, 5190], [175, 5190], [180, 5185], [185, 5190],
+    [190, 5195], [195, 5195], [200, 5200], [205, 5200], [210, 5195], [215, 5200], [220, 5195],
+    [225, 5195], [230, 5200], [180, 5178], [180, 5205], [170, 5210], [190, 5210], [165, 5215],
+    [175, 5215], [185, 5220], [195, 5220], [205, 5215], [215, 5215], [150, 5215], [160, 5225],
+
     // Centreville Railway Station Platform (Beasley Bear Express)
-    [160, 5165], [155, 5170],
+    [155, 5165], [160, 5165], [165, 5165], [170, 5165], [155, 5168], [160, 5168], [165, 5168],
+
     // Far Enough Farm (Historic 1959 Petting Farm, Big Red Barn & Paddocks)
-    [270, 5165], [295, 5180], [320, 5170], [280, 5200], [325, 5200],
+    [265, 5185], [275, 5180], [285, 5175], [295, 5175], [305, 5175], [315, 5175], [325, 5175],
+    [270, 5165], [285, 5165], [295, 5165], [310, 5165], [320, 5165], [280, 5195], [295, 5195],
+    [310, 5195], [325, 5195], [285, 5205], [300, 5205], [315, 5205],
+
     // Manitou Bridge over Long Pond
-    [0, 5255],
+    [0, 5235], [0, 5245], [0, 5255], [0, 5265], [0, 5275], [-2, 5240], [2, 5250], [-2, 5260], [2, 5270],
+
     // Grand Fountain Plaza
-    [0, 5300], [-8, 5312], [8, 5312], [0, 5324],
+    [0, 5292], [-8, 5298], [8, 5298], [-12, 5310], [12, 5310], [-8, 5322], [8, 5322], [0, 5326],
+    [-6, 5304], [6, 5304], [-6, 5316], [6, 5316], [0, 5300], [0, 5318],
+
     // Grand Formal Gardens & twin sunken Reflecting Pools (East & West)
-    [-26, 5360], [-26, 5400], [26, 5360], [26, 5400], [0, 5380], [-10, 5350], [10, 5350],
+    [0, 5340], [0, 5360], [0, 5380], [0, 5400], [0, 5420], [-10, 5350], [10, 5350],
+    [-18, 5360], [-18, 5380], [-18, 5400], [18, 5360], [18, 5380], [18, 5400],
+    [-26, 5350], [-26, 5410], [26, 5350], [26, 5410], [-34, 5380], [34, 5380],
+
     // William Meany Hedge Maze (South Centre Island, West of Avenue - at the 1888 antique school bell & paths!)
-    [-65, 5385], [-55, 5370], [-75, 5370], [-55, 5400], [-75, 5400], [-65, 5410],
+    [-35, 5385], [-45, 5385], [-55, 5385], [-65, 5385], [-75, 5385], [-85, 5385],
+    [-55, 5370], [-75, 5370], [-55, 5400], [-75, 5400], [-65, 5410], [-65, 5360],
+    [-45, 5370], [-45, 5400], [-85, 5370], [-85, 5400],
+
     // South Beach Cafe & Grill beachfront patio
-    [34, 5455], [28, 5458], [40, 5458], [34, 5462],
+    [34, 5455], [28, 5458], [40, 5458], [34, 5462], [26, 5452], [42, 5452], [30, 5465], [38, 5465],
+
     // Toronto Island Bicycle Rental & Surrey quadricycles
-    [-34, 5455], [-28, 5458], [-40, 5458],
+    [-34, 5455], [-28, 5458], [-40, 5458], [-34, 5462], [-26, 5452], [-42, 5452], [-30, 5465], [-38, 5465],
+
     // Beach Lockers & changing rooms
-    [-10, 5452],
+    [-10, 5452], [-5, 5452], [10, 5452], [0, 5455],
+
     // Centre Island South Beach Boardwalk & 120m Pier (Lake Ontario)
-    [0, 5470], [0, 5500], [0, 5530], [0, 5560], [-40, 5450], [40, 5450],
+    [0, 5470], [0, 5490], [0, 5510], [0, 5530], [0, 5550], [0, 5570], [0, 5585],
+    [-3, 5480], [3, 5500], [-3, 5520], [3, 5540], [-3, 5560], [3, 5575],
+    [-35, 5450], [35, 5450], [-70, 5450], [70, 5450],
+
     // Olympic Island Great Lawn (skyline panorama)
-    [-160, 5330], [-140, 5320], [-180, 5340],
+    [-160, 5330], [-140, 5320], [-180, 5340], [-150, 5350], [-170, 5310],
+
     // Gibraltar Point 1808 Lighthouse Sanctuary
-    [-480, 5305], [-460, 5330],
+    [-480, 5305], [-460, 5330], [-470, 5290], [-490, 5320],
+
     // Ward's Island Summer Village & Ward's Cafe patio
-    [1050, 5085], [1040, 5070], [1020, 5040], [1140, 5000],
+    [1050, 5085], [1040, 5070], [1020, 5040], [1140, 5000], [1060, 5095], [1030, 5060],
+
     // Algonquin Island cottage lanes & footbridge
-    [540, 5080], [520, 5060], [750, 5060],
+    [540, 5080], [520, 5060], [750, 5060], [560, 5090], [530, 5070],
+
     // Hanlan's Point dock & ball diamonds
-    [-720, 4920], [-780, 5000]
+    [-720, 4920], [-780, 5000], [-740, 4960], [-760, 4980]
   ];
 
   islandSpots.forEach(([ix, iz], idx) => {
     // Only spawn if spot is open and not crowded
-    const nearby = enemies.some(e => !e.isDead && Math.hypot(e.rig.root.position.x - ix, e.rig.root.position.z - iz) < 8.0);
+    const nearby = enemies.some(e => !e.isDead && Math.hypot(e.rig.root.position.x - ix, e.rig.root.position.z - iz) < 3.2);
     if (!nearby) {
       const archIdx = idx % CIVILIAN_ARCHETYPES.length;
-      spawnEnemy(ix, iz, 'civilian', archIdx);
+      const cit = spawnEnemy(ix, iz, 'civilian', archIdx);
+      if (cit) cit.isIslandCitizen = true;
     }
   });
 }
@@ -6508,17 +6547,21 @@ function updateEnemies(dt) {
       spawnSingleReinforcement();
     }
 
-    // When player is on the island, ensure peaceful Torontonians & tourists stroll nearby
+    // When player is on the island, guarantee vibrant, bustling park life around the player
     if (player.pos.z > 3500) {
-      const nearbyCitizens = enemies.filter(e => !e.isDead && (e.kind === 'civilian' || e.isIslandCitizen) && nearestPlayerDist(e.rig.root.position.x, e.rig.root.position.z) < 75).length;
-      if (nearbyCitizens < 8) {
-        const angle = Math.random() * Math.PI * 2;
-        const dist = 18 + Math.random() * 35;
-        const sx = player.pos.x + Math.cos(angle) * dist;
-        const sz = player.pos.z + Math.sin(angle) * dist;
-        if (city && city.canMoveTo && city.canMoveTo(sx, sz, 0.5, 0.55)) {
-          const archIdx = Math.floor(Math.random() * CIVILIAN_ARCHETYPES.length);
-          spawnEnemy(sx, sz, 'civilian', archIdx);
+      const nearbyCitizens = enemies.filter(e => !e.isDead && (e.kind === 'civilian' || e.isIslandCitizen) && nearestPlayerDist(e.rig.root.position.x, e.rig.root.position.z) < 65).length;
+      if (nearbyCitizens < 24) {
+        const toSpawn = Math.min(4, 24 - nearbyCitizens);
+        for (let s = 0; s < toSpawn; s++) {
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 14 + Math.random() * 42;
+          const sx = player.pos.x + Math.cos(angle) * dist;
+          const sz = player.pos.z + Math.sin(angle) * dist;
+          if (city && city.canMoveTo && city.canMoveTo(sx, sz, 0.5, 0.55)) {
+            const archIdx = Math.floor(Math.random() * CIVILIAN_ARCHETYPES.length);
+            const cit = spawnEnemy(sx, sz, 'civilian', archIdx);
+            if (cit) cit.isIslandCitizen = true;
+          }
         }
       }
     }
@@ -6579,6 +6622,10 @@ function updateEnemies(dt) {
         enemy.rig.root.position.x = cx + (edx / er) * 21.2;
         enemy.rig.root.position.z = cz + (edz / er) * 21.2;
       }
+    } else if (enemy.isIslandCitizen || enemy.rig.root.position.z > 3500 || (typeof islands !== 'undefined' && islands && islands.isInsideIslands && islands.isInsideIslands(enemy.rig.root.position.x, enemy.rig.root.position.z))) {
+      // Keep within Toronto Islands archipelago boundaries: preserve full archipelago exploration!
+      enemy.rig.root.position.x = Math.max(-1450, Math.min(1350, enemy.rig.root.position.x));
+      enemy.rig.root.position.z = Math.max(4600, Math.min(5700, enemy.rig.root.position.z));
     } else if (city && city.bounds) {
       enemy.rig.root.position.x = Math.max(city.bounds.minX + 5, Math.min(city.bounds.maxX - 5, enemy.rig.root.position.x));
       enemy.rig.root.position.z = Math.max(city.bounds.minZ + 5, Math.min(city.bounds.maxZ - 5, enemy.rig.root.position.z));
@@ -6676,7 +6723,7 @@ function updateEnemies(dt) {
 
         const nextCx = enemy.rig.root.position.x + fleeDir.x * (enemy.speed * 1.5) * dt;
         const nextCz = enemy.rig.root.position.z + fleeDir.z * (enemy.speed * 1.5) * dt;
-        if (!city || city.canMoveTo(nextCx, nextCz, 0.4, 0)) {
+        if (!city || city.canMoveTo(nextCx, nextCz, 0.4, enemy.rig.root.position.y)) {
           enemy.rig.root.position.x = nextCx;
           enemy.rig.root.position.z = nextCz;
         }
@@ -6705,7 +6752,7 @@ function updateEnemies(dt) {
         const wz = Math.cos(enemy.wanderAngle);
         const nextCx = enemy.rig.root.position.x + wx * (enemy.speed * 0.6) * dt;
         const nextCz = enemy.rig.root.position.z + wz * (enemy.speed * 0.6) * dt;
-        if (!city || city.canMoveTo(nextCx, nextCz, 0.4, 0)) {
+        if (!city || city.canMoveTo(nextCx, nextCz, 0.4, enemy.rig.root.position.y)) {
           enemy.rig.root.position.x = nextCx;
           enemy.rig.root.position.z = nextCz;
         } else {

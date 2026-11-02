@@ -14283,6 +14283,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     const Z = o => Z_BASE + o;
     const GROUND_Y = 0.55; // walking height on the islands
     const WATER_Y = 0.0;
+    let renderedOsmTowers = 0;
 
     // ------------------------------------------------------------------------
     // Deterministic noise for procedural terrain and vegetation
@@ -14351,8 +14352,9 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       // Blockhouse Bay: runs between Olympic Island and Gibraltar Point, passing under Olympic-Gibraltar bridge (x=-340, z=Z(318))
       { name: 'Blockhouse Bay', w: 36, pts: [[-340, Z(220)], [-340, Z(280)], [-340, Z(318)], [-350, Z(380)], [-420, Z(430)]] },
       // South Lagoon: winds behind Centre Island dunes flanking the formal gardens to the west and east
-      { name: 'South Lagoon West', w: 26, pts: [[-260, Z(370)], [-180, Z(360)], [-100, Z(365)], [-52, Z(340)]] },
-      { name: 'South Lagoon East', w: 26, pts: [[52, Z(340)], [100, Z(365)], [180, Z(360)], [260, Z(370)]] },
+      // Routed to strictly avoid cutting through the William Meany Hedge Maze (x: -105..-25) or the Formal Gardens (x: -45..45)
+      { name: 'South Lagoon West', w: 26, pts: [[-260, Z(370)], [-200, Z(360)], [-150, Z(355)], [-125, Z(330)], [-125, Z(300)]] },
+      { name: 'South Lagoon East', w: 26, pts: [[75, Z(300)], [100, Z(330)], [160, Z(360)], [240, Z(370)]] },
       // Algonquin Canal: runs between Algonquin & Ward's Island, passing under Ward-Algonquin bridge (x=750, z=Z(60))
       { name: 'Algonquin Canal', w: 28, pts: [[750, Z(-60)], [750, Z(0)], [750, Z(60)], [750, Z(100)], [750, Z(180)]] },
       // Hanlan Canal: runs between Hanlan's Point and Gibraltar Point, passing under Gibraltar-Hanlan bridge (x=-590, z=Z(182))
@@ -14470,23 +14472,25 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
 
     // Lawns, gardens, and clearings where trees are kept clear
     const CLEARINGS = [
-      { r: [-25, 85, Z(-20), Z(112)] }, // North Island: Ferry Terminal, Pizza Pizza, Subway, Washrooms/Lockers & BBQ Restaurant patio
-      { r: [-45, 45, Z(280), Z(435)] }, // Avenue of the Islands south: Grand Fountain, Formal Gardens & Reflecting Pools
-      { c: [-160, Z(330), 65] }, // Olympic Island Great Lawn (skyline panorama)
-      { r: [135, 245, Z(155), Z(245)] }, // Centreville Turn-of-the-Century Victorian Village
-      { r: [265, 345, Z(140), Z(225)] }, // Far Enough Farm (Big Red Barn, Silo, Paddocks)
-      { r: [-105, -25, Z(350), Z(425)] }, // William Meany Hedge Maze (South part, WEST of Avenue)
-      { r: [-55, 55, Z(435), Z(475)] }, // South Beach Pavilion, Restaurant & Bike Rental
+      { r: [-35, 95, Z(-25), Z(120)] }, // North Island: Ferry Terminal, Pizza Pizza, Subway, Washrooms/Lockers & BBQ Restaurant patio
+      { r: [-45, 45, Z(115), Z(165)] }, // North Arrival Bridge deck & approaches
+      { r: [-35, 35, Z(225), Z(285)] }, // Manitou Bridge deck & approaches
+      { r: [-55, 55, Z(285), Z(440)] }, // Avenue of the Islands south: Grand Fountain, Formal Gardens & Reflecting Pools
+      { c: [-160, Z(330), 70] }, // Olympic Island Great Lawn (skyline panorama)
+      { r: [130, 255, Z(150), Z(250)] }, // Centreville Turn-of-the-Century Victorian Village
+      { r: [260, 350, Z(135), Z(230)] }, // Far Enough Farm (Big Red Barn, Silo, Paddocks)
+      { r: [-115, -20, Z(345), Z(430)] }, // William Meany Hedge Maze (South part, WEST of Avenue)
+      { r: [-65, 65, Z(435), Z(480)] }, // South Beach Pavilion, Restaurant & Bike Rental
       { c: [-780, Z(0), 85] }, // Hanlan's ball fields
-      { c: [-480, Z(320), 38] }, // Gibraltar lighthouse sanctuary
+      { c: [-480, Z(320), 42] }, // Gibraltar lighthouse sanctuary
       { r: [412, 702, Z(22), Z(112)] }, // Algonquin cottages
       { r: [892, 1142, Z(-48), Z(48)] }, // Ward's cottages
-      { c: [1050, Z(70), 28] }, // Ward's Cafe patio
-      { c: [0, Z(-5), 38] }, { c: [-720, Z(-110), 34] }, { c: [1140, Z(-20), 30] }, // Ferry docks
-      { c: [100, Z(330), 36] }, // Picnic meadow by Long Pond
-      { c: [560, Z(300), 48] }, // Ward's meadow
-      { c: [-560, Z(80), 40] }, // Hanlan's picnic grounds
-      { c: [-330, Z(150), 34] } // Gibraltar glade
+      { c: [1050, Z(70), 32] }, // Ward's Cafe patio
+      { c: [0, Z(-5), 42] }, { c: [-720, Z(-110), 38] }, { c: [1140, Z(-20), 35] }, // Ferry docks
+      { c: [100, Z(330), 40] }, // Picnic meadow by Long Pond
+      { c: [560, Z(300), 52] }, // Ward's meadow
+      { c: [-560, Z(80), 45] }, // Hanlan's picnic grounds
+      { c: [-330, Z(150), 38] } // Gibraltar glade
     ];
 
     function inClearing(x, z, pad) {
@@ -14823,6 +14827,34 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     // ------------------------------------------------------------------------
     // FOREST: 6,000+ Instanced Trees by Species & Shrubs
     // ------------------------------------------------------------------------
+    const TRAIN_TRACK = [
+      [160, Z(165)],
+      [205, Z(165)],
+      [245, Z(150)],
+      [290, Z(145)],
+      [320, Z(170)],
+      [305, Z(205)],
+      [250, Z(235)],
+      [190, Z(240)],
+      [140, Z(220)],
+      [140, Z(185)]
+    ];
+
+    function nearBridge(x, z, pad) {
+      const p = (pad !== undefined) ? pad : 6.0;
+      for (const b of bridges) {
+        const dx = x - b.x0, dz = z - b.z0;
+        const s = dx * b.fx + dz * b.fz, l = -dx * b.fz + dz * b.fx;
+        if (s >= -p && s <= b.len + p && Math.abs(l) <= b.w / 2 + p) return true;
+      }
+      return false;
+    }
+
+    function nearTrainTrack(x, z, pad) {
+      const p = (pad !== undefined) ? pad : 4.0;
+      return distLine(x, z, TRAIN_TRACK) < p;
+    }
+
     const TRUNK_CELL = 8;
     const trunkGrid = new Map();
     const trees = { round: [], willow: [], pine: [] };
@@ -14835,7 +14867,9 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
           const tx = x + (rnd() - 0.5) * SP * 0.9, tz = z + (rnd() - 0.5) * SP * 0.9;
           const L = sampleL(tx, tz);
           if (L < 2.5 || isAirport(tx, tz)) continue;
-          if (nearPath(tx, tz, 2.5) || inClearing(tx, tz, 2.0)) continue;
+          if (nearBridge(tx, tz, 7.5)) continue;
+          if (nearTrainTrack(tx, tz, 4.0)) continue;
+          if (nearPath(tx, tz, 3.8) || inClearing(tx, tz, 2.0)) continue;
           const wd = inlandWaterDist(tx, tz);
           let kind = null;
           if (wd > 1.5 && wd < 10 && rnd() < 0.52) {
@@ -14852,7 +14886,10 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
               kind = 'round'; // lone shade trees
             }
             if (f > 0.3 && rnd() < 0.45) {
-              shrubs.push([tx + (rnd() - 0.5) * 4, tz + (rnd() - 0.5) * 4, 0.6 + rnd() * 1.0]);
+              const sx = tx + (rnd() - 0.5) * 4, sz = tz + (rnd() - 0.5) * 4;
+              if (!nearBridge(sx, sz, 5.0) && !nearTrainTrack(sx, sz, 3.0) && !nearPath(sx, sz, 2.0) && !inClearing(sx, sz, 1.0)) {
+                shrubs.push([sx, sz, 0.6 + rnd() * 1.0]);
+              }
             }
           }
           if (!kind) continue;
@@ -15096,7 +15133,7 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         if (!c.c || c.c[2] < 30) continue;
         const a = rnd() * 6.283, d = rnd() * c.c[2] * 0.85;
         const x = c.c[0] + Math.cos(a) * d, z = c.c[1] + Math.sin(a) * d;
-        if (landField(x, z) < 4 || nearPath(x, z, 3) || isSand(x, z, 9)) continue;
+        if (nearBridge(x, z, 6.0) || nearTrainTrack(x, z, 5.0) || landField(x, z) < 4 || nearPath(x, z, 3) || isSand(x, z, 9)) continue;
         if (tables.some(t => Math.hypot(t[0] - x, t[1] - z) < 9)) continue;
         tables.push([x, z, rnd() * 3.14]);
       }
@@ -15991,18 +16028,6 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     // and past Far Enough Farm!
     // ------------------------------------------------------------------------
     let miniTrain = null, miniTrainPuff = null;
-    const TRAIN_TRACK = [
-      [160, Z(165)],
-      [205, Z(165)],
-      [245, Z(150)],
-      [290, Z(145)],
-      [320, Z(170)],
-      [305, Z(205)],
-      [250, Z(235)],
-      [190, Z(240)],
-      [140, Z(220)],
-      [140, Z(185)]
-    ];
 
     function evalTrainTrack(tNorm) {
       const n = TRAIN_TRACK.length;
@@ -17206,88 +17231,126 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       cnBeacon.position.y = 553;
       cn.add(cnBeacon);
 
-      cn.position.set(-280, 0, skyZ);
+      // ------------------------------------------------------------------------
+      // Distant Toronto Skyline (Rendered directly from OpenStreetMap TORONTO_MAP)
+      // Extracts real-world buildings, exact footprints, heights & landmarks across the harbour:
+      // ------------------------------------------------------------------------
+      const mapData = (typeof window !== 'undefined' && window.TORONTO_MAP) ? window.TORONTO_MAP : null;
+      renderedOsmTowers = 0;
+
+      if (mapData && mapData.buildings && mapData.buildings.length > 0) {
+        const towers = [];
+        mapData.buildings.forEach(b => {
+          if (!b.p || b.p.length < 6) return;
+          const h = b.h || 0;
+          const name = b.n || '';
+          if (h < 22 && name !== 'Rogers Centre') return;
+
+          let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+          let sumX = 0, sumZ = 0, cnt = b.p.length / 2;
+          for (let i = 0; i < b.p.length; i += 2) {
+            const px = b.p[i], pz = b.p[i + 1];
+            if (px < minX) minX = px; if (px > maxX) maxX = px;
+            if (pz < minZ) minZ = pz; if (pz > maxZ) maxZ = pz;
+            sumX += px; sumZ += pz;
+          }
+          const cx = sumX / cnt, cz = sumZ / cnt;
+          const w = Math.max(16, (maxX - minX) * 0.95);
+          const d = Math.max(16, (maxZ - minZ) * 0.95);
+          towers.push({ cx, cz, w, d, h, name, m: b.m, c: b.c, rc: b.rc });
+        });
+
+        // Sort by height ascending for clean rendering order
+        towers.sort((a, b) => a.h - b.h);
+
+        towers.forEach(t => {
+          // Skip CN Tower and Rogers Centre from generic box pass (built with custom detailed architecture below)
+          if (t.name === 'CN Tower' || Math.hypot(t.cx - (-286.5), t.cz - 159.4) < 35) return;
+          if (t.name === 'Rogers Centre' || Math.hypot(t.cx - (-459.9), t.cz - 246.6) < 55) return;
+
+          const posX = t.cx;
+          // Scale North-South depth from Queens Quay up to Queen St
+          const posZ = skyZ + (t.cz + 200) * 0.42;
+          const posY = t.h / 2;
+
+          let towerMat = litTowerMat;
+          if (/First Canadian Place/i.test(t.name)) {
+            towerMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 });
+          } else if (/Scotia Plaza/i.test(t.name)) {
+            towerMat = new THREE.MeshStandardMaterial({ color: 0x450a0a, roughness: 0.4 });
+          } else if (/Toronto Dominion|TD /i.test(t.name)) {
+            towerMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.6 });
+          } else if (/Royal Bank Plaza/i.test(t.name)) {
+            towerMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.2, metalness: 0.8 });
+          } else if (t.c) {
+            towerMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(t.c), roughness: 0.5 });
+          }
+
+          const towerMesh = new THREE.Mesh(new THREE.BoxGeometry(t.w, t.h, t.d), towerMat);
+          towerMesh.position.set(posX, posY, posZ);
+          skyGrp.add(towerMesh);
+          renderedOsmTowers++;
+
+          // Architectural crowns & summit features for landmark and tall towers
+          if (/Scotia Plaza/i.test(t.name)) {
+            const scotiaCrown = new THREE.Mesh(new THREE.ConeGeometry(t.w * 0.52, 24, 4), new THREE.MeshBasicMaterial({ color: 0xdc2626, fog: false }));
+            scotiaCrown.rotation.y = Math.PI / 4;
+            scotiaCrown.position.set(posX, t.h + 12, posZ);
+            skyGrp.add(scotiaCrown);
+          } else if (/First Canadian Place/i.test(t.name)) {
+            const fcpCrown = new THREE.Mesh(new THREE.BoxGeometry(t.w * 0.85, 14, t.d * 0.85), new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }));
+            fcpCrown.position.set(posX, t.h + 7, posZ);
+            skyGrp.add(fcpCrown);
+            const beacon = new THREE.Mesh(new THREE.SphereGeometry(1.8, 6, 6), new THREE.MeshBasicMaterial({ color: 0xef4444, fog: false }));
+            beacon.position.set(posX, t.h + 16, posZ);
+            skyGrp.add(beacon);
+            towerBeacons.push(beacon);
+          } else if (/TD Canada Trust|Toronto Dominion/i.test(t.name)) {
+            const tdCrown = new THREE.Mesh(new THREE.BoxGeometry(t.w + 0.5, 6, t.d + 0.5), new THREE.MeshBasicMaterial({ color: 0x16a34a, fog: false }));
+            tdCrown.position.set(posX, t.h + 3, posZ);
+            skyGrp.add(tdCrown);
+          } else if (/Royal Bank Plaza/i.test(t.name)) {
+            const rbcCrown = new THREE.Mesh(new THREE.BoxGeometry(t.w + 0.5, 6, t.d + 0.5), new THREE.MeshBasicMaterial({ color: 0xf59e0b, fog: false }));
+            rbcCrown.position.set(posX, t.h + 3, posZ);
+            skyGrp.add(rbcCrown);
+          } else if (/Brookfield|Bay Wellington/i.test(t.name)) {
+            const bwpCrown = new THREE.Mesh(new THREE.ConeGeometry(t.w * 0.45, 18, 4), new THREE.MeshBasicMaterial({ color: 0x38bdf8, fog: false }));
+            bwpCrown.rotation.y = Math.PI / 4;
+            bwpCrown.position.set(posX, t.h + 9, posZ);
+            skyGrp.add(bwpCrown);
+          } else if (t.h > 120) {
+            // Illuminated skyline crown on tall towers
+            const crownColors = [0x38bdf8, 0xfacc15, 0x10b981, 0xa855f7, 0xf43f5e];
+            const col = crownColors[Math.abs(Math.floor(posX * 13)) % crownColors.length];
+            const cr = new THREE.Mesh(new THREE.BoxGeometry(t.w * 0.9, 4.5, t.d * 0.9), new THREE.MeshBasicMaterial({ color: col, fog: false }));
+            cr.position.set(posX, t.h + 2.2, posZ);
+            skyGrp.add(cr);
+            if (t.h > 145) {
+              const bcn = new THREE.Mesh(new THREE.SphereGeometry(1.2, 6, 6), new THREE.MeshBasicMaterial({ color: 0xef4444, fog: false }));
+              bcn.position.set(posX, t.h + 5.5, posZ);
+              skyGrp.add(bcn);
+              towerBeacons.push(bcn);
+            }
+          }
+        });
+      }
+
+      // CN Tower (553m) at its exact real-world coordinate [-286.5, skyZ + (159.4 + 200) * 0.42]
+      cn.position.set(-286.5, 0, skyZ + (159.4 + 200) * 0.42);
       skyGrp.add(cn);
 
-      // Rogers Centre Dome with blue perimeter ring
+      // Rogers Centre Dome at its exact real-world coordinate [-459.9, skyZ + (246.6 + 200) * 0.42]
       const dome = new THREE.Mesh(new THREE.SphereGeometry(46, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.48), concreteMat);
-      dome.position.set(-440, 22, skyZ + 40);
-      skyGrp.add(dome);
-
       const domeRing = new THREE.Mesh(
         new THREE.TorusGeometry(46.2, 1.2, 8, 32),
         new THREE.MeshBasicMaterial({ color: 0x1d4ed8, fog: false }) // bright blue stadium glow
       );
       domeRing.rotation.x = Math.PI / 2;
-      domeRing.position.set(-440, 24, skyZ + 40);
+      const rcZ = skyZ + (246.6 + 200) * 0.42;
+      dome.position.set(-459.9, 22, rcZ);
+      skyGrp.add(dome);
+      domeRing.position.set(-459.9, 24, rcZ);
       skyGrp.add(domeRing);
-
-      // Financial District Skyscrapers with illuminated windows and architectural crowns:
-      // 1. First Canadian Place (298m) - White illuminated mechanical penthouse roof
-      const fcp = new THREE.Mesh(new THREE.BoxGeometry(36, 298, 36), litTowerMat);
-      fcp.position.set(100, 149, skyZ);
-      skyGrp.add(fcp);
-      const fcpCrown = new THREE.Mesh(new THREE.BoxGeometry(32, 12, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }));
-      fcpCrown.position.set(100, 304, skyZ);
-      skyGrp.add(fcpCrown);
-      const fcpB1 = new THREE.Mesh(new THREE.SphereGeometry(1.5, 6, 6), new THREE.MeshBasicMaterial({ color: 0xef4444, fog: false }));
-      fcpB1.position.set(100, 311, skyZ);
-      skyGrp.add(fcpB1);
-      towerBeacons.push(fcpB1);
-
-      // 2. Scotia Plaza (275m) - Deep red chevron / pyramid crown
-      const scotia = new THREE.Mesh(new THREE.BoxGeometry(32, 275, 32), litTowerMat);
-      scotia.position.set(180, 137.5, skyZ + 20);
-      skyGrp.add(scotia);
-      const scotiaCrown = new THREE.Mesh(new THREE.ConeGeometry(18, 22, 4), new THREE.MeshBasicMaterial({ color: 0xdc2626, fog: false }));
-      scotiaCrown.rotation.y = Math.PI / 4;
-      scotiaCrown.position.set(180, 286, skyZ + 20);
-      skyGrp.add(scotiaCrown);
-
-      // 3. TD Centre (222m) - Mies van der Rohe dark bronze towers with green illuminated TD logo band
-      const td = new THREE.Mesh(new THREE.BoxGeometry(42, 222, 42), litTowerMat);
-      td.position.set(-40, 111, skyZ - 10);
-      skyGrp.add(td);
-      const tdCrown = new THREE.Mesh(new THREE.BoxGeometry(42.5, 6, 42.5), new THREE.MeshBasicMaterial({ color: 0x16a34a, fog: false }));
-      tdCrown.position.set(-40, 225, skyZ - 10);
-      skyGrp.add(tdCrown);
-
-      // 4. Royal Bank Plaza (180m) - Gold reflective towers with golden crown
-      const rbc = new THREE.Mesh(new THREE.BoxGeometry(36, 180, 36), litTowerMat);
-      rbc.position.set(-120, 90, skyZ + 15);
-      skyGrp.add(rbc);
-      const rbcCrown = new THREE.Mesh(new THREE.BoxGeometry(36.5, 6, 36.5), new THREE.MeshBasicMaterial({ color: 0xf59e0b, fog: false }));
-      rbcCrown.position.set(-120, 183, skyZ + 15);
-      skyGrp.add(rbcCrown);
-
-      // 5. Bay Wellington / Brookfield Place (260m) - Glowing glass pyramid crown
-      const bwp = new THREE.Mesh(new THREE.BoxGeometry(34, 260, 34), litTowerMat);
-      bwp.position.set(280, 130, skyZ + 10);
-      skyGrp.add(bwp);
-      const bwpCrown = new THREE.Mesh(new THREE.ConeGeometry(17, 16, 4), new THREE.MeshBasicMaterial({ color: 0x38bdf8, fog: false }));
-      bwpCrown.rotation.y = Math.PI / 4;
-      bwpCrown.position.set(280, 268, skyZ + 10);
-      skyGrp.add(bwpCrown);
-
-      // 40 additional illuminated skyline towers stretching along the harbour shore
-      for (let k = 0; k < 42; k++) {
-        const tx = -720 + k * 35 + (k % 3) * 6;
-        if (Math.abs(tx - (-280)) < 30 || Math.abs(tx - (-440)) < 40) continue; // avoid clipping CN Tower / dome
-        const th = 60 + (k * 43) % 150 + (k % 5) * 18;
-        const tw = 20 + (k * 7) % 18, tdLen = 20 + (k * 11) % 16;
-        const dz = 30 + (k * 19) % 140;
-        const b = new THREE.Mesh(new THREE.BoxGeometry(tw, th, tdLen), litTowerMat);
-        b.position.set(tx, th / 2, skyZ + dz);
-        skyGrp.add(b);
-
-        // Lit rooftop crown band on taller towers
-        if (th > 140) {
-          const crMat = new THREE.MeshBasicMaterial({ color: [0x38bdf8, 0xfacc15, 0xef4444, 0x10b981, 0xa855f7][k % 5], fog: false });
-          const cr = new THREE.Mesh(new THREE.BoxGeometry(tw + 0.5, 4.0, tdLen + 0.5), crMat);
-          cr.position.set(tx, th + 2.0, skyZ + dz);
-          skyGrp.add(cr);
-        }
-      }
 
       islandsGroup.add(skyGrp);
     }
@@ -17598,7 +17661,8 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         trees: trees.round.length + trees.willow.length + trees.pine.length,
         willows: trees.willow.length,
         pines: trees.pine.length,
-        shrubs: shrubs.length
+        shrubs: shrubs.length,
+        renderedOsmTowers: renderedOsmTowers
       }
     };
   }
@@ -23772,60 +23836,99 @@ function spawnAdditionalEnemies(count) {
 function populateCentreIslandCitizens() {
   if (!city) return;
 
-  // Pre-populate Centre Island attractions with peaceful Torontonian citizens & tourists
+  // Pre-populate Centre Island attractions with generous Torontonian citizens & tourists (160+ people)
   const islandSpots = [
     // North Island Ferry Terminal & Arrival Plaza
-    [0, 5015], [15, 5025], [-12, 5020],
-    // Pizza Pizza & Subway outdoor patio
-    [12, 5052], [14, 5064], [6, 5055], [20, 5048], [20, 5066],
-    // Toronto Island BBQ & Beer Co. dining deck & smoker patio
-    [65, 5060], [72, 5070], [60, 5075], [58, 5085], [70, 5085],
+    [0, 5005], [0, 5015], [-6, 5010], [6, 5010], [12, 5018], [-12, 5018], [18, 5025], [-8, 5028],
+    [5, 5032], [-5, 5032], [14, 5035], [22, 5038], [10, 5040], [-10, 5040], [2, 5022],
+
+    // Pizza Pizza & Subway outdoor dining patio
+    [12, 5044], [12, 5052], [14, 5064], [6, 5055], [6, 5065], [16, 5048], [16, 5058],
+    [20, 5044], [20, 5052], [20, 5062], [20, 5070], [24, 5048], [24, 5066], [8, 5048],
+
+    // Toronto Island BBQ & Beer Co. dining deck, smoker patio & bar
+    [62, 5060], [68, 5060], [74, 5062], [60, 5070], [66, 5070], [72, 5070], [58, 5080],
+    [64, 5080], [70, 5080], [76, 5075], [56, 5088], [62, 5088], [68, 5088], [74, 5085],
+    [80, 5070], [80, 5080],
+
     // Park Washroom & Public Lockers Building
-    [12, 5085], [16, 5092],
+    [12, 5082], [14, 5088], [16, 5092], [18, 5085], [20, 5085], [10, 5092], [22, 5090], [14, 5095],
+
     // First Bridge (North Arrival Bridge over North Lagoon)
-    [28, 5135],
+    [28, 5122], [28, 5128], [28, 5135], [28, 5142], [28, 5150], [26, 5125], [30, 5132], [26, 5145], [30, 5152],
+
     // Shaded Wooded Path to Centreville
-    [60, 5175], [100, 5190],
+    [40, 5165], [48, 5170], [55, 5172], [62, 5176], [70, 5180], [78, 5184], [85, 5188], [92, 5190],
+    [100, 5192], [108, 5195], [115, 5196], [122, 5198], [130, 5200], [138, 5200],
+
     // Centreville Turn-of-the-Century Victorian Village Square & Town Hall
-    [180, 5185], [165, 5195], [195, 5205], [175, 5215], [210, 5215], [150, 5215],
+    [155, 5195], [160, 5190], [165, 5195], [170, 5190], [175, 5190], [180, 5185], [185, 5190],
+    [190, 5195], [195, 5195], [200, 5200], [205, 5200], [210, 5195], [215, 5200], [220, 5195],
+    [225, 5195], [230, 5200], [180, 5178], [180, 5205], [170, 5210], [190, 5210], [165, 5215],
+    [175, 5215], [185, 5220], [195, 5220], [205, 5215], [215, 5215], [150, 5215], [160, 5225],
+
     // Centreville Railway Station Platform (Beasley Bear Express)
-    [160, 5165], [155, 5170],
+    [155, 5165], [160, 5165], [165, 5165], [170, 5165], [155, 5168], [160, 5168], [165, 5168],
+
     // Far Enough Farm (Historic 1959 Petting Farm, Big Red Barn & Paddocks)
-    [270, 5165], [295, 5180], [320, 5170], [280, 5200], [325, 5200],
+    [265, 5185], [275, 5180], [285, 5175], [295, 5175], [305, 5175], [315, 5175], [325, 5175],
+    [270, 5165], [285, 5165], [295, 5165], [310, 5165], [320, 5165], [280, 5195], [295, 5195],
+    [310, 5195], [325, 5195], [285, 5205], [300, 5205], [315, 5205],
+
     // Manitou Bridge over Long Pond
-    [0, 5255],
+    [0, 5235], [0, 5245], [0, 5255], [0, 5265], [0, 5275], [-2, 5240], [2, 5250], [-2, 5260], [2, 5270],
+
     // Grand Fountain Plaza
-    [0, 5300], [-8, 5312], [8, 5312], [0, 5324],
+    [0, 5292], [-8, 5298], [8, 5298], [-12, 5310], [12, 5310], [-8, 5322], [8, 5322], [0, 5326],
+    [-6, 5304], [6, 5304], [-6, 5316], [6, 5316], [0, 5300], [0, 5318],
+
     // Grand Formal Gardens & twin sunken Reflecting Pools (East & West)
-    [-26, 5360], [-26, 5400], [26, 5360], [26, 5400], [0, 5380], [-10, 5350], [10, 5350],
+    [0, 5340], [0, 5360], [0, 5380], [0, 5400], [0, 5420], [-10, 5350], [10, 5350],
+    [-18, 5360], [-18, 5380], [-18, 5400], [18, 5360], [18, 5380], [18, 5400],
+    [-26, 5350], [-26, 5410], [26, 5350], [26, 5410], [-34, 5380], [34, 5380],
+
     // William Meany Hedge Maze (South Centre Island, West of Avenue - at the 1888 antique school bell & paths!)
-    [-65, 5385], [-55, 5370], [-75, 5370], [-55, 5400], [-75, 5400], [-65, 5410],
+    [-35, 5385], [-45, 5385], [-55, 5385], [-65, 5385], [-75, 5385], [-85, 5385],
+    [-55, 5370], [-75, 5370], [-55, 5400], [-75, 5400], [-65, 5410], [-65, 5360],
+    [-45, 5370], [-45, 5400], [-85, 5370], [-85, 5400],
+
     // South Beach Cafe & Grill beachfront patio
-    [34, 5455], [28, 5458], [40, 5458], [34, 5462],
+    [34, 5455], [28, 5458], [40, 5458], [34, 5462], [26, 5452], [42, 5452], [30, 5465], [38, 5465],
+
     // Toronto Island Bicycle Rental & Surrey quadricycles
-    [-34, 5455], [-28, 5458], [-40, 5458],
+    [-34, 5455], [-28, 5458], [-40, 5458], [-34, 5462], [-26, 5452], [-42, 5452], [-30, 5465], [-38, 5465],
+
     // Beach Lockers & changing rooms
-    [-10, 5452],
+    [-10, 5452], [-5, 5452], [10, 5452], [0, 5455],
+
     // Centre Island South Beach Boardwalk & 120m Pier (Lake Ontario)
-    [0, 5470], [0, 5500], [0, 5530], [0, 5560], [-40, 5450], [40, 5450],
+    [0, 5470], [0, 5490], [0, 5510], [0, 5530], [0, 5550], [0, 5570], [0, 5585],
+    [-3, 5480], [3, 5500], [-3, 5520], [3, 5540], [-3, 5560], [3, 5575],
+    [-35, 5450], [35, 5450], [-70, 5450], [70, 5450],
+
     // Olympic Island Great Lawn (skyline panorama)
-    [-160, 5330], [-140, 5320], [-180, 5340],
+    [-160, 5330], [-140, 5320], [-180, 5340], [-150, 5350], [-170, 5310],
+
     // Gibraltar Point 1808 Lighthouse Sanctuary
-    [-480, 5305], [-460, 5330],
+    [-480, 5305], [-460, 5330], [-470, 5290], [-490, 5320],
+
     // Ward's Island Summer Village & Ward's Cafe patio
-    [1050, 5085], [1040, 5070], [1020, 5040], [1140, 5000],
+    [1050, 5085], [1040, 5070], [1020, 5040], [1140, 5000], [1060, 5095], [1030, 5060],
+
     // Algonquin Island cottage lanes & footbridge
-    [540, 5080], [520, 5060], [750, 5060],
+    [540, 5080], [520, 5060], [750, 5060], [560, 5090], [530, 5070],
+
     // Hanlan's Point dock & ball diamonds
-    [-720, 4920], [-780, 5000]
+    [-720, 4920], [-780, 5000], [-740, 4960], [-760, 4980]
   ];
 
   islandSpots.forEach(([ix, iz], idx) => {
     // Only spawn if spot is open and not crowded
-    const nearby = enemies.some(e => !e.isDead && Math.hypot(e.rig.root.position.x - ix, e.rig.root.position.z - iz) < 8.0);
+    const nearby = enemies.some(e => !e.isDead && Math.hypot(e.rig.root.position.x - ix, e.rig.root.position.z - iz) < 3.2);
     if (!nearby) {
       const archIdx = idx % CIVILIAN_ARCHETYPES.length;
-      spawnEnemy(ix, iz, 'civilian', archIdx);
+      const cit = spawnEnemy(ix, iz, 'civilian', archIdx);
+      if (cit) cit.isIslandCitizen = true;
     }
   });
 }
@@ -27479,17 +27582,21 @@ function updateEnemies(dt) {
       spawnSingleReinforcement();
     }
 
-    // When player is on the island, ensure peaceful Torontonians & tourists stroll nearby
+    // When player is on the island, guarantee vibrant, bustling park life around the player
     if (player.pos.z > 3500) {
-      const nearbyCitizens = enemies.filter(e => !e.isDead && (e.kind === 'civilian' || e.isIslandCitizen) && nearestPlayerDist(e.rig.root.position.x, e.rig.root.position.z) < 75).length;
-      if (nearbyCitizens < 8) {
-        const angle = Math.random() * Math.PI * 2;
-        const dist = 18 + Math.random() * 35;
-        const sx = player.pos.x + Math.cos(angle) * dist;
-        const sz = player.pos.z + Math.sin(angle) * dist;
-        if (city && city.canMoveTo && city.canMoveTo(sx, sz, 0.5, 0.55)) {
-          const archIdx = Math.floor(Math.random() * CIVILIAN_ARCHETYPES.length);
-          spawnEnemy(sx, sz, 'civilian', archIdx);
+      const nearbyCitizens = enemies.filter(e => !e.isDead && (e.kind === 'civilian' || e.isIslandCitizen) && nearestPlayerDist(e.rig.root.position.x, e.rig.root.position.z) < 65).length;
+      if (nearbyCitizens < 24) {
+        const toSpawn = Math.min(4, 24 - nearbyCitizens);
+        for (let s = 0; s < toSpawn; s++) {
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 14 + Math.random() * 42;
+          const sx = player.pos.x + Math.cos(angle) * dist;
+          const sz = player.pos.z + Math.sin(angle) * dist;
+          if (city && city.canMoveTo && city.canMoveTo(sx, sz, 0.5, 0.55)) {
+            const archIdx = Math.floor(Math.random() * CIVILIAN_ARCHETYPES.length);
+            const cit = spawnEnemy(sx, sz, 'civilian', archIdx);
+            if (cit) cit.isIslandCitizen = true;
+          }
         }
       }
     }
@@ -27550,6 +27657,10 @@ function updateEnemies(dt) {
         enemy.rig.root.position.x = cx + (edx / er) * 21.2;
         enemy.rig.root.position.z = cz + (edz / er) * 21.2;
       }
+    } else if (enemy.isIslandCitizen || enemy.rig.root.position.z > 3500 || (typeof islands !== 'undefined' && islands && islands.isInsideIslands && islands.isInsideIslands(enemy.rig.root.position.x, enemy.rig.root.position.z))) {
+      // Keep within Toronto Islands archipelago boundaries: preserve full archipelago exploration!
+      enemy.rig.root.position.x = Math.max(-1450, Math.min(1350, enemy.rig.root.position.x));
+      enemy.rig.root.position.z = Math.max(4600, Math.min(5700, enemy.rig.root.position.z));
     } else if (city && city.bounds) {
       enemy.rig.root.position.x = Math.max(city.bounds.minX + 5, Math.min(city.bounds.maxX - 5, enemy.rig.root.position.x));
       enemy.rig.root.position.z = Math.max(city.bounds.minZ + 5, Math.min(city.bounds.maxZ - 5, enemy.rig.root.position.z));
@@ -27647,7 +27758,7 @@ function updateEnemies(dt) {
 
         const nextCx = enemy.rig.root.position.x + fleeDir.x * (enemy.speed * 1.5) * dt;
         const nextCz = enemy.rig.root.position.z + fleeDir.z * (enemy.speed * 1.5) * dt;
-        if (!city || city.canMoveTo(nextCx, nextCz, 0.4, 0)) {
+        if (!city || city.canMoveTo(nextCx, nextCz, 0.4, enemy.rig.root.position.y)) {
           enemy.rig.root.position.x = nextCx;
           enemy.rig.root.position.z = nextCz;
         }
@@ -27676,7 +27787,7 @@ function updateEnemies(dt) {
         const wz = Math.cos(enemy.wanderAngle);
         const nextCx = enemy.rig.root.position.x + wx * (enemy.speed * 0.6) * dt;
         const nextCz = enemy.rig.root.position.z + wz * (enemy.speed * 0.6) * dt;
-        if (!city || city.canMoveTo(nextCx, nextCz, 0.4, 0)) {
+        if (!city || city.canMoveTo(nextCx, nextCz, 0.4, enemy.rig.root.position.y)) {
           enemy.rig.root.position.x = nextCx;
           enemy.rig.root.position.z = nextCz;
         } else {

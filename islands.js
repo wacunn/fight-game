@@ -51,6 +51,7 @@
     const Z = o => Z_BASE + o;
     const GROUND_Y = 0.55; // walking height on the islands
     const WATER_Y = 0.0;
+    let renderedOsmTowers = 0;
 
     // ------------------------------------------------------------------------
     // Deterministic noise for procedural terrain and vegetation
@@ -119,8 +120,9 @@
       // Blockhouse Bay: runs between Olympic Island and Gibraltar Point, passing under Olympic-Gibraltar bridge (x=-340, z=Z(318))
       { name: 'Blockhouse Bay', w: 36, pts: [[-340, Z(220)], [-340, Z(280)], [-340, Z(318)], [-350, Z(380)], [-420, Z(430)]] },
       // South Lagoon: winds behind Centre Island dunes flanking the formal gardens to the west and east
-      { name: 'South Lagoon West', w: 26, pts: [[-260, Z(370)], [-180, Z(360)], [-100, Z(365)], [-52, Z(340)]] },
-      { name: 'South Lagoon East', w: 26, pts: [[52, Z(340)], [100, Z(365)], [180, Z(360)], [260, Z(370)]] },
+      // Routed to strictly avoid cutting through the William Meany Hedge Maze (x: -105..-25) or the Formal Gardens (x: -45..45)
+      { name: 'South Lagoon West', w: 26, pts: [[-260, Z(370)], [-200, Z(360)], [-150, Z(355)], [-125, Z(330)], [-125, Z(300)]] },
+      { name: 'South Lagoon East', w: 26, pts: [[75, Z(300)], [100, Z(330)], [160, Z(360)], [240, Z(370)]] },
       // Algonquin Canal: runs between Algonquin & Ward's Island, passing under Ward-Algonquin bridge (x=750, z=Z(60))
       { name: 'Algonquin Canal', w: 28, pts: [[750, Z(-60)], [750, Z(0)], [750, Z(60)], [750, Z(100)], [750, Z(180)]] },
       // Hanlan Canal: runs between Hanlan's Point and Gibraltar Point, passing under Gibraltar-Hanlan bridge (x=-590, z=Z(182))
@@ -238,23 +240,25 @@
 
     // Lawns, gardens, and clearings where trees are kept clear
     const CLEARINGS = [
-      { r: [-25, 85, Z(-20), Z(112)] }, // North Island: Ferry Terminal, Pizza Pizza, Subway, Washrooms/Lockers & BBQ Restaurant patio
-      { r: [-45, 45, Z(280), Z(435)] }, // Avenue of the Islands south: Grand Fountain, Formal Gardens & Reflecting Pools
-      { c: [-160, Z(330), 65] }, // Olympic Island Great Lawn (skyline panorama)
-      { r: [135, 245, Z(155), Z(245)] }, // Centreville Turn-of-the-Century Victorian Village
-      { r: [265, 345, Z(140), Z(225)] }, // Far Enough Farm (Big Red Barn, Silo, Paddocks)
-      { r: [-105, -25, Z(350), Z(425)] }, // William Meany Hedge Maze (South part, WEST of Avenue)
-      { r: [-55, 55, Z(435), Z(475)] }, // South Beach Pavilion, Restaurant & Bike Rental
+      { r: [-35, 95, Z(-25), Z(120)] }, // North Island: Ferry Terminal, Pizza Pizza, Subway, Washrooms/Lockers & BBQ Restaurant patio
+      { r: [-45, 45, Z(115), Z(165)] }, // North Arrival Bridge deck & approaches
+      { r: [-35, 35, Z(225), Z(285)] }, // Manitou Bridge deck & approaches
+      { r: [-55, 55, Z(285), Z(440)] }, // Avenue of the Islands south: Grand Fountain, Formal Gardens & Reflecting Pools
+      { c: [-160, Z(330), 70] }, // Olympic Island Great Lawn (skyline panorama)
+      { r: [130, 255, Z(150), Z(250)] }, // Centreville Turn-of-the-Century Victorian Village
+      { r: [260, 350, Z(135), Z(230)] }, // Far Enough Farm (Big Red Barn, Silo, Paddocks)
+      { r: [-115, -20, Z(345), Z(430)] }, // William Meany Hedge Maze (South part, WEST of Avenue)
+      { r: [-65, 65, Z(435), Z(480)] }, // South Beach Pavilion, Restaurant & Bike Rental
       { c: [-780, Z(0), 85] }, // Hanlan's ball fields
-      { c: [-480, Z(320), 38] }, // Gibraltar lighthouse sanctuary
+      { c: [-480, Z(320), 42] }, // Gibraltar lighthouse sanctuary
       { r: [412, 702, Z(22), Z(112)] }, // Algonquin cottages
       { r: [892, 1142, Z(-48), Z(48)] }, // Ward's cottages
-      { c: [1050, Z(70), 28] }, // Ward's Cafe patio
-      { c: [0, Z(-5), 38] }, { c: [-720, Z(-110), 34] }, { c: [1140, Z(-20), 30] }, // Ferry docks
-      { c: [100, Z(330), 36] }, // Picnic meadow by Long Pond
-      { c: [560, Z(300), 48] }, // Ward's meadow
-      { c: [-560, Z(80), 40] }, // Hanlan's picnic grounds
-      { c: [-330, Z(150), 34] } // Gibraltar glade
+      { c: [1050, Z(70), 32] }, // Ward's Cafe patio
+      { c: [0, Z(-5), 42] }, { c: [-720, Z(-110), 38] }, { c: [1140, Z(-20), 35] }, // Ferry docks
+      { c: [100, Z(330), 40] }, // Picnic meadow by Long Pond
+      { c: [560, Z(300), 52] }, // Ward's meadow
+      { c: [-560, Z(80), 45] }, // Hanlan's picnic grounds
+      { c: [-330, Z(150), 38] } // Gibraltar glade
     ];
 
     function inClearing(x, z, pad) {
@@ -591,6 +595,34 @@
     // ------------------------------------------------------------------------
     // FOREST: 6,000+ Instanced Trees by Species & Shrubs
     // ------------------------------------------------------------------------
+    const TRAIN_TRACK = [
+      [160, Z(165)],
+      [205, Z(165)],
+      [245, Z(150)],
+      [290, Z(145)],
+      [320, Z(170)],
+      [305, Z(205)],
+      [250, Z(235)],
+      [190, Z(240)],
+      [140, Z(220)],
+      [140, Z(185)]
+    ];
+
+    function nearBridge(x, z, pad) {
+      const p = (pad !== undefined) ? pad : 6.0;
+      for (const b of bridges) {
+        const dx = x - b.x0, dz = z - b.z0;
+        const s = dx * b.fx + dz * b.fz, l = -dx * b.fz + dz * b.fx;
+        if (s >= -p && s <= b.len + p && Math.abs(l) <= b.w / 2 + p) return true;
+      }
+      return false;
+    }
+
+    function nearTrainTrack(x, z, pad) {
+      const p = (pad !== undefined) ? pad : 4.0;
+      return distLine(x, z, TRAIN_TRACK) < p;
+    }
+
     const TRUNK_CELL = 8;
     const trunkGrid = new Map();
     const trees = { round: [], willow: [], pine: [] };
@@ -603,7 +635,9 @@
           const tx = x + (rnd() - 0.5) * SP * 0.9, tz = z + (rnd() - 0.5) * SP * 0.9;
           const L = sampleL(tx, tz);
           if (L < 2.5 || isAirport(tx, tz)) continue;
-          if (nearPath(tx, tz, 2.5) || inClearing(tx, tz, 2.0)) continue;
+          if (nearBridge(tx, tz, 7.5)) continue;
+          if (nearTrainTrack(tx, tz, 4.0)) continue;
+          if (nearPath(tx, tz, 3.8) || inClearing(tx, tz, 2.0)) continue;
           const wd = inlandWaterDist(tx, tz);
           let kind = null;
           if (wd > 1.5 && wd < 10 && rnd() < 0.52) {
@@ -620,7 +654,10 @@
               kind = 'round'; // lone shade trees
             }
             if (f > 0.3 && rnd() < 0.45) {
-              shrubs.push([tx + (rnd() - 0.5) * 4, tz + (rnd() - 0.5) * 4, 0.6 + rnd() * 1.0]);
+              const sx = tx + (rnd() - 0.5) * 4, sz = tz + (rnd() - 0.5) * 4;
+              if (!nearBridge(sx, sz, 5.0) && !nearTrainTrack(sx, sz, 3.0) && !nearPath(sx, sz, 2.0) && !inClearing(sx, sz, 1.0)) {
+                shrubs.push([sx, sz, 0.6 + rnd() * 1.0]);
+              }
             }
           }
           if (!kind) continue;
@@ -864,7 +901,7 @@
         if (!c.c || c.c[2] < 30) continue;
         const a = rnd() * 6.283, d = rnd() * c.c[2] * 0.85;
         const x = c.c[0] + Math.cos(a) * d, z = c.c[1] + Math.sin(a) * d;
-        if (landField(x, z) < 4 || nearPath(x, z, 3) || isSand(x, z, 9)) continue;
+        if (nearBridge(x, z, 6.0) || nearTrainTrack(x, z, 5.0) || landField(x, z) < 4 || nearPath(x, z, 3) || isSand(x, z, 9)) continue;
         if (tables.some(t => Math.hypot(t[0] - x, t[1] - z) < 9)) continue;
         tables.push([x, z, rnd() * 3.14]);
       }
@@ -1759,18 +1796,6 @@
     // and past Far Enough Farm!
     // ------------------------------------------------------------------------
     let miniTrain = null, miniTrainPuff = null;
-    const TRAIN_TRACK = [
-      [160, Z(165)],
-      [205, Z(165)],
-      [245, Z(150)],
-      [290, Z(145)],
-      [320, Z(170)],
-      [305, Z(205)],
-      [250, Z(235)],
-      [190, Z(240)],
-      [140, Z(220)],
-      [140, Z(185)]
-    ];
 
     function evalTrainTrack(tNorm) {
       const n = TRAIN_TRACK.length;
@@ -2974,88 +2999,126 @@
       cnBeacon.position.y = 553;
       cn.add(cnBeacon);
 
-      cn.position.set(-280, 0, skyZ);
+      // ------------------------------------------------------------------------
+      // Distant Toronto Skyline (Rendered directly from OpenStreetMap TORONTO_MAP)
+      // Extracts real-world buildings, exact footprints, heights & landmarks across the harbour:
+      // ------------------------------------------------------------------------
+      const mapData = (typeof window !== 'undefined' && window.TORONTO_MAP) ? window.TORONTO_MAP : null;
+      renderedOsmTowers = 0;
+
+      if (mapData && mapData.buildings && mapData.buildings.length > 0) {
+        const towers = [];
+        mapData.buildings.forEach(b => {
+          if (!b.p || b.p.length < 6) return;
+          const h = b.h || 0;
+          const name = b.n || '';
+          if (h < 22 && name !== 'Rogers Centre') return;
+
+          let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+          let sumX = 0, sumZ = 0, cnt = b.p.length / 2;
+          for (let i = 0; i < b.p.length; i += 2) {
+            const px = b.p[i], pz = b.p[i + 1];
+            if (px < minX) minX = px; if (px > maxX) maxX = px;
+            if (pz < minZ) minZ = pz; if (pz > maxZ) maxZ = pz;
+            sumX += px; sumZ += pz;
+          }
+          const cx = sumX / cnt, cz = sumZ / cnt;
+          const w = Math.max(16, (maxX - minX) * 0.95);
+          const d = Math.max(16, (maxZ - minZ) * 0.95);
+          towers.push({ cx, cz, w, d, h, name, m: b.m, c: b.c, rc: b.rc });
+        });
+
+        // Sort by height ascending for clean rendering order
+        towers.sort((a, b) => a.h - b.h);
+
+        towers.forEach(t => {
+          // Skip CN Tower and Rogers Centre from generic box pass (built with custom detailed architecture below)
+          if (t.name === 'CN Tower' || Math.hypot(t.cx - (-286.5), t.cz - 159.4) < 35) return;
+          if (t.name === 'Rogers Centre' || Math.hypot(t.cx - (-459.9), t.cz - 246.6) < 55) return;
+
+          const posX = t.cx;
+          // Scale North-South depth from Queens Quay up to Queen St
+          const posZ = skyZ + (t.cz + 200) * 0.42;
+          const posY = t.h / 2;
+
+          let towerMat = litTowerMat;
+          if (/First Canadian Place/i.test(t.name)) {
+            towerMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 });
+          } else if (/Scotia Plaza/i.test(t.name)) {
+            towerMat = new THREE.MeshStandardMaterial({ color: 0x450a0a, roughness: 0.4 });
+          } else if (/Toronto Dominion|TD /i.test(t.name)) {
+            towerMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.6 });
+          } else if (/Royal Bank Plaza/i.test(t.name)) {
+            towerMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.2, metalness: 0.8 });
+          } else if (t.c) {
+            towerMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(t.c), roughness: 0.5 });
+          }
+
+          const towerMesh = new THREE.Mesh(new THREE.BoxGeometry(t.w, t.h, t.d), towerMat);
+          towerMesh.position.set(posX, posY, posZ);
+          skyGrp.add(towerMesh);
+          renderedOsmTowers++;
+
+          // Architectural crowns & summit features for landmark and tall towers
+          if (/Scotia Plaza/i.test(t.name)) {
+            const scotiaCrown = new THREE.Mesh(new THREE.ConeGeometry(t.w * 0.52, 24, 4), new THREE.MeshBasicMaterial({ color: 0xdc2626, fog: false }));
+            scotiaCrown.rotation.y = Math.PI / 4;
+            scotiaCrown.position.set(posX, t.h + 12, posZ);
+            skyGrp.add(scotiaCrown);
+          } else if (/First Canadian Place/i.test(t.name)) {
+            const fcpCrown = new THREE.Mesh(new THREE.BoxGeometry(t.w * 0.85, 14, t.d * 0.85), new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }));
+            fcpCrown.position.set(posX, t.h + 7, posZ);
+            skyGrp.add(fcpCrown);
+            const beacon = new THREE.Mesh(new THREE.SphereGeometry(1.8, 6, 6), new THREE.MeshBasicMaterial({ color: 0xef4444, fog: false }));
+            beacon.position.set(posX, t.h + 16, posZ);
+            skyGrp.add(beacon);
+            towerBeacons.push(beacon);
+          } else if (/TD Canada Trust|Toronto Dominion/i.test(t.name)) {
+            const tdCrown = new THREE.Mesh(new THREE.BoxGeometry(t.w + 0.5, 6, t.d + 0.5), new THREE.MeshBasicMaterial({ color: 0x16a34a, fog: false }));
+            tdCrown.position.set(posX, t.h + 3, posZ);
+            skyGrp.add(tdCrown);
+          } else if (/Royal Bank Plaza/i.test(t.name)) {
+            const rbcCrown = new THREE.Mesh(new THREE.BoxGeometry(t.w + 0.5, 6, t.d + 0.5), new THREE.MeshBasicMaterial({ color: 0xf59e0b, fog: false }));
+            rbcCrown.position.set(posX, t.h + 3, posZ);
+            skyGrp.add(rbcCrown);
+          } else if (/Brookfield|Bay Wellington/i.test(t.name)) {
+            const bwpCrown = new THREE.Mesh(new THREE.ConeGeometry(t.w * 0.45, 18, 4), new THREE.MeshBasicMaterial({ color: 0x38bdf8, fog: false }));
+            bwpCrown.rotation.y = Math.PI / 4;
+            bwpCrown.position.set(posX, t.h + 9, posZ);
+            skyGrp.add(bwpCrown);
+          } else if (t.h > 120) {
+            // Illuminated skyline crown on tall towers
+            const crownColors = [0x38bdf8, 0xfacc15, 0x10b981, 0xa855f7, 0xf43f5e];
+            const col = crownColors[Math.abs(Math.floor(posX * 13)) % crownColors.length];
+            const cr = new THREE.Mesh(new THREE.BoxGeometry(t.w * 0.9, 4.5, t.d * 0.9), new THREE.MeshBasicMaterial({ color: col, fog: false }));
+            cr.position.set(posX, t.h + 2.2, posZ);
+            skyGrp.add(cr);
+            if (t.h > 145) {
+              const bcn = new THREE.Mesh(new THREE.SphereGeometry(1.2, 6, 6), new THREE.MeshBasicMaterial({ color: 0xef4444, fog: false }));
+              bcn.position.set(posX, t.h + 5.5, posZ);
+              skyGrp.add(bcn);
+              towerBeacons.push(bcn);
+            }
+          }
+        });
+      }
+
+      // CN Tower (553m) at its exact real-world coordinate [-286.5, skyZ + (159.4 + 200) * 0.42]
+      cn.position.set(-286.5, 0, skyZ + (159.4 + 200) * 0.42);
       skyGrp.add(cn);
 
-      // Rogers Centre Dome with blue perimeter ring
+      // Rogers Centre Dome at its exact real-world coordinate [-459.9, skyZ + (246.6 + 200) * 0.42]
       const dome = new THREE.Mesh(new THREE.SphereGeometry(46, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.48), concreteMat);
-      dome.position.set(-440, 22, skyZ + 40);
-      skyGrp.add(dome);
-
       const domeRing = new THREE.Mesh(
         new THREE.TorusGeometry(46.2, 1.2, 8, 32),
         new THREE.MeshBasicMaterial({ color: 0x1d4ed8, fog: false }) // bright blue stadium glow
       );
       domeRing.rotation.x = Math.PI / 2;
-      domeRing.position.set(-440, 24, skyZ + 40);
+      const rcZ = skyZ + (246.6 + 200) * 0.42;
+      dome.position.set(-459.9, 22, rcZ);
+      skyGrp.add(dome);
+      domeRing.position.set(-459.9, 24, rcZ);
       skyGrp.add(domeRing);
-
-      // Financial District Skyscrapers with illuminated windows and architectural crowns:
-      // 1. First Canadian Place (298m) - White illuminated mechanical penthouse roof
-      const fcp = new THREE.Mesh(new THREE.BoxGeometry(36, 298, 36), litTowerMat);
-      fcp.position.set(100, 149, skyZ);
-      skyGrp.add(fcp);
-      const fcpCrown = new THREE.Mesh(new THREE.BoxGeometry(32, 12, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }));
-      fcpCrown.position.set(100, 304, skyZ);
-      skyGrp.add(fcpCrown);
-      const fcpB1 = new THREE.Mesh(new THREE.SphereGeometry(1.5, 6, 6), new THREE.MeshBasicMaterial({ color: 0xef4444, fog: false }));
-      fcpB1.position.set(100, 311, skyZ);
-      skyGrp.add(fcpB1);
-      towerBeacons.push(fcpB1);
-
-      // 2. Scotia Plaza (275m) - Deep red chevron / pyramid crown
-      const scotia = new THREE.Mesh(new THREE.BoxGeometry(32, 275, 32), litTowerMat);
-      scotia.position.set(180, 137.5, skyZ + 20);
-      skyGrp.add(scotia);
-      const scotiaCrown = new THREE.Mesh(new THREE.ConeGeometry(18, 22, 4), new THREE.MeshBasicMaterial({ color: 0xdc2626, fog: false }));
-      scotiaCrown.rotation.y = Math.PI / 4;
-      scotiaCrown.position.set(180, 286, skyZ + 20);
-      skyGrp.add(scotiaCrown);
-
-      // 3. TD Centre (222m) - Mies van der Rohe dark bronze towers with green illuminated TD logo band
-      const td = new THREE.Mesh(new THREE.BoxGeometry(42, 222, 42), litTowerMat);
-      td.position.set(-40, 111, skyZ - 10);
-      skyGrp.add(td);
-      const tdCrown = new THREE.Mesh(new THREE.BoxGeometry(42.5, 6, 42.5), new THREE.MeshBasicMaterial({ color: 0x16a34a, fog: false }));
-      tdCrown.position.set(-40, 225, skyZ - 10);
-      skyGrp.add(tdCrown);
-
-      // 4. Royal Bank Plaza (180m) - Gold reflective towers with golden crown
-      const rbc = new THREE.Mesh(new THREE.BoxGeometry(36, 180, 36), litTowerMat);
-      rbc.position.set(-120, 90, skyZ + 15);
-      skyGrp.add(rbc);
-      const rbcCrown = new THREE.Mesh(new THREE.BoxGeometry(36.5, 6, 36.5), new THREE.MeshBasicMaterial({ color: 0xf59e0b, fog: false }));
-      rbcCrown.position.set(-120, 183, skyZ + 15);
-      skyGrp.add(rbcCrown);
-
-      // 5. Bay Wellington / Brookfield Place (260m) - Glowing glass pyramid crown
-      const bwp = new THREE.Mesh(new THREE.BoxGeometry(34, 260, 34), litTowerMat);
-      bwp.position.set(280, 130, skyZ + 10);
-      skyGrp.add(bwp);
-      const bwpCrown = new THREE.Mesh(new THREE.ConeGeometry(17, 16, 4), new THREE.MeshBasicMaterial({ color: 0x38bdf8, fog: false }));
-      bwpCrown.rotation.y = Math.PI / 4;
-      bwpCrown.position.set(280, 268, skyZ + 10);
-      skyGrp.add(bwpCrown);
-
-      // 40 additional illuminated skyline towers stretching along the harbour shore
-      for (let k = 0; k < 42; k++) {
-        const tx = -720 + k * 35 + (k % 3) * 6;
-        if (Math.abs(tx - (-280)) < 30 || Math.abs(tx - (-440)) < 40) continue; // avoid clipping CN Tower / dome
-        const th = 60 + (k * 43) % 150 + (k % 5) * 18;
-        const tw = 20 + (k * 7) % 18, tdLen = 20 + (k * 11) % 16;
-        const dz = 30 + (k * 19) % 140;
-        const b = new THREE.Mesh(new THREE.BoxGeometry(tw, th, tdLen), litTowerMat);
-        b.position.set(tx, th / 2, skyZ + dz);
-        skyGrp.add(b);
-
-        // Lit rooftop crown band on taller towers
-        if (th > 140) {
-          const crMat = new THREE.MeshBasicMaterial({ color: [0x38bdf8, 0xfacc15, 0xef4444, 0x10b981, 0xa855f7][k % 5], fog: false });
-          const cr = new THREE.Mesh(new THREE.BoxGeometry(tw + 0.5, 4.0, tdLen + 0.5), crMat);
-          cr.position.set(tx, th + 2.0, skyZ + dz);
-          skyGrp.add(cr);
-        }
-      }
 
       islandsGroup.add(skyGrp);
     }
@@ -3366,7 +3429,8 @@
         trees: trees.round.length + trees.willow.length + trees.pine.length,
         willows: trees.willow.length,
         pines: trees.pine.length,
-        shrubs: shrubs.length
+        shrubs: shrubs.length,
+        renderedOsmTowers: renderedOsmTowers
       }
     };
   }
