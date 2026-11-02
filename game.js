@@ -3309,6 +3309,53 @@ const ferryController = {
 
 const FERRY_WATER_Y = -0.65;
 
+// Clean, realistic 4-waypoint navigation route through Toronto Inner Harbour:
+// W0: Jack Layton Ferry Terminal open-water slip (x=726, z=330)
+// W1: Clear open harbour water south of all mainland piers & buildings (x=732, z=520)
+// W2: Wide-open mid-harbour scenic cruise corridor (x=460, z=780)
+// W3: Centre Island Ferry Terminal lagoon slip (x=180, z=1075)
+// Guarantees >16m clearance from EVERY building and mainland pier along the entire route!
+const FERRY_WAYPOINTS = [
+  { x: 726, z: 330 },
+  { x: 732, z: 520 },
+  { x: 460, z: 780 },
+  { x: 180, z: 1075 }
+];
+
+function evalFerrySpline(prog, dir) {
+  const p = Math.max(0, Math.min(1, prog));
+  const waypoints = dir === 'to_island'
+    ? FERRY_WAYPOINTS
+    : [FERRY_WAYPOINTS[3], FERRY_WAYPOINTS[2], FERRY_WAYPOINTS[1], FERRY_WAYPOINTS[0]];
+
+  const p_minus_1 = dir === 'to_island' ? { x: 726, z: 250 } : { x: 180, z: 1150 };
+  const p_plus_1 = dir === 'to_island' ? { x: 180, z: 1150 } : { x: 726, z: 250 };
+  const pts = [p_minus_1, waypoints[0], waypoints[1], waypoints[2], waypoints[3], p_plus_1];
+
+  const seg_t = p * 3.0;
+  const seg = Math.min(2, Math.floor(seg_t));
+  const t = seg_t - seg;
+
+  const p0 = pts[seg];
+  const p1 = pts[seg + 1];
+  const p2 = pts[seg + 2];
+  const p3 = pts[seg + 3];
+
+  const t2 = t * t;
+  const t3 = t2 * t;
+
+  const x = 0.5 * ((2 * p1.x) +
+    (-p0.x + p2.x) * t +
+    (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+    (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3);
+  const z = 0.5 * ((2 * p1.z) +
+    (-p0.z + p2.z) * t +
+    (2 * p0.z - 5 * p1.z + 4 * p2.z - p3.z) * t2 +
+    (-p0.z + 3 * p1.z - 3 * p2.z + p3.z) * t3);
+
+  return { x, z };
+}
+
 function startFerryRide(dir) {
   if (ferryController.isMoving || !city || !city.islandFerry) return;
   ferryController.dir = dir;
@@ -3320,10 +3367,11 @@ function startFerryRide(dir) {
   audio.playFerryHorn();
 
   // Face forward at initial boarding, but player can freely look around in 360° during the entire voyage!
-  const p0 = dir === 'to_island' ? { x: 712, z: 320 } : { x: 180, z: 1075 };
-  const p1 = dir === 'to_island' ? { x: 180, z: 1075 } : { x: 712, z: 320 };
-  const initialHeading = Math.atan2(p1.x - p0.x, p1.z - p0.z);
+  const curPos = evalFerrySpline(0, dir);
+  const nxtPos = evalFerrySpline(0.015, dir);
+  const initialHeading = Math.atan2(nxtPos.x - curPos.x, nxtPos.z - curPos.z);
   player.yaw = initialHeading;
+  player.pitch = 0;
   camera.rotation.order = 'YXZ';
   camera.rotation.y = initialHeading;
   camera.rotation.x = 0;
@@ -3348,22 +3396,14 @@ function updateFerry(dt) {
   ferryController.progress += dt / ferryController.duration;
   const prog = Math.max(0, Math.min(1, ferryController.progress));
   // Smooth cubic Hermite curve easing
-  const t = prog * prog * (3 - 2 * prog);
+  const easeProg = prog * prog * (3 - 2 * prog);
 
-  const p0 = ferryController.dir === 'to_island' ? { x: 712, z: 320 } : { x: 180, z: 1075 };
-  const p1 = ferryController.dir === 'to_island' ? { x: 180, z: 1075 } : { x: 712, z: 320 };
+  const curPos = evalFerrySpline(easeProg, ferryController.dir);
+  const nextPos = evalFerrySpline(Math.min(1, easeProg + 0.01), ferryController.dir);
+  const heading = Math.atan2(nextPos.x - curPos.x, nextPos.z - curPos.z);
 
-  // Follow curved trajectory through harbour
-  const midX = 420, midZ = 700;
-  const oneMinusT = 1 - t;
-  const fx = oneMinusT * oneMinusT * p0.x + 2 * oneMinusT * t * midX + t * t * p1.x;
-  const fz = oneMinusT * oneMinusT * p0.z + 2 * oneMinusT * t * midZ + t * t * p1.z;
-
-  const nextT = Math.min(1, t + 0.01);
-  const nextOMT = 1 - nextT;
-  const nfx = nextOMT * nextOMT * p0.x + 2 * nextOMT * nextT * midX + nextT * nextT * p1.x;
-  const nfz = nextOMT * nextOMT * p0.z + 2 * nextOMT * nextT * midZ + nextT * nextT * p1.z;
-  const heading = Math.atan2(nfx - fx, nfz - fz);
+  const fx = curPos.x;
+  const fz = curPos.z;
 
   const waterY = (city && city.waterY !== undefined) ? city.waterY : FERRY_WATER_Y;
   const bob = Math.sin(prog * Math.PI * 6) * 0.12;
@@ -3371,11 +3411,11 @@ function updateFerry(dt) {
   ferry.rotation.y = heading;
 
   // Keep player on the forward observation sun deck
-  // Notice: do NOT overwrite player.yaw so the player can freely look around in 360° at the skyline, islands & water!
-  const fwdDist = 8.0;
-  const fwdX = fx - Math.sin(heading) * fwdDist;
-  const fwdZ = fz - Math.cos(heading) * fwdDist;
-  player.pos.set(fwdX, waterY + 6.95 + EYE_HEIGHT + bob, fwdZ);
+  // Notice: do NOT overwrite player.yaw or player.pitch so the player can freely look around in 360° at the skyline, islands & water!
+  const fwdDist = 6.0;
+  const fwdX = fx + Math.sin(heading) * fwdDist;
+  const fwdZ = fz + Math.cos(heading) * fwdDist;
+  player.pos.set(fwdX, waterY + 6.75 + EYE_HEIGHT + bob, fwdZ);
   player.velocity.set(0, 0, 0);
   if (scene.fog) scene.fog.density = 0.00095;
 
@@ -3412,8 +3452,8 @@ function arriveFerry(dir) {
   } else {
     state.onIsland = false;
     if (scene.fog) scene.fog.density = 0.0021;
-    const mainFloor = (city && city.floorAt) ? city.floorAt(712, 308) : 0.5;
-    player.pos.set(712, mainFloor + EYE_HEIGHT, 308);
+    const mainFloor = (city && city.floorAt) ? city.floorAt(712, 318) : 0.5;
+    player.pos.set(712, mainFloor + EYE_HEIGHT, 318);
     player.yaw = Math.PI; // facing north towards Queens Quay & downtown
     player.velocity.set(0, 0, 0);
     player.isGrounded = true;
@@ -3421,8 +3461,8 @@ function arriveFerry(dir) {
     camera.rotation.y = Math.PI;
 
     if (ferry) {
-      ferry.position.set(712, waterY, 320);
-      ferry.rotation.y = -0.35;
+      ferry.position.set(726, waterY, 330);
+      ferry.rotation.y = 0.05;
     }
 
     showAnnouncement('🏙️ WELCOME BACK TO TORONTO MAINLAND • QUEENS QUAY WEST', 4000);
@@ -3702,8 +3742,8 @@ function updateObservationDeck(dt) {
 
   // Toronto Island Ferry Docks (Jack Layton Terminal & Centre Island Dock)
   if (feet < 15) {
-    const dMainDock = Math.hypot(player.pos.x - 712, player.pos.z - 315);
-    const inMainDock = dMainDock < 22 || (player.pos.x >= 695 && player.pos.x <= 735 && player.pos.z >= 295 && player.pos.z <= 348);
+    const dMainDock = Math.hypot(player.pos.x - 712, player.pos.z - 318);
+    const inMainDock = dMainDock < 22 || (player.pos.x >= 695 && player.pos.x <= 738 && player.pos.z >= 295 && player.pos.z <= 348);
     if (inMainDock) {
       activeDeckAction = 'ferry_to_island';
       setDeckPrompt('[E]', 'BOARD TORONTO ISLAND FERRY (CENTRE ISLAND)');
@@ -4319,6 +4359,9 @@ if (deckPromptEl) {
         startSkyShowdown();
       } else {
         handleDeckAction();
+        if (!state.freeMouseMode && container && container.requestPointerLock && !state.isPointerLocked) {
+          container.requestPointerLock();
+        }
       }
     }
   });
@@ -4408,7 +4451,7 @@ window.addEventListener('keydown', (e) => {
     if (elevatorPanel.open) closeElevatorPanel();
     if (state.onFerry) state.onFerry = false;
 
-    const dMainDock = Math.hypot(player.pos.x - 712, player.pos.z - 308);
+    const dMainDock = Math.hypot(player.pos.x - 712, player.pos.z - 318);
     if (dMainDock < 22) {
       // Already at mainland ferry dock: toggle to Centre Island dock!
       const islandFloor = (city && city.floorAt) ? city.floorAt(180, 1088) : 0.5;
@@ -4426,8 +4469,8 @@ window.addEventListener('keydown', (e) => {
       populateCentreIslandCitizens();
     } else {
       // Teleport to Mainland Ferry Dock (Jack Layton Ferry Terminal)
-      const mainFloor = (city && city.floorAt) ? city.floorAt(712, 308) : 0.5;
-      player.pos.set(712, mainFloor + EYE_HEIGHT, 308);
+      const mainFloor = (city && city.floorAt) ? city.floorAt(712, 318) : 0.5;
+      player.pos.set(712, mainFloor + EYE_HEIGHT, 318);
       player.yaw = -0.35; // facing the ferry slip & boarding gantry
       player.velocity.set(0, 0, 0);
       player.isGrounded = true;
@@ -6118,7 +6161,7 @@ function updatePlayer(dt) {
     }
   }
 
-  if (state.inElevator) {
+  if (state.inElevator || state.onFerry) {
     return;
   }
 

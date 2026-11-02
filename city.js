@@ -9536,8 +9536,8 @@
       // Interactive Toronto Island Ferry "SAM McBRIDE" at Jack Layton Ferry Terminal slip
       cruisingFerry = makeIslandFerry('SAM McBRIDE');
       cruisingFerry.isPlayerFerry = true;
-      cruisingFerry.position.set(712, WATER_Y, 320);
-      cruisingFerry.rotation.y = -0.35;
+      cruisingFerry.position.set(726, WATER_Y, 330);
+      cruisingFerry.rotation.y = 0.05;
       scene.add(cruisingFerry);
 
       // 2. Three-Masted Schooner Tall Ship "KAJAMA" moored at York Quay (x = 92, z = 636)
@@ -10107,6 +10107,12 @@
       // ---------- E. William Meany Hedge Maze (x: 48..122, z: 1150..1220) ----------
       {
         const hmg = new THREE.Group();
+        // Earthy packed soil / mulch ground inside the hedge maze so green hedges stand out clearly
+        const mazeDirtMat = new THREE.MeshBasicMaterial({ color: 0x6e4727, fog: false });
+        const mazeGround = new THREE.Mesh(new THREE.BoxGeometry(76, 0.08, 72), mazeDirtMat);
+        mazeGround.position.set(85, 0.04, 1185);
+        hmg.add(mazeGround);
+
         // Entrance Archway
         const mGate = signMesh(['WILLIAM MEANY HEDGE MAZE', 'TORONTO ISLAND PARK • DONATED 2015'], 18, 2.4, { bg: '#14532d', fg: '#bbf7d0', borderColor: '#22c55e', size: 52 });
         mGate.position.set(85, 3.8, 1150);
@@ -10952,8 +10958,9 @@
       g.lineWidth = 1.5;
       if (g.setLineDash) g.setLineDash([4, 4]);
       g.beginPath();
-      g.moveTo(tx(712), tz(320));
-      g.quadraticCurveTo(tx(420), tz(700), tx(180), tz(1075));
+      g.moveTo(tx(726), tz(330));
+      g.lineTo(tx(732), tz(520));
+      g.quadraticCurveTo(tx(460), tz(780), tx(180), tz(1075));
       g.stroke();
       if (g.setLineDash) g.setLineDash([]);
 
@@ -11393,7 +11400,11 @@
         desc: 'Bay & Queens Quay terminal slips and passenger ferries to Toronto Islands',
         pos: { x: 708.0, y: 1.7, z: 295.0 },
         yaw: -0.35
-      },
+      }
+    ];
+
+    // Centre Island landmarks (for minimap, tours and reference - separate from mainland city spawns)
+    const islandLocations = [
       {
         id: 'centreIslandGardens',
         name: 'Centre Island Park & Grand Fountain',
@@ -11418,8 +11429,11 @@
     ];
 
     function getRandomSpawn() {
-      const idx = Math.floor(Math.random() * spawnLocations.length);
-      const chosen = spawnLocations[idx];
+      // Gameplay rule: player starts ONLY in mainland city (never on the island)
+      const mainlandSpawns = spawnLocations.filter(loc => loc.pos.z < 600);
+      const pool = mainlandSpawns.length > 0 ? mainlandSpawns : spawnLocations;
+      const idx = Math.floor(Math.random() * pool.length);
+      const chosen = pool[idx];
       return {
         ...chosen,
         x: chosen.pos.x,
@@ -11542,9 +11556,10 @@
       waterY: WATER_Y,
       islandFerry: {
         ferryMesh: cruisingFerry,
-        mainlandDock: { x: 712, y: 0.5, z: 320, yaw: -0.35, boardX: 712, boardZ: 315 },
+        mainlandDock: { x: 726, y: 0.5, z: 330, yaw: 0.05, boardX: 712, boardZ: 318 },
         islandDock: { x: 180, y: 0.5, z: 1075, yaw: 0, boardX: 180, boardZ: 1085 }
       },
+      islandLocations,
       centreIslandLandmarks: {
         ferryDock: [180, 1080],
         avenueGardens: [180, 1170],
