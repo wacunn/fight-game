@@ -13,6 +13,8 @@ def bundle():
     styles_css = (BASE_DIR / 'styles.css').read_text(encoding='utf-8')
     toronto_map = (BASE_DIR / 'toronto_map.js').read_text(encoding='utf-8')
     city_js = (BASE_DIR / 'city.js').read_text(encoding='utf-8')
+    islands_file = BASE_DIR / 'islands.js'
+    islands_js = islands_file.read_text(encoding='utf-8') if islands_file.exists() else ''
     traffic_js = (BASE_DIR / 'traffic.js').read_text(encoding='utf-8')
     multiplayer_js = (BASE_DIR / 'multiplayer.js').read_text(encoding='utf-8')
     ai_copilot_js = (BASE_DIR / 'ai_copilot.js').read_text(encoding='utf-8')
@@ -47,6 +49,8 @@ def bundle():
     out = sub_literal(r'<script src="ai_grid\.js[^"]*"></script>', f'<script>\n{grid_js}\n</script>' if grid_js else '', out)
     out = sub_literal(r'<script src="toronto_map\.js[^"]*"></script>', f'<script>\n{toronto_map}\n</script>', out)
     out = sub_literal(r'<script src="city\.js[^"]*"></script>', f'<script>\n{city_js}\n</script>', out)
+    if islands_js:
+        out = sub_literal(r'<script src="islands\.js[^"]*"></script>', f'<script>\n{islands_js}\n</script>', out)
     out = sub_literal(r'<script src="traffic\.js[^"]*"></script>', f'<script>\n{traffic_js}\n</script>', out)
     out = sub_literal(r'<script src="multiplayer\.js[^"]*"></script>', f'<script>\n{multiplayer_js}\n</script>', out)
     out = sub_literal(r'<script src="ai_copilot\.js[^"]*"></script>', ai_inline, out)

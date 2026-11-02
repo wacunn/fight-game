@@ -1151,6 +1151,8 @@ function setupPostFX() {
 
 // Build Toronto City from real OpenStreetMap data with CN Tower Peace Sanctuary
 const city = (typeof window.buildTorontoCity === 'function') ? window.buildTorontoCity(scene) : null;
+// Build Dedicated Toronto Islands Archipelago (Hanlan's, Airport, Centre, Olympic, Algonquin, Ward's)
+const islands = (typeof window.buildTorontoIslands === 'function') ? window.buildTorontoIslands(scene) : null;
 let traffic = null;
 
 const player = {
@@ -4451,12 +4453,28 @@ window.addEventListener('keydown', (e) => {
     if (elevatorPanel.open) closeElevatorPanel();
     if (state.onFerry) state.onFerry = false;
 
+    const onIslandWorld = (islands && islands.isInsideIslands(player.pos.x, player.pos.z)) || player.pos.z > 3500;
     const dMainDock = Math.hypot(player.pos.x - 712, player.pos.z - 318);
-    if (dMainDock < 22) {
-      // Already at mainland ferry dock: toggle to Centre Island dock!
-      const islandFloor = (city && city.floorAt) ? city.floorAt(180, 1088) : 0.5;
-      player.pos.set(180, islandFloor + EYE_HEIGHT, 1088);
-      player.yaw = 0; // facing south into Centre Island
+
+    if (onIslandWorld) {
+      // Teleport back from Islands Archipelago to Mainland Jack Layton Terminal!
+      const mainFloor = (city && city.floorAt) ? city.floorAt(712, 318) : 0.5;
+      player.pos.set(712, mainFloor + EYE_HEIGHT, 318);
+      player.yaw = -0.35; // facing the ferry slip & boarding gantry
+      player.velocity.set(0, 0, 0);
+      player.isGrounded = true;
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = -0.35;
+      camera.rotation.x = 0;
+      state.onIsland = false;
+      if (scene.fog) scene.fog.density = 0.0021;
+      audio.playFerryHorn();
+      showAnnouncement("🏙️ CHEAT: TELEPORTED TO MAINLAND FERRY DOCK (JACK LAYTON TERMINAL)!", 3200);
+    } else if (dMainDock < 22) {
+      // Already at mainland dock: teleport across to Dedicated Toronto Islands Archipelago!
+      const islFloor = islands ? islands.floorAt(0, 5000) : 0.55;
+      player.pos.set(0, islFloor + EYE_HEIGHT, 5000);
+      player.yaw = 0; // facing south down Avenue of the Island
       player.velocity.set(0, 0, 0);
       player.isGrounded = true;
       camera.rotation.order = 'YXZ';
@@ -4465,7 +4483,7 @@ window.addEventListener('keydown', (e) => {
       state.onIsland = true;
       if (scene.fog) scene.fog.density = 0.00095;
       audio.playFerryArrival();
-      showAnnouncement("🌳 CHEAT: TELEPORTED TO CENTRE ISLAND DOCK! 🌸", 3200);
+      showAnnouncement("🌳 CHEAT: TELEPORTED TO DEDICATED TORONTO ISLANDS ARCHIPELAGO! 🌸\nCentre Island, Olympic, Gibraltar Lighthouse, Airport & Ward's Island!", 4500);
       populateCentreIslandCitizens();
     } else {
       // Teleport to Mainland Ferry Dock (Jack Layton Ferry Terminal)
@@ -5850,7 +5868,9 @@ function updateNeighborhood() {
   const lms = city.landmarks;
   let name = "DOWNTOWN TORONTO";
 
-  if (state.onFerry) {
+  if (islands && islands.isInsideIslands(p.x, p.z)) {
+    name = islands.getNeighborhood(p.x, p.z);
+  } else if (state.onFerry) {
     name = "TORONTO HARBOUR FERRY";
   } else if (p.y > 50) {
     name = p.y > 345.5 ? "CN TOWER • 348m 360° LOOKOUT" : "CN TOWER • 342m GLASS FLOOR";
@@ -5954,6 +5974,9 @@ function animate(now) {
   if (city) {
     city.update(dt, player.pos);
   }
+  if (islands) {
+    islands.update(dt, player.pos);
+  }
 
   // Draw Toronto GPS Minimap & Sanctuary Radar
   const minimapCanvas = document.getElementById('minimap-canvas');
@@ -6016,7 +6039,11 @@ function animate(now) {
       });
     }
     if (traffic) traffic.cars.forEach(c => dots.push({ x: c.vx, z: c.vz, c: '#e5e7eb', r: 2 }));
-    city.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
+    if (islands && islands.isInsideIslands(player.pos.x, player.pos.z)) {
+      islands.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
+    } else {
+      city.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
+    }
     updateNeighborhood();
 
     // 1. Distance & status to CN Tower (Peace Sanctuary)
@@ -6194,7 +6221,9 @@ function updatePlayer(dt) {
 
   // Vertical position clamping for Ground or Observation Deck (2 floors + stairs)
   let floorY = 0;
-  if (city && city.floorAt) {
+  if (islands && islands.isInsideIslands(player.pos.x, player.pos.z)) {
+    floorY = islands.floorAt(player.pos.x, player.pos.z, player.pos.y);
+  } else if (city && city.floorAt) {
     floorY = city.floorAt(player.pos.x, player.pos.z, player.pos.y);
   } else if (player.pos.y > 50) {
     floorY = getDeckFloorY(player.pos.x, player.pos.z, player.pos.y);
@@ -6279,6 +6308,10 @@ function canMoveTo(x, z) {
       }
     }
     return true;
+  }
+
+  if (islands && islands.isInsideIslands(x, z)) {
+    return islands.canMoveTo(x, z, 0.78, pY);
   }
 
   if (city) {
