@@ -11072,8 +11072,10 @@
 
       // Shadow frustum follows the player (snapped to 2 m to limit shimmering)
       const sx = Math.round(playerPos.x / 2) * 2, sz = Math.round(playerPos.z / 2) * 2;
-      moon.target.position.set(sx, 0, sz);
-      moon.position.set(sx + MOON_DIR.x * 600, MOON_DIR.y * 600, sz + MOON_DIR.z * 600);
+      if (moon && moon.target && moon.target.position) {
+        moon.target.position.set(sx, 0, sz);
+        moon.position.set(sx + MOON_DIR.x * 600, MOON_DIR.y * 600, sz + MOON_DIR.z * 600);
+      }
 
       // Re-assign pooled lights to the nearest lamps; lights fade out before moving
       lightTimer -= dt;

@@ -6011,10 +6011,10 @@ function animate(now) {
 
   // City animation & dynamic lighting
   if (city) {
-    city.update(dt, player.pos);
+    try { city.update(dt, player.pos); } catch (e) { console.warn('city.update error:', e); }
   }
   if (islands) {
-    islands.update(dt, player.pos);
+    try { islands.update(dt, player.pos); } catch (e) { console.warn('islands.update error:', e); }
   }
 
   // Draw Toronto GPS Minimap & Sanctuary Radar
@@ -6078,10 +6078,14 @@ function animate(now) {
       });
     }
     if (traffic) traffic.cars.forEach(c => dots.push({ x: c.vx, z: c.vz, c: '#e5e7eb', r: 2 }));
-    if (islands && islands.isInsideIslands(player.pos.x, player.pos.z)) {
-      islands.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
-    } else {
-      city.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
+    try {
+      if (islands && islands.isInsideIslands(player.pos.x, player.pos.z)) {
+        islands.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
+      } else {
+        city.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
+      }
+    } catch (e) {
+      console.warn('drawMinimap error:', e);
     }
     updateNeighborhood();
 

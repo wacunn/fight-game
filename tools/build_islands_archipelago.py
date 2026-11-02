@@ -1502,6 +1502,20 @@ CODE = r'''/**
     // ------------------------------------------------------------------------
     // Wildlife and Boats: Swimming Swans, Moored Canoes, Harbour Ferry
     // ------------------------------------------------------------------------
+    function lanePoint(ch, dist) {
+      let acc = 0;
+      for (let i = 1; i < ch.pts.length; i++) {
+        const a = ch.pts[i - 1], b = ch.pts[i], seg = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (acc + seg >= dist || i === ch.pts.length - 1) {
+          const t = Math.max(0, Math.min(1, (dist - acc) / seg));
+          const tx = (b[0] - a[0]) / seg, tz = (b[1] - a[1]) / seg;
+          return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, tx, tz];
+        }
+        acc += seg;
+      }
+      return [ch.pts[0][0], ch.pts[0][1], 1, 0];
+    }
+
     const swimmers = [];
     {
       const white = new THREE.MeshLambertMaterial({ color: 0xffffff });
@@ -1534,20 +1548,6 @@ CODE = r'''/**
         seat.position.set(-0.6, 0.35, 0);
         cn.add(seat);
         return cn;
-      }
-
-      function lanePoint(ch, dist) {
-        let acc = 0;
-        for (let i = 1; i < ch.pts.length; i++) {
-          const a = ch.pts[i - 1], b = ch.pts[i], seg = Math.hypot(b[0] - a[0], b[1] - a[1]);
-          if (acc + seg >= dist || i === ch.pts.length - 1) {
-            const t = Math.max(0, Math.min(1, (dist - acc) / seg));
-            const tx = (b[0] - a[0]) / seg, tz = (b[1] - a[1]) / seg;
-            return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, tx, tz];
-          }
-          acc += seg;
-        }
-        return [ch.pts[0][0], ch.pts[0][1], 1, 0];
       }
 
       const activeChannels = [CHANNELS[0], CHANNELS[1], CHANNELS[3]];
@@ -1807,8 +1807,10 @@ CODE = r'''/**
       ctx.fillRect(0, 0, size, size);
 
       if (ctx.drawImage) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.drawImage(MM, sx, sz, VIEW / STEP, VIEW / STEP, 0, 0, size, size);
+        try {
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(MM, sx, sz, VIEW / STEP, VIEW / STEP, 0, 0, size, size);
+        } catch (e) {}
       }
 
       const toM = (x, z) => [(x - playerPos.x) / VIEW * size + size / 2, (z - playerPos.z) / VIEW * size + size / 2];

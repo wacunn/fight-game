@@ -13701,8 +13701,10 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
 
       // Shadow frustum follows the player (snapped to 2 m to limit shimmering)
       const sx = Math.round(playerPos.x / 2) * 2, sz = Math.round(playerPos.z / 2) * 2;
-      moon.target.position.set(sx, 0, sz);
-      moon.position.set(sx + MOON_DIR.x * 600, MOON_DIR.y * 600, sz + MOON_DIR.z * 600);
+      if (moon && moon.target && moon.target.position) {
+        moon.target.position.set(sx, 0, sz);
+        moon.position.set(sx + MOON_DIR.x * 600, MOON_DIR.y * 600, sz + MOON_DIR.z * 600);
+      }
 
       // Re-assign pooled lights to the nearest lamps; lights fade out before moving
       lightTimer -= dt;
@@ -15695,6 +15697,20 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
     // ------------------------------------------------------------------------
     // Wildlife and Boats: Swimming Swans, Moored Canoes, Harbour Ferry
     // ------------------------------------------------------------------------
+    function lanePoint(ch, dist) {
+      let acc = 0;
+      for (let i = 1; i < ch.pts.length; i++) {
+        const a = ch.pts[i - 1], b = ch.pts[i], seg = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (acc + seg >= dist || i === ch.pts.length - 1) {
+          const t = Math.max(0, Math.min(1, (dist - acc) / seg));
+          const tx = (b[0] - a[0]) / seg, tz = (b[1] - a[1]) / seg;
+          return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, tx, tz];
+        }
+        acc += seg;
+      }
+      return [ch.pts[0][0], ch.pts[0][1], 1, 0];
+    }
+
     const swimmers = [];
     {
       const white = new THREE.MeshLambertMaterial({ color: 0xffffff });
@@ -15727,20 +15743,6 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
         seat.position.set(-0.6, 0.35, 0);
         cn.add(seat);
         return cn;
-      }
-
-      function lanePoint(ch, dist) {
-        let acc = 0;
-        for (let i = 1; i < ch.pts.length; i++) {
-          const a = ch.pts[i - 1], b = ch.pts[i], seg = Math.hypot(b[0] - a[0], b[1] - a[1]);
-          if (acc + seg >= dist || i === ch.pts.length - 1) {
-            const t = Math.max(0, Math.min(1, (dist - acc) / seg));
-            const tx = (b[0] - a[0]) / seg, tz = (b[1] - a[1]) / seg;
-            return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, tx, tz];
-          }
-          acc += seg;
-        }
-        return [ch.pts[0][0], ch.pts[0][1], 1, 0];
       }
 
       const activeChannels = [CHANNELS[0], CHANNELS[1], CHANNELS[3]];
@@ -16000,8 +16002,10 @@ window.TORONTO_MAP = {"attribution":"Map data © OpenStreetMap contributors (ODb
       ctx.fillRect(0, 0, size, size);
 
       if (ctx.drawImage) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.drawImage(MM, sx, sz, VIEW / STEP, VIEW / STEP, 0, 0, size, size);
+        try {
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(MM, sx, sz, VIEW / STEP, VIEW / STEP, 0, 0, size, size);
+        } catch (e) {}
       }
 
       const toM = (x, z) => [(x - playerPos.x) / VIEW * size + size / 2, (z - playerPos.z) / VIEW * size + size / 2];
@@ -25469,10 +25473,10 @@ function animate(now) {
 
   // City animation & dynamic lighting
   if (city) {
-    city.update(dt, player.pos);
+    try { city.update(dt, player.pos); } catch (e) { console.warn('city.update error:', e); }
   }
   if (islands) {
-    islands.update(dt, player.pos);
+    try { islands.update(dt, player.pos); } catch (e) { console.warn('islands.update error:', e); }
   }
 
   // Draw Toronto GPS Minimap & Sanctuary Radar
@@ -25536,10 +25540,14 @@ function animate(now) {
       });
     }
     if (traffic) traffic.cars.forEach(c => dots.push({ x: c.vx, z: c.vz, c: '#e5e7eb', r: 2 }));
-    if (islands && islands.isInsideIslands(player.pos.x, player.pos.z)) {
-      islands.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
-    } else {
-      city.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
+    try {
+      if (islands && islands.isInsideIslands(player.pos.x, player.pos.z)) {
+        islands.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
+      } else {
+        city.drawMinimap(ctx, 160, player.pos, player.yaw, dots);
+      }
+    } catch (e) {
+      console.warn('drawMinimap error:', e);
     }
     updateNeighborhood();
 
