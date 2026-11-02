@@ -698,11 +698,19 @@
     LM.harbourSquarePark = [470.0, 490.0];
     LM.davidPecautSquare = [-308.0, -270.0];
     LM.jackLaytonTerminal = [708.0, 294.0];
-    LM.centreIsland = [180.0, 1170.0];
-    LM.centreville = [330.0, 1185.0];
-    LM.centreIslandBeach = [180.0, 1420.0];
-    LM.hedgeMaze = [85.0, 1185.0];
-    LM.pizzaPizza = [240.0, 1220.0];
+    if (typeof window !== 'undefined' && window.buildTorontoIslands) {
+      LM.centreIsland = [0.0, 5310.0];
+      LM.centreville = [180.0, 5185.0];
+      LM.centreIslandBeach = [0.0, 5455.0];
+      LM.hedgeMaze = [-65.0, 5385.0];
+      LM.pizzaPizza = [12.0, 5048.0];
+    } else {
+      LM.centreIsland = [180.0, 1170.0];
+      LM.centreville = [330.0, 1185.0];
+      LM.centreIslandBeach = [180.0, 1420.0];
+      LM.hedgeMaze = [85.0, 1185.0];
+      LM.pizzaPizza = [240.0, 1220.0];
+    }
 
     // ---------- CN Tower vertical walkables ----------
     const TWR = { x: LM.cnTower[0], z: LM.cnTower[1] };
@@ -11425,24 +11433,45 @@
     // Centre Island landmarks (for minimap, tours and reference - separate from mainland city spawns)
     const islandLocations = [
       {
+        id: 'centreIslandDock',
+        name: 'Centre Island Ferry Terminal',
+        desc: 'Ferry slips, passenger waiting pavilion, Pizza Pizza & bike rentals',
+        pos: { x: 0.0, y: 0.55, z: 5015.0 },
+        yaw: 0
+      },
+      {
         id: 'centreIslandGardens',
         name: 'Centre Island Park & Grand Fountain',
         desc: 'Avenue of the Island formal flowerbeds, ornamental fountain & lagoon bridge',
-        pos: { x: 180.0, y: 1.7, z: 1150.0 },
+        pos: { x: 0.0, y: 0.55, z: 5310.0 },
         yaw: 0
       },
       {
         id: 'centreville',
         name: 'Centreville Amusement Park',
-        desc: 'Giant rotating Ferris wheel, vintage carousel & Pizza Pizza concessions',
-        pos: { x: 260.0, y: 1.7, z: 1200.0 },
+        desc: 'Giant rotating Ferris wheel, vintage carousel & miniature railway',
+        pos: { x: 180.0, y: 0.55, z: 5185.0 },
         yaw: 0.5
       },
       {
+        id: 'farEnoughFarm',
+        name: 'Far Enough Farm',
+        desc: 'Historic 1959 barn, silo, farm animals, paddocks & petting zoo',
+        pos: { x: 295.0, y: 0.55, z: 5185.0 },
+        yaw: 0
+      },
+      {
+        id: 'williamMeanyMaze',
+        name: 'William Meany Hedge Maze',
+        desc: 'Living black cedar hedge maze with central observation tower & bell',
+        pos: { x: -65.0, y: 0.55, z: 5385.0 },
+        yaw: 0
+      },
+      {
         id: 'centreIslandBeach',
-        name: 'Centre Island Beach & Lake Ontario',
-        desc: 'South shore golden sand dunes, boardwalk, volleyball & stone breakwater',
-        pos: { x: 180.0, y: 1.7, z: 1395.0 },
+        name: 'Centre Island Beach & Pier',
+        desc: 'South shore golden sand dunes, boardwalk, pavilion & long viewing pier into Lake Ontario',
+        pos: { x: 0.0, y: 0.55, z: 5460.0 },
         yaw: 0
       }
     ];
@@ -11576,22 +11605,43 @@
       islandFerry: {
         ferryMesh: cruisingFerry,
         mainlandDock: { x: 726, y: 0.5, z: 330, yaw: 0.05, boardX: 712, boardZ: 318 },
-        islandDock: { x: 180, y: 0.5, z: 1075, yaw: 0, boardX: 180, boardZ: 1085 }
+        islandDock: { x: 0, y: 0.55, z: 4975, yaw: 0, boardX: 0, boardZ: 5000 }
       },
       islandLocations,
       centreIslandLandmarks: {
-        ferryDock: [180, 1080],
-        avenueGardens: [180, 1170],
-        grandFountain: [180, 1170],
-        lagoonBridge: [180, 1248],
-        ferrisWheel: [330, 1185],
-        carousel: [270, 1160],
-        pizzaPizza: [240, 1220],
-        miniTrain: [360, 1240],
-        hedgeMaze: [85, 1185],
-        mazeTower: [85, 1185],
-        beach: [180, 1420],
-        breakwater: [180, 1460]
+        ferryDock: [0, 5000],
+        pizzaPizza: [12, 5048],
+        subway: [12, 5066],
+        islandLockers: [12, 5088],
+        islandBBQ: [65, 5065],
+        northBridge: [28, 5138],
+        woodedPath: [75, 5185],
+        centreville: [180, 5185],
+        centrevilleTrain: [160, 5165],
+        farEnoughFarm: [295, 5185],
+        grandFountain: [0, 5310],
+        avenueGardens: [0, 5380],
+        westReflectingPool: [-26, 5380],
+        eastReflectingPool: [26, 5380],
+        hedgeMaze: [-65, 5385],
+        mazeTower: [-65, 5385],
+        centreBeach: [0, 5455],
+        beachCafe: [34, 5455],
+        bikeRental: [-34, 5455],
+        beachLockers: [-10, 5452],
+        centrePier: [0, 5530],
+        olympicIsland: [-160, 5330],
+        gibraltarLighthouse: [-480, 5320],
+        hanlansDock: [-720, 4910],
+        hanlansBeach: [-886, 5100],
+        airportRunway: [-1260, 4830],
+        airportTerminal: [-1060, 4800],
+        algonquinIsland: [540, 5130],
+        wardsDock: [1140, 4995],
+        wardsBeach: [1210, 5120],
+        wardsCafe: [1050, 5085],
+        formalGarden: [0, 5380],
+        longPond: [100, 5255]
       }
     };
   }
