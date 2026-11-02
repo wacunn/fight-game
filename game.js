@@ -1153,6 +1153,7 @@ function setupPostFX() {
 const city = (typeof window.buildTorontoCity === 'function') ? window.buildTorontoCity(scene) : null;
 // Build Dedicated Toronto Islands Archipelago (Hanlan's, Airport, Centre, Olympic, Algonquin, Ward's)
 const islands = (typeof window.buildTorontoIslands === 'function') ? window.buildTorontoIslands(scene) : null;
+if (typeof window !== 'undefined') window.islands = islands;
 let traffic = null;
 
 const player = {
@@ -2738,6 +2739,25 @@ function spawnSingleReinforcement(originX, originZ) {
     pX = o.x; pZ = o.z;
   }
 
+  // If spawning on dedicated Toronto Islands archipelago (z > 3500)
+  const onArchipelago = (typeof islands !== 'undefined' && islands && islands.isInsideIslands && islands.isInsideIslands(pX, pZ)) || pZ > 3500;
+  if (onArchipelago) {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 22 + Math.random() * 45;
+      const tx = pX + Math.cos(angle) * dist;
+      const tz = pZ + Math.sin(angle) * dist;
+      if (islands && islands.canMoveTo(tx, tz, 0.5, 0.55)) {
+        const fromAnyPlayer = nearestPlayerDist(tx, tz);
+        if (fromAnyPlayer >= 16) {
+          const { kind, archIdx } = pickEnemyTypeForCurrentDifficulty();
+          return spawnEnemy(tx, tz, kind, archIdx);
+        }
+      }
+    }
+    return null;
+  }
+
   // Try several angles to ensure finding an open walkable street
   for (let attempt = 0; attempt < 8; attempt++) {
     const angle = Math.random() * Math.PI * 2;
@@ -2777,23 +2797,42 @@ function spawnAdditionalEnemies(count) {
 
 function populateCentreIslandCitizens() {
   if (!city) return;
+  // Check if player is on dedicated archipelago (z > 3500) or near the inlined island (z ~ 1150)
+  const isArchipelago = (player && player.pos && player.pos.z > 3500) || (state && state.onIsland && player && player.pos && player.pos.z > 3500);
+
   // Pre-populate Centre Island attractions with peaceful Torontonian citizens
-  const islandSpots = [
-    // Avenue of the Island & Gardens
-    [178, 1120], [183, 1140], [177, 1195], [182, 1215],
+  const islandSpots = isArchipelago ? [
+    // Avenue of the Island promenade & formal flower gardens
+    [0, 5060], [-6, 5090], [6, 5110], [0, 5130], [8, 5160], [-8, 5190], [0, 5215],
     // Grand Fountain plaza
+    [-10, 5130], [10, 5130], [0, 5142],
+    // William Meany Hedge Maze (East side of Avenue - at the 1888 antique school bell & paths!)
+    [105, 5175], [95, 5160], [115, 5160], [90, 5185], [120, 5185], [105, 5145],
+    // Centreville Amusement Park & Pizza Pizza patio
+    [170, 5225], [185, 5220], [175, 5235], [210, 5140], [190, 5125],
+    // Manitou Bridge over Long Pond
+    [0, 5255],
+    // Olympic Island Great Lawn (skyline panorama)
+    [-160, 5330], [-140, 5320], [-180, 5340],
+    // Gibraltar Point 1808 Lighthouse Sanctuary
+    [-480, 5305], [-460, 5330],
+    // Centre Island South Beach & 120m Pier
+    [0, 5470], [0, 5520], [0, 5560], [-40, 5450], [40, 5450],
+    // Ward's Island Summer Village & Ward's Cafe patio
+    [1050, 5085], [1040, 5070], [1020, 5040], [1140, 5000],
+    // Algonquin Island cottage lanes & footbridge
+    [540, 5080], [520, 5060], [750, 5060],
+    // Hanlan's Point dock & ball diamonds
+    [-720, 4920], [-780, 5000]
+  ] : [
+    // Inlined Centre Island fallback spots
+    [178, 1120], [183, 1140], [177, 1195], [182, 1215],
     [172, 1170], [188, 1170],
-    // Pizza Pizza dining patio
     [236, 1208], [244, 1208], [248, 1200], [240, 1218],
-    // William Meany Hedge Maze
     [85, 1165], [65, 1185],
-    // Centreville Amusement Park
     [330, 1205], [270, 1175], [300, 1215], [360, 1235],
-    // Centre Island Beach
     [140, 1410], [180, 1430], [220, 1415], [260, 1425],
-    // Lagoon footbridge & boardwalk
     [180, 1248], [180, 1465],
-    // Olympic Island meadow
     [-60, 1220], [-80, 1260]
   ];
 

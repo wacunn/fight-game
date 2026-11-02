@@ -1067,6 +1067,9 @@
     }
 
     function floorAt(x, z, y) {
+      if (typeof window !== 'undefined' && window.islands && window.islands.isInsideIslands && window.islands.isInsideIslands(x, z)) {
+        return window.islands.floorAt(x, z, y);
+      }
       if (y !== undefined && y > 50) {
         const feetY = (y > 300 && (y - 340) % 6 > 1.0 && y % 1 > 0.4) ? (y - 1.7) : y;
         if (elevatorCab) {
@@ -1177,6 +1180,9 @@
 
     function canMoveTo(x, z, radius, y) {
       const r = radius || 0.6;
+      if (typeof window !== 'undefined' && window.islands && window.islands.isInsideIslands && window.islands.isInsideIslands(x, z)) {
+        return window.islands.canMoveTo(x, z, r, y);
+      }
       if (y !== undefined && y > 50) {
         // Up in the pod: only the core and the outer glass/rail matter
         const d = towerPolar(x, z).r;
