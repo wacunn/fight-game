@@ -685,7 +685,7 @@
     if (!MAP) throw new Error('TORONTO_MAP data missing (toronto_map.js not loaded)');
 
     const [[minX, minZ], [maxX, maxZ]] = MAP.bounds;
-    const PLAY = { minX: Math.min(minX, -1120), maxX: Math.max(maxX, 1020), minZ: Math.min(minZ, -760), maxZ: 1650 };
+    const PLAY = { minX: Math.min(minX, -1350), maxX: Math.max(maxX, 1360), minZ: Math.min(minZ, -760), maxZ: 1650 };
     const LM = Object.assign({}, MAP.landmarks);
     LM.hhof = [498.5, -327.9];
     LM.dominionPublic = [466.2, -229.8];
@@ -699,11 +699,11 @@
     LM.davidPecautSquare = [-308.0, -270.0];
     LM.jackLaytonTerminal = [708.0, 294.0];
     if (typeof window !== 'undefined' && window.buildTorontoIslands) {
-      LM.centreIsland = [0.0, 5310.0];
-      LM.centreville = [180.0, 5185.0];
-      LM.centreIslandBeach = [0.0, 5455.0];
-      LM.hedgeMaze = [-65.0, 5385.0];
-      LM.pizzaPizza = [12.0, 5048.0];
+      LM.centreIsland = [0.0, 1510.0];
+      LM.centreville = [180.0, 1385.0];
+      LM.centreIslandBeach = [0.0, 1655.0];
+      LM.hedgeMaze = [-65.0, 1585.0];
+      LM.pizzaPizza = [12.0, 1248.0];
     } else {
       LM.centreIsland = [180.0, 1170.0];
       LM.centreville = [330.0, 1185.0];
@@ -1303,7 +1303,7 @@
     scene.fog = new THREE.FogExp2(0x0c1322, 0.0018);
 
     const sky = new THREE.Mesh(
-      new THREE.SphereGeometry(2200, 32, 16),
+      new THREE.SphereGeometry(4200, 32, 16),
       new THREE.MeshBasicMaterial({ map: makeSkyTexture(), side: THREE.BackSide, fog: false, depthWrite: false })
     );
     sky.renderOrder = -10;
@@ -1314,11 +1314,11 @@
     for (let i = 0; i < 1400; i++) {
       const th = hash(i * 1.3) * Math.PI * 2;
       const ph = Math.acos(1 - hash(i * 2.7) * 0.9); // upper hemisphere only
-      starPos.push(2000 * Math.sin(ph) * Math.cos(th), 2000 * Math.cos(ph) + 80, 2000 * Math.sin(ph) * Math.sin(th));
+      starPos.push(3900 * Math.sin(ph) * Math.cos(th), 3900 * Math.cos(ph) + 80, 3900 * Math.sin(ph) * Math.sin(th));
     }
     const starGeo = new THREE.BufferGeometry();
     starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xcfd8ff, size: 2.2, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.8 }));
+    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xcfd8ff, size: 2.2, sizeAttenuation: false, fog: false, depthWrite: false, transparent: true, opacity: 0.8 }));
     scene.add(stars);
 
     scene.add(new THREE.HemisphereLight(0x7da4d4, 0x181a1c, 0.45));
@@ -1349,7 +1349,7 @@
     const trenchWallsGB = new GeoBuilder();
     const lakeGB = new GeoBuilder();
     const WATER_Y = -0.65;
-    const X_MIN_EXT = minX - 800, X_MAX_EXT = maxX + 800, Z_MIN_EXT = minZ - 800, Z_MAX_EXT = maxZ + 800;
+    const X_MIN_EXT = Math.min(minX - 800, -1850), X_MAX_EXT = Math.max(maxX + 800, 1850), Z_MIN_EXT = minZ - 800, Z_MAX_EXT = maxZ + 800;
 
     // up-facing quad for x0<x1, zN<zS (CCW from above)
     function groundQuad(gb, x0, x1, zN0, zN1, zS0, zS1, y, uvScale = 4) {
@@ -1468,7 +1468,7 @@
         seawallGB.quad(c0, c1, c2, c3);
         seawallGB.quad(c0, c3, c2, c1);
         // Warm cedar/granite waterfront promenade strip (4.2m wide inland from coping)
-        if (ax >= -950 && bx <= 1250) {
+        if (ax >= -1250 && bx <= 1250) {
           const b0 = boardwalkGB.vert(ax - nx * 1.2, 0.04, az - nz * 1.2, 0, 1, 0, 0, 0);
           const b1 = boardwalkGB.vert(bx - nx * 1.2, 0.04, bz - nz * 1.2, 0, 1, 0, len / 3, 0);
           const b2 = boardwalkGB.vert(bx - nx * 5.4, 0.04, bz - nz * 5.4, 0, 1, 0, len / 3, 1);
@@ -2989,7 +2989,7 @@
               if (t + lotW > len - 3) break;
               const s0 = r.w / 2 + 3.2;
               const mx = ax + dx * (t + lotW / 2) + nx * side * (s0 + 10), mz = az + dz * (t + lotW / 2) + nz * side * (s0 + 10);
-              if (mx < PLAY.minX || mx > PLAY.maxX || mz < PLAY.minZ || mz > PLAY.maxZ || inRealData(mx, mz) || nearRealBuilding(mx, mz, 48) || isReservedParkOrLandmark(mx, mz)) { t += lotW; continue; }
+              if (mx < -1120 || mx > 1020 || mz < PLAY.minZ || mz > PLAY.maxZ || inRealData(mx, mz) || nearRealBuilding(mx, mz, 48) || isReservedParkOrLandmark(mx, mz)) { t += lotW; continue; }
               // up to two rows deep: street-front shops, then a taller building behind
               let off = s0;
               for (let row = 0; row < 2; row++) {
@@ -3389,7 +3389,8 @@
           const gx = gcx + gu * gca - gv * gsa, gz = gcz + gu * gsa + gv * gca;
           if (gx < minX - REACH || gx > maxX + REACH || gz < minZ - REACH || gz > maxZ + 40) continue;
           const jx = gx + (hash(gx * 0.13 + gz) - 0.5) * 16, jz = gz + (hash(gz * 0.17 + gx) - 0.5) * 16;
-          if (jx > PLAY.minX - 18 && jx < PLAY.maxX + 18 && jz > PLAY.minZ - 18 && jz < PLAY.maxZ + 18) continue;
+          if (jx > -1120 - 18 && jx < 1020 + 18 && jz > PLAY.minZ - 18 && jz < PLAY.minZ + 18 + 2410) continue;
+          if (jx > -1200 && jx < -900 && jz > 540) continue; // keep Bathurst Quay / Airport Ferry waterfront promenade clear
           const sx = 22 + hash(jx * 0.7) * 30, sz = 22 + hash(jz * 0.9) * 30;
           if (jz + sz / 2 + 18 > getShorelineZ(jx)) continue; // never place skyline blocks in Lake Ontario / Harbour
           if (onRoad(jx, jz, -Math.max(sx, sz) / 2, -1)) continue;
@@ -9747,6 +9748,7 @@
       const runwayMat = new THREE.MeshBasicMaterial({ color: 0x1e293b, fog: false });
 
       const islandsGroup = new THREE.Group();
+      if (!(typeof window !== 'undefined' && window.buildTorontoIslands)) {
 
       // Helper to build an island landmass with sandy shore & tree canopy
       function addIslandMass(cx, cz, rx, rz, rotY, treeCount) {
@@ -10835,9 +10837,6 @@
         wardsIsland.add(wSign);
       }
 
-      if (typeof window !== 'undefined' && window.buildTorontoIslands) {
-        islandsGroup.visible = false;
-      } else {
         scene.add(islandsGroup);
       }
     }
@@ -11015,6 +11014,10 @@
     const towerHue = new THREE.Color();
     function update(dt, playerPos) {
       t += dt;
+      if (playerPos) {
+        sky.position.set(playerPos.x, 0, playerPos.z);
+        stars.position.set(playerPos.x, 0, playerPos.z);
+      }
       // Blink warning lights
       warnLights.visible = (Math.floor(t * 1.1) % 2) === 0;
       // CN Tower colour-cycling LED lighting
@@ -11436,42 +11439,42 @@
         id: 'centreIslandDock',
         name: 'Centre Island Ferry Terminal',
         desc: 'Ferry slips, passenger waiting pavilion, Pizza Pizza & bike rentals',
-        pos: { x: 0.0, y: 0.55, z: 5015.0 },
+        pos: { x: 0.0, y: 0.55, z: 1215.0 },
         yaw: 0
       },
       {
         id: 'centreIslandGardens',
         name: 'Centre Island Park & Grand Fountain',
         desc: 'Avenue of the Island formal flowerbeds, ornamental fountain & lagoon bridge',
-        pos: { x: 0.0, y: 0.55, z: 5310.0 },
+        pos: { x: 0.0, y: 0.55, z: 1510.0 },
         yaw: 0
       },
       {
         id: 'centreville',
         name: 'Centreville Amusement Park',
         desc: 'Giant rotating Ferris wheel, vintage carousel & miniature railway',
-        pos: { x: 180.0, y: 0.55, z: 5185.0 },
+        pos: { x: 180.0, y: 0.55, z: 1385.0 },
         yaw: 0.5
       },
       {
         id: 'farEnoughFarm',
         name: 'Far Enough Farm',
         desc: 'Historic 1959 barn, silo, farm animals, paddocks & petting zoo',
-        pos: { x: 295.0, y: 0.55, z: 5185.0 },
+        pos: { x: 295.0, y: 0.55, z: 1385.0 },
         yaw: 0
       },
       {
         id: 'williamMeanyMaze',
         name: 'William Meany Hedge Maze',
         desc: 'Living black cedar hedge maze with central observation tower & bell',
-        pos: { x: -65.0, y: 0.55, z: 5385.0 },
+        pos: { x: -65.0, y: 0.55, z: 1585.0 },
         yaw: 0
       },
       {
         id: 'centreIslandBeach',
         name: 'Centre Island Beach & Pier',
         desc: 'South shore golden sand dunes, boardwalk, pavilion & long viewing pier into Lake Ontario',
-        pos: { x: 0.0, y: 0.55, z: 5460.0 },
+        pos: { x: 0.0, y: 0.55, z: 1660.0 },
         yaw: 0
       }
     ];
@@ -11605,43 +11608,43 @@
       islandFerry: {
         ferryMesh: cruisingFerry,
         mainlandDock: { x: 726, y: 0.5, z: 330, yaw: 0.05, boardX: 712, boardZ: 318 },
-        islandDock: { x: 0, y: 0.55, z: 4975, yaw: 0, boardX: 0, boardZ: 5000 }
+        islandDock: { x: 0, y: 0.55, z: 1175, yaw: 0, boardX: 0, boardZ: 1200 }
       },
       islandLocations,
       centreIslandLandmarks: {
-        ferryDock: [0, 5000],
-        pizzaPizza: [12, 5048],
-        subway: [12, 5066],
-        islandLockers: [12, 5088],
-        islandBBQ: [65, 5065],
-        northBridge: [28, 5138],
-        woodedPath: [75, 5185],
-        centreville: [180, 5185],
-        centrevilleTrain: [160, 5165],
-        farEnoughFarm: [295, 5185],
-        grandFountain: [0, 5310],
-        avenueGardens: [0, 5380],
-        westReflectingPool: [-26, 5380],
-        eastReflectingPool: [26, 5380],
-        hedgeMaze: [-65, 5385],
-        mazeTower: [-65, 5385],
-        centreBeach: [0, 5455],
-        beachCafe: [34, 5455],
-        bikeRental: [-34, 5455],
-        beachLockers: [-10, 5452],
-        centrePier: [0, 5530],
-        olympicIsland: [-160, 5330],
-        gibraltarLighthouse: [-480, 5320],
-        hanlansDock: [-720, 4910],
-        hanlansBeach: [-886, 5100],
-        airportRunway: [-1260, 4830],
-        airportTerminal: [-1060, 4800],
-        algonquinIsland: [540, 5130],
-        wardsDock: [1140, 4995],
-        wardsBeach: [1210, 5120],
-        wardsCafe: [1050, 5085],
-        formalGarden: [0, 5380],
-        longPond: [100, 5255]
+        ferryDock: [0, 1200],
+        pizzaPizza: [12, 1248],
+        subway: [12, 1266],
+        islandLockers: [12, 1288],
+        islandBBQ: [65, 1265],
+        northBridge: [28, 1338],
+        woodedPath: [75, 1385],
+        centreville: [180, 1385],
+        centrevilleTrain: [160, 1365],
+        farEnoughFarm: [295, 1385],
+        grandFountain: [0, 1510],
+        avenueGardens: [0, 1580],
+        westReflectingPool: [-26, 1580],
+        eastReflectingPool: [26, 1580],
+        hedgeMaze: [-65, 1585],
+        mazeTower: [-65, 1585],
+        centreBeach: [0, 1655],
+        beachCafe: [34, 1655],
+        bikeRental: [-34, 1655],
+        beachLockers: [-10, 1652],
+        centrePier: [0, 1730],
+        olympicIsland: [-160, 1530],
+        gibraltarLighthouse: [-480, 1520],
+        hanlansDock: [-720, 1110],
+        hanlansBeach: [-886, 1300],
+        airportRunway: [-1260, 1030],
+        airportTerminal: [-1060, 1000],
+        algonquinIsland: [540, 1330],
+        wardsDock: [1140, 1195],
+        wardsBeach: [1210, 1320],
+        wardsCafe: [1050, 1285],
+        formalGarden: [0, 1580],
+        longPond: [100, 1455]
       }
     };
   }

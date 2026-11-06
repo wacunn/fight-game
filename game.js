@@ -1079,8 +1079,8 @@ const state = {
 const container = document.getElementById('game-container');
 const scene = new THREE.Scene();
 
-// Far clip increased to 2500m to render CN Tower (553m) and downtown skyline; near clip 0.05m prevents wall geometry clipping
-const camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.05, 2500);
+// Far clip increased to 4500m to render full Toronto Islands archipelago and downtown skyline across the harbour
+const camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.08, 4500);
 camera.position.set(0, 1.7, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -2742,8 +2742,8 @@ function spawnSingleReinforcement(originX, originZ) {
     pX = o.x; pZ = o.z;
   }
 
-  // If spawning on dedicated Toronto Islands archipelago (z > 3500)
-  const onArchipelago = (typeof islands !== 'undefined' && islands && islands.isInsideIslands && islands.isInsideIslands(pX, pZ)) || pZ > 3500;
+  // If spawning on dedicated Toronto Islands archipelago
+  const onArchipelago = (typeof islands !== 'undefined' && islands && islands.isInsideIslands && islands.isInsideIslands(pX, pZ)) || pZ > 840;
   if (onArchipelago) {
     for (let attempt = 0; attempt < 10; attempt++) {
       const angle = Math.random() * Math.PI * 2;
@@ -2800,91 +2800,92 @@ function spawnAdditionalEnemies(count) {
 
 function populateCentreIslandCitizens() {
   if (!city) return;
+  const IZ = o => ((typeof islands !== 'undefined' && islands && islands.Z_BASE) ? islands.Z_BASE : 1200) + o;
 
-  // Pre-populate Centre Island attractions with generous Torontonian citizens & tourists (160+ people)
+  // Pre-populate Centre Island attractions with generous Torontonian citizens & tourists (175+ people)
   const islandSpots = [
     // North Island Ferry Terminal & Arrival Plaza
-    [0, 5005], [0, 5015], [-6, 5010], [6, 5010], [12, 5018], [-12, 5018], [18, 5025], [-8, 5028],
-    [5, 5032], [-5, 5032], [14, 5035], [22, 5038], [10, 5040], [-10, 5040], [2, 5022],
+    [0, IZ(5)], [0, IZ(15)], [-6, IZ(10)], [6, IZ(10)], [12, IZ(18)], [-12, IZ(18)], [18, IZ(25)], [-8, IZ(28)],
+    [5, IZ(32)], [-5, IZ(32)], [14, IZ(35)], [22, IZ(38)], [10, IZ(40)], [-10, IZ(40)], [2, IZ(22)],
 
     // Pizza Pizza & Subway outdoor dining patio
-    [12, 5044], [12, 5052], [14, 5064], [6, 5055], [6, 5065], [16, 5048], [16, 5058],
-    [20, 5044], [20, 5052], [20, 5062], [20, 5070], [24, 5048], [24, 5066], [8, 5048],
+    [12, IZ(44)], [12, IZ(52)], [14, IZ(64)], [6, IZ(55)], [6, IZ(65)], [16, IZ(48)], [16, IZ(58)],
+    [20, IZ(44)], [20, IZ(52)], [20, IZ(62)], [20, IZ(70)], [24, IZ(48)], [24, IZ(66)], [8, IZ(48)],
 
     // Toronto Island BBQ & Beer Co. dining deck, smoker patio & bar
-    [62, 5060], [68, 5060], [74, 5062], [60, 5070], [66, 5070], [72, 5070], [58, 5080],
-    [64, 5080], [70, 5080], [76, 5075], [56, 5088], [62, 5088], [68, 5088], [74, 5085],
-    [80, 5070], [80, 5080],
+    [62, IZ(60)], [68, IZ(60)], [74, IZ(62)], [60, IZ(70)], [66, IZ(70)], [72, IZ(70)], [58, IZ(80)],
+    [64, IZ(80)], [70, IZ(80)], [76, IZ(75)], [56, IZ(88)], [62, IZ(88)], [68, IZ(88)], [74, IZ(85)],
+    [80, IZ(70)], [80, IZ(80)],
 
     // Park Washroom & Public Lockers Building
-    [12, 5082], [14, 5088], [16, 5092], [18, 5085], [20, 5085], [10, 5092], [22, 5090], [14, 5095],
+    [12, IZ(82)], [14, IZ(88)], [16, IZ(92)], [18, IZ(85)], [20, IZ(85)], [10, IZ(92)], [22, IZ(90)], [14, IZ(95)],
 
     // First Bridge (North Arrival Bridge over North Lagoon)
-    [28, 5122], [28, 5128], [28, 5135], [28, 5142], [28, 5150], [26, 5125], [30, 5132], [26, 5145], [30, 5152],
+    [28, IZ(122)], [28, IZ(128)], [28, IZ(135)], [28, IZ(142)], [28, IZ(150)], [26, IZ(125)], [30, IZ(132)], [26, IZ(145)], [30, IZ(152)],
 
     // Shaded Wooded Path to Centreville
-    [40, 5165], [48, 5170], [55, 5172], [62, 5176], [70, 5180], [78, 5184], [85, 5188], [92, 5190],
-    [100, 5192], [108, 5195], [115, 5196], [122, 5198], [130, 5200], [138, 5200],
+    [40, IZ(165)], [48, IZ(170)], [55, IZ(172)], [62, IZ(176)], [70, IZ(180)], [78, IZ(184)], [85, IZ(188)], [92, IZ(190)],
+    [100, IZ(192)], [108, IZ(195)], [115, IZ(196)], [122, IZ(198)], [130, IZ(200)], [138, IZ(200)],
 
     // Centreville Turn-of-the-Century Victorian Village Square & Town Hall
-    [155, 5195], [160, 5190], [165, 5195], [170, 5190], [175, 5190], [180, 5185], [185, 5190],
-    [190, 5195], [195, 5195], [200, 5200], [205, 5200], [210, 5195], [215, 5200], [220, 5195],
-    [225, 5195], [230, 5200], [180, 5178], [180, 5205], [170, 5210], [190, 5210], [165, 5215],
-    [175, 5215], [185, 5220], [195, 5220], [205, 5215], [215, 5215], [150, 5215], [160, 5225],
+    [155, IZ(195)], [160, IZ(190)], [165, IZ(195)], [170, IZ(190)], [175, IZ(190)], [180, IZ(185)], [185, IZ(190)],
+    [190, IZ(195)], [195, IZ(195)], [200, IZ(200)], [205, IZ(200)], [210, IZ(195)], [215, IZ(200)], [220, IZ(195)],
+    [225, IZ(195)], [230, IZ(200)], [180, IZ(178)], [180, IZ(205)], [170, IZ(210)], [190, IZ(210)], [165, IZ(215)],
+    [175, IZ(215)], [185, IZ(220)], [195, IZ(220)], [205, IZ(215)], [215, IZ(215)], [150, IZ(215)], [160, IZ(225)],
 
     // Centreville Railway Station Platform (Beasley Bear Express)
-    [155, 5165], [160, 5165], [165, 5165], [170, 5165], [155, 5168], [160, 5168], [165, 5168],
+    [155, IZ(165)], [160, IZ(165)], [165, IZ(165)], [170, IZ(165)], [155, IZ(168)], [160, IZ(168)], [165, IZ(168)],
 
     // Far Enough Farm (Historic 1959 Petting Farm, Big Red Barn & Paddocks)
-    [265, 5185], [275, 5180], [285, 5175], [295, 5175], [305, 5175], [315, 5175], [325, 5175],
-    [270, 5165], [285, 5165], [295, 5165], [310, 5165], [320, 5165], [280, 5195], [295, 5195],
-    [310, 5195], [325, 5195], [285, 5205], [300, 5205], [315, 5205],
+    [265, IZ(185)], [275, IZ(180)], [285, IZ(175)], [295, IZ(175)], [305, IZ(175)], [315, IZ(175)], [325, IZ(175)],
+    [270, IZ(165)], [285, IZ(165)], [295, IZ(165)], [310, IZ(165)], [320, IZ(165)], [280, IZ(195)], [295, IZ(195)],
+    [310, IZ(195)], [325, IZ(195)], [285, IZ(205)], [300, IZ(205)], [315, IZ(205)],
 
     // Manitou Bridge over Long Pond
-    [0, 5235], [0, 5245], [0, 5255], [0, 5265], [0, 5275], [-2, 5240], [2, 5250], [-2, 5260], [2, 5270],
+    [0, IZ(235)], [0, IZ(245)], [0, IZ(255)], [0, IZ(265)], [0, IZ(275)], [-2, IZ(240)], [2, IZ(250)], [-2, IZ(260)], [2, IZ(270)],
 
     // Grand Fountain Plaza
-    [0, 5292], [-8, 5298], [8, 5298], [-12, 5310], [12, 5310], [-8, 5322], [8, 5322], [0, 5326],
-    [-6, 5304], [6, 5304], [-6, 5316], [6, 5316], [0, 5300], [0, 5318],
+    [0, IZ(292)], [-8, IZ(298)], [8, IZ(298)], [-12, IZ(310)], [12, IZ(310)], [-8, IZ(322)], [8, IZ(322)], [0, IZ(326)],
+    [-6, IZ(304)], [6, IZ(304)], [-6, IZ(316)], [6, IZ(316)], [0, IZ(300)], [0, IZ(318)],
 
     // Grand Formal Gardens & twin sunken Reflecting Pools (East & West)
-    [0, 5340], [0, 5360], [0, 5380], [0, 5400], [0, 5420], [-10, 5350], [10, 5350],
-    [-18, 5360], [-18, 5380], [-18, 5400], [18, 5360], [18, 5380], [18, 5400],
-    [-26, 5350], [-26, 5410], [26, 5350], [26, 5410], [-34, 5380], [34, 5380],
+    [0, IZ(340)], [0, IZ(360)], [0, IZ(380)], [0, IZ(400)], [0, IZ(420)], [-10, IZ(350)], [10, IZ(350)],
+    [-18, IZ(360)], [-18, IZ(380)], [-18, IZ(400)], [18, IZ(360)], [18, IZ(380)], [18, IZ(400)],
+    [-26, IZ(350)], [-26, IZ(410)], [26, IZ(350)], [26, IZ(410)], [-34, IZ(380)], [34, IZ(380)],
 
     // William Meany Hedge Maze (South Centre Island, West of Avenue - at the 1888 antique school bell & paths!)
-    [-35, 5385], [-45, 5385], [-55, 5385], [-65, 5385], [-75, 5385], [-85, 5385],
-    [-55, 5370], [-75, 5370], [-55, 5400], [-75, 5400], [-65, 5410], [-65, 5360],
-    [-45, 5370], [-45, 5400], [-85, 5370], [-85, 5400],
+    [-35, IZ(385)], [-45, IZ(385)], [-55, IZ(385)], [-65, IZ(385)], [-75, IZ(385)], [-85, IZ(385)],
+    [-55, IZ(370)], [-75, IZ(370)], [-55, IZ(400)], [-75, IZ(400)], [-65, IZ(410)], [-65, IZ(360)],
+    [-45, IZ(370)], [-45, IZ(400)], [-85, IZ(370)], [-85, IZ(400)],
 
     // South Beach Cafe & Grill beachfront patio
-    [34, 5455], [28, 5458], [40, 5458], [34, 5462], [26, 5452], [42, 5452], [30, 5465], [38, 5465],
+    [34, IZ(455)], [28, IZ(458)], [40, IZ(458)], [34, IZ(462)], [26, IZ(452)], [42, IZ(452)], [30, IZ(465)], [38, IZ(465)],
 
     // Toronto Island Bicycle Rental & Surrey quadricycles
-    [-34, 5455], [-28, 5458], [-40, 5458], [-34, 5462], [-26, 5452], [-42, 5452], [-30, 5465], [-38, 5465],
+    [-34, IZ(455)], [-28, IZ(458)], [-40, IZ(458)], [-34, IZ(462)], [-26, IZ(452)], [-42, IZ(452)], [-30, IZ(465)], [-38, IZ(465)],
 
     // Beach Lockers & changing rooms
-    [-10, 5452], [-5, 5452], [10, 5452], [0, 5455],
+    [-10, IZ(452)], [-5, IZ(452)], [10, IZ(452)], [0, IZ(455)],
 
     // Centre Island South Beach Boardwalk & 120m Pier (Lake Ontario)
-    [0, 5470], [0, 5490], [0, 5510], [0, 5530], [0, 5550], [0, 5570], [0, 5585],
-    [-3, 5480], [3, 5500], [-3, 5520], [3, 5540], [-3, 5560], [3, 5575],
-    [-35, 5450], [35, 5450], [-70, 5450], [70, 5450],
+    [0, IZ(470)], [0, IZ(490)], [0, IZ(510)], [0, IZ(530)], [0, IZ(550)], [0, IZ(570)], [0, IZ(585)],
+    [-3, IZ(480)], [3, IZ(500)], [-3, IZ(520)], [3, IZ(540)], [-3, IZ(560)], [3, IZ(575)],
+    [-35, IZ(450)], [35, IZ(450)], [-70, IZ(450)], [70, IZ(450)],
 
     // Olympic Island Great Lawn (skyline panorama)
-    [-160, 5330], [-140, 5320], [-180, 5340], [-150, 5350], [-170, 5310],
+    [-160, IZ(330)], [-140, IZ(320)], [-180, IZ(340)], [-150, IZ(350)], [-170, IZ(310)],
 
     // Gibraltar Point 1808 Lighthouse Sanctuary
-    [-480, 5305], [-460, 5330], [-470, 5290], [-490, 5320],
+    [-480, IZ(305)], [-460, IZ(330)], [-470, IZ(290)], [-490, IZ(320)],
 
     // Ward's Island Summer Village & Ward's Cafe patio
-    [1050, 5085], [1040, 5070], [1020, 5040], [1140, 5000], [1060, 5095], [1030, 5060],
+    [1050, IZ(85)], [1040, IZ(70)], [1020, IZ(40)], [1140, IZ(0)], [1060, IZ(95)], [1030, IZ(60)],
 
     // Algonquin Island cottage lanes & footbridge
-    [540, 5080], [520, 5060], [750, 5060], [560, 5090], [530, 5070],
+    [540, IZ(80)], [520, IZ(60)], [750, IZ(60)], [560, IZ(90)], [530, IZ(70)],
 
     // Hanlan's Point dock & ball diamonds
-    [-720, 4920], [-780, 5000], [-740, 4960], [-760, 4980]
+    [-720, IZ(-80)], [-780, IZ(0)], [-740, IZ(-40)], [-760, IZ(-20)]
   ];
 
   islandSpots.forEach(([ix, iz], idx) => {
@@ -3403,19 +3404,18 @@ const ferryController = {
 
 const FERRY_WATER_Y = -0.65;
 
-// Clean, realistic 4-waypoint navigation route through Toronto Inner Harbour:
 // Clean, realistic navigation route through Toronto Inner Harbour:
 // W0: Jack Layton Ferry Terminal open-water slip (x=726, z=330)
-// W1: Clear open harbour water south of all mainland piers & buildings (x=732, z=650)
-// W2: Wide-open mid-harbour scenic cruise corridor (x=500, z=2200)
-// W3: Approaching Toronto Islands archipelago (x=220, z=3800)
-// W4: Centre Island Ferry Terminal slip on dedicated archipelago (x=0, z=4975)
+// W1: Clear open harbour water south of all mainland piers & buildings (x=710, z=520)
+// W2: Wide-open mid-harbour scenic cruise corridor (x=420, z=760)
+// W3: Approaching Toronto Islands archipelago (x=140, z=980)
+// W4: Centre Island Ferry Terminal slip on unified archipelago grid (x=0, z=1175)
 const FERRY_WAYPOINTS = [
   { x: 726, z: 330 },
-  { x: 732, z: 650 },
-  { x: 500, z: 2200 },
-  { x: 220, z: 3800 },
-  { x: 0, z: 4975 }
+  { x: 710, z: 520 },
+  { x: 420, z: 760 },
+  { x: 140, z: 980 },
+  { x: 0, z: 1175 }
 ];
 
 function evalFerrySpline(prog, dir) {
@@ -3424,8 +3424,8 @@ function evalFerrySpline(prog, dir) {
     ? FERRY_WAYPOINTS
     : FERRY_WAYPOINTS.slice().reverse();
 
-  const p_minus_1 = dir === 'to_island' ? { x: 726, z: 200 } : { x: 0, z: 5050 };
-  const p_plus_1 = dir === 'to_island' ? { x: 0, z: 5050 } : { x: 726, z: 200 };
+  const p_minus_1 = dir === 'to_island' ? { x: 726, z: 200 } : { x: 0, z: 1250 };
+  const p_plus_1 = dir === 'to_island' ? { x: 0, z: 1250 } : { x: 726, z: 200 };
   const pts = [p_minus_1, ...waypoints, p_plus_1];
 
   const numSegs = waypoints.length - 1;
@@ -3460,7 +3460,7 @@ function startFerryRide(dir) {
   ferryController.progress = 0;
   ferryController.duration = 8.5;
   state.onFerry = true;
-  if (scene.fog) scene.fog.density = 0.00095;
+  if (scene.fog) scene.fog.density = 0.00065;
   audio.playFerryHorn();
 
   // Face forward at initial boarding, but player can freely look around in 360° during the entire voyage!
@@ -3514,7 +3514,7 @@ function updateFerry(dt) {
   const fwdZ = fz + Math.cos(heading) * fwdDist;
   player.pos.set(fwdX, waterY + 6.75 + EYE_HEIGHT + bob, fwdZ);
   player.velocity.set(0, 0, 0);
-  if (scene.fog) scene.fog.density = 0.00095;
+  if (scene.fog) scene.fog.density = 0.00065;
 
   if (ferryController.progress >= 1.0) {
     arriveFerry(ferryController.dir);
@@ -3530,9 +3530,9 @@ function arriveFerry(dir) {
   const waterY = (city && city.waterY !== undefined) ? city.waterY : FERRY_WATER_Y;
   if (dir === 'to_island') {
     state.onIsland = true;
-    if (scene.fog) scene.fog.density = 0.00095;
-    const islandFloor = (city && city.floorAt) ? city.floorAt(0, 5000) : 0.55;
-    player.pos.set(0, islandFloor + EYE_HEIGHT, 5000);
+    if (scene.fog) scene.fog.density = 0.00065;
+    const islandFloor = (city && city.floorAt) ? city.floorAt(0, 1200) : 0.55;
+    player.pos.set(0, islandFloor + EYE_HEIGHT, 1200);
     player.yaw = 0; // facing south down Avenue of the Island
     player.velocity.set(0, 0, 0);
     player.isGrounded = true;
@@ -3540,7 +3540,7 @@ function arriveFerry(dir) {
     camera.rotation.y = 0;
 
     if (ferry) {
-      ferry.position.set(0, waterY, 4975);
+      ferry.position.set(0, waterY, 1175);
       ferry.rotation.y = 0;
     }
 
@@ -3846,8 +3846,8 @@ function updateObservationDeck(dt) {
       setDeckPrompt('[E]', 'BOARD TORONTO ISLAND FERRY (CENTRE ISLAND)');
       return;
     }
-    const dArchDock = Math.hypot(player.pos.x - 0, player.pos.z - 5000);
-    const inArchDock = dArchDock < 28 || (Math.abs(player.pos.x) <= 20 && player.pos.z >= 4960 && player.pos.z <= 5030);
+    const dArchDock = Math.hypot(player.pos.x - 0, player.pos.z - 1200);
+    const inArchDock = dArchDock < 28 || (Math.abs(player.pos.x) <= 20 && player.pos.z >= 1160 && player.pos.z <= 1230);
     const dIslandDock = Math.hypot(player.pos.x - 180, player.pos.z - 1085);
     const inIslandDock = inArchDock || dIslandDock < 22 || (player.pos.x >= 165 && player.pos.x <= 195 && player.pos.z >= 1060 && player.pos.z <= 1095);
     if (inIslandDock) {
@@ -4550,7 +4550,7 @@ window.addEventListener('keydown', (e) => {
     if (elevatorPanel.open) closeElevatorPanel();
     if (state.onFerry) state.onFerry = false;
 
-    const onIslandWorld = (islands && islands.isInsideIslands(player.pos.x, player.pos.z)) || player.pos.z > 3500;
+    const onIslandWorld = (islands && islands.isInsideIslands(player.pos.x, player.pos.z)) || player.pos.z > 840;
     const dMainDock = Math.hypot(player.pos.x - 712, player.pos.z - 318);
 
     if (onIslandWorld) {
@@ -4569,8 +4569,8 @@ window.addEventListener('keydown', (e) => {
       showAnnouncement("🏙️ CHEAT: TELEPORTED TO MAINLAND FERRY DOCK (JACK LAYTON TERMINAL)!", 3200);
     } else if (dMainDock < 22) {
       // Already at mainland dock: teleport across to Dedicated Toronto Islands Archipelago!
-      const islFloor = islands ? islands.floorAt(0, 5000) : 0.55;
-      player.pos.set(0, islFloor + EYE_HEIGHT, 5000);
+      const islFloor = islands ? islands.floorAt(0, 1200) : 0.55;
+      player.pos.set(0, islFloor + EYE_HEIGHT, 1200);
       player.yaw = 0; // facing south down Avenue of the Island
       player.velocity.set(0, 0, 0);
       player.isGrounded = true;
@@ -4578,7 +4578,7 @@ window.addEventListener('keydown', (e) => {
       camera.rotation.y = 0;
       camera.rotation.x = 0;
       state.onIsland = true;
-      if (scene.fog) scene.fog.density = 0.00095;
+      if (scene.fog) scene.fog.density = 0.00065;
       audio.playFerryArrival();
       showAnnouncement("🌳 CHEAT: TELEPORTED TO DEDICATED TORONTO ISLANDS ARCHIPELAGO! 🌸\nCentre Island, Olympic, Gibraltar Lighthouse, Airport & Ward's Island!", 4500);
       populateCentreIslandCitizens();
@@ -6548,7 +6548,7 @@ function updateEnemies(dt) {
     }
 
     // When player is on the island, guarantee vibrant, bustling park life around the player
-    if (player.pos.z > 3500) {
+    if (player.pos.z > 840 || (typeof islands !== 'undefined' && islands && islands.isInsideIslands && islands.isInsideIslands(player.pos.x, player.pos.z))) {
       const nearbyCitizens = enemies.filter(e => !e.isDead && (e.kind === 'civilian' || e.isIslandCitizen) && nearestPlayerDist(e.rig.root.position.x, e.rig.root.position.z) < 65).length;
       if (nearbyCitizens < 24) {
         const toSpawn = Math.min(4, 24 - nearbyCitizens);
@@ -6622,10 +6622,11 @@ function updateEnemies(dt) {
         enemy.rig.root.position.x = cx + (edx / er) * 21.2;
         enemy.rig.root.position.z = cz + (edz / er) * 21.2;
       }
-    } else if (enemy.isIslandCitizen || enemy.rig.root.position.z > 3500 || (typeof islands !== 'undefined' && islands && islands.isInsideIslands && islands.isInsideIslands(enemy.rig.root.position.x, enemy.rig.root.position.z))) {
+    } else if (enemy.isIslandCitizen || enemy.rig.root.position.z > 840 || (typeof islands !== 'undefined' && islands && islands.isInsideIslands && islands.isInsideIslands(enemy.rig.root.position.x, enemy.rig.root.position.z))) {
       // Keep within Toronto Islands archipelago boundaries: preserve full archipelago exploration!
+      const izBase = (typeof islands !== 'undefined' && islands && islands.Z_BASE) ? islands.Z_BASE : 1200;
       enemy.rig.root.position.x = Math.max(-1450, Math.min(1350, enemy.rig.root.position.x));
-      enemy.rig.root.position.z = Math.max(4600, Math.min(5700, enemy.rig.root.position.z));
+      enemy.rig.root.position.z = Math.max(izBase - 360, Math.min(izBase + 620, enemy.rig.root.position.z));
     } else if (city && city.bounds) {
       enemy.rig.root.position.x = Math.max(city.bounds.minX + 5, Math.min(city.bounds.maxX - 5, enemy.rig.root.position.x));
       enemy.rig.root.position.z = Math.max(city.bounds.minZ + 5, Math.min(city.bounds.maxZ - 5, enemy.rig.root.position.z));

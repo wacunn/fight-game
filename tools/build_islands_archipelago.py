@@ -24,7 +24,8 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUT_FILE = BASE_DIR / 'islands.js'
 
-CODE = r'''/**
+CODE = r'''
+/**
  * TORONTO ISLANDS ARCHIPELAGO MINI-WORLD
  * ============================================================================
  * An authentic 3D simulation of the Toronto Islands archipelago:
@@ -73,10 +74,10 @@ CODE = r'''/**
     const islandsGroup = new THREE.Group();
     islandsGroup.name = 'torontoIslandsArchipelago';
 
-    const Z_BASE = 5000;
+    const Z_BASE = 1200;
     const Z = o => Z_BASE + o;
     const GROUND_Y = 0.55; // walking height on the islands
-    const WATER_Y = 0.0;
+    const WATER_Y = -0.65; // matches city.js Toronto Inner Harbour water level
     let renderedOsmTowers = 0;
 
     // ------------------------------------------------------------------------
@@ -214,8 +215,8 @@ CODE = r'''/**
 
     function terrainH(x, z) {
       const L = landField(x, z);
-      if (L <= 0) return Math.max(-2.4, L * 0.32);
-      let h = Math.min(GROUND_Y, L * 0.22);
+      if (L <= 0) return WATER_Y + Math.max(-1.85, L * 0.30);
+      let h = WATER_Y + Math.min(GROUND_Y - WATER_Y, L * 0.38);
       if (x > -905 && !isAirport(x, z)) {
         const s = zS(x) - z; // dunes behind the lake beaches
         if (s > 0 && s < 75) {
@@ -398,9 +399,9 @@ CODE = r'''/**
       transparent: true,
       depthWrite: false
     });
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(6400, 3600, 1, 1), waterMat);
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(3000, 950, 1, 1), waterMat);
     water.rotation.x = -Math.PI / 2;
-    water.position.set(0, WATER_Y, Z(-200));
+    water.position.set(-120, WATER_Y + 0.01, Z(120));
     water.renderOrder = 1;
     islandsGroup.add(water);
 
@@ -2923,7 +2924,7 @@ CODE = r'''/**
       const funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.9, 3.4, 12), new THREE.MeshStandardMaterial({ color: 0xdc2626 }));
       funnel.position.set(0, 7.0, -5);
       ferry.add(funnel);
-      ferry.position.set(0, 0, Z(-60));
+      ferry.position.set(0, WATER_Y, Z(-65));
       islandsGroup.add(ferry);
     }
 
@@ -3146,7 +3147,10 @@ CODE = r'''/**
       domeRing.position.set(-459.9, 24, rcZ);
       skyGrp.add(domeRing);
 
-      islandsGroup.add(skyGrp);
+      // Only add standalone distant skyline if the real city.js is not already present on the same grid
+      if (!(typeof window !== 'undefined' && window.buildTorontoCity)) {
+        islandsGroup.add(skyGrp);
+      }
     }
 
     scene.add(islandsGroup);
@@ -3155,7 +3159,7 @@ CODE = r'''/**
     // Collision and Walkability API
     // ------------------------------------------------------------------------
     function isInsideIslands(x, z) {
-      return z >= Z(-400) && z <= Z(650) && x >= -1650 && x <= 1500;
+      return z >= Z(-360) && z <= Z(650) && x >= -1650 && x <= 1500;
     }
 
     function canMoveTo(x, z, radius, y) {
@@ -3284,7 +3288,7 @@ CODE = r'''/**
         ferryT = (ferryT + dt) % 70;
         const k = ferryT < 12 ? 0 : ferryT < 35 ? (ferryT - 12) / 23 : ferryT < 47 ? 1 : 1 - (ferryT - 47) / 23;
         const e = k * k * (3 - 2 * k);
-        ferry.position.set(0, 0, Z(-60) - e * 700);
+        ferry.position.set(e * 320, WATER_Y, Z(-65) - e * 480);
       }
     }
 
@@ -3462,13 +3466,8 @@ CODE = r'''/**
   }
 
   window.buildTorontoIslands = buildTorontoIslands;
-})();'''
+})();
+'''
 
-def main():
-    print(f"Writing complete Toronto Islands code to {OUTPUT_FILE} ...")
-    with open(OUTPUT_FILE, 'w') as f:
-        f.write(CODE.strip() + '\n')
-    print("Done! File size:", len(CODE), "bytes.")
-
-if __name__ == '__main__':
-    main()
+OUTPUT_FILE.write_text(CODE.lstrip("\n"), encoding="utf-8")
+print(f"Wrote {OUTPUT_FILE} ({len(CODE.splitlines())} lines)")
