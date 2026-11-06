@@ -3392,24 +3392,157 @@ if (city) {
 }
 
 // ============================================================================
-// TORONTO ISLAND FERRY & CENTRE ISLAND EXPLORATION CONTROLLER
+// TORONTO ISLAND FERRIES (3 ISLAND DOCKS + MAINLAND + AIRPORT FERRY) CONTROLLER
 // ============================================================================
+
+const FERRY_DOCKS = [
+  {
+    id: 'mainland',
+    label: 'MAINLAND TORONTO',
+    name: 'Jack Layton Ferry Terminal',
+    sub: 'Queens Quay & Bay St · Downtown Toronto',
+    boardX: 712,
+    boardZ: 318,
+    slipX: 726,
+    slipZ: 330,
+    yaw: Math.PI,
+    onIsland: false
+  },
+  {
+    id: 'centre',
+    label: 'CENTRAL ISLAND DOCK',
+    name: 'Centre Island Dock',
+    sub: 'Avenue of the Islands · Centreville & Maze',
+    boardX: 0,
+    boardZ: 1200,
+    slipX: 0,
+    slipZ: 1175,
+    yaw: 0,
+    onIsland: true
+  },
+  {
+    id: 'hanlans',
+    label: 'WEST ISLAND DOCK',
+    name: "Hanlan's Point Dock",
+    sub: 'Billy Bishop Airport & Hanlan\'s Beach',
+    boardX: -720,
+    boardZ: 1090,
+    slipX: -720,
+    slipZ: 1062,
+    yaw: 0,
+    onIsland: true
+  },
+  {
+    id: 'wards',
+    label: 'EAST ISLAND DOCK',
+    name: "Ward's Island Dock",
+    sub: 'Forest Cottages · Ward\'s Cafe & East Beach',
+    boardX: 1140,
+    boardZ: 1180,
+    slipX: 1140,
+    slipZ: 1148,
+    yaw: 0,
+    onIsland: true
+  }
+];
+
+const ferryPanel = { open: false, highlight: 1 };
+
+function currentFerryDockIndex() {
+  let best = 0, bestD = Infinity;
+  FERRY_DOCKS.forEach((d, i) => {
+    const dist = Math.hypot(player.pos.x - d.boardX, player.pos.z - d.boardZ);
+    if (dist < bestD) { bestD = dist; best = i; }
+  });
+  return best;
+}
+
+function buildFerryPanel() {
+  const list = document.getElementById('ferry-dock-list');
+  if (!list) return;
+  const here = currentFerryDockIndex();
+  list.innerHTML = '';
+  FERRY_DOCKS.forEach((d, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'elev-floor-btn' + (i === here ? ' is-here' : '') + (i === ferryPanel.highlight ? ' is-highlight' : '');
+    btn.dataset.dock = d.id;
+    btn.innerHTML =
+      `<span class="elev-floor-key">${i + 1}</span>` +
+      `<span class="elev-floor-text"><span class="elev-floor-label">${d.label}</span>` +
+      `<span class="elev-floor-name">${d.name}</span>` +
+      `<span class="elev-floor-sub">${i === here ? 'You are here' : d.sub}</span></span>`;
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      selectFerryDock(i);
+    });
+    list.appendChild(btn);
+  });
+}
+
+function openFerryPanel() {
+  if (state.onFerry || state.inElevator || !city || !city.islandFerry) return;
+  const here = currentFerryDockIndex();
+  // Pre-highlight Centre Island when on mainland, or Mainland when on any island dock
+  ferryPanel.highlight = here === 0 ? 1 : 0;
+  ferryPanel.open = true;
+  buildFerryPanel();
+  const el = document.getElementById('ferry-panel');
+  if (el) el.classList.remove('hidden');
+  audio.playElevatorDing();
+
+  if (document.pointerLockElement) {
+    document.exitPointerLock();
+  }
+}
+
+function closeFerryPanel() {
+  if (!ferryPanel.open) return;
+  ferryPanel.open = false;
+  const el = document.getElementById('ferry-panel');
+  if (el) el.classList.add('hidden');
+
+  if (state.inGame && !state.freeMouseMode && !state.isPaused && !state.isDead && !state.onFerry && !state.inElevator) {
+    container.requestPointerLock();
+  }
+}
+
+function moveFerryHighlight(delta) {
+  const n = FERRY_DOCKS.length;
+  ferryPanel.highlight = (ferryPanel.highlight + delta + n) % n;
+  buildFerryPanel();
+}
+
+function selectFerryDock(idx) {
+  if (idx < 0 || idx >= FERRY_DOCKS.length) return;
+  const here = currentFerryDockIndex();
+  closeFerryPanel();
+  if (idx === here) {
+    showAnnouncement(`🚢 YOU ARE ALREADY AT ${FERRY_DOCKS[idx].name.toUpperCase()}`, 1800);
+    return;
+  }
+  const destId = FERRY_DOCKS[idx].id;
+  startFerryRide('to_' + destId, FERRY_DOCKS[here].id);
+}
+
+window.openFerryPanel = openFerryPanel;
+window.closeFerryPanel = closeFerryPanel;
+window.selectFerryDock = selectFerryDock;
 
 const ferryController = {
   isMoving: false,
-  dir: 'to_island', // 'to_island' or 'to_mainland'
+  dir: 'to_island',
+  fromDock: 'mainland',
+  toDock: 'centre',
+  isAirportFerry: false,
+  waypoints: [],
   progress: 0,
-  duration: 7.0
+  duration: 8.5
 };
 
 const FERRY_WATER_Y = -0.65;
 
-// Clean, realistic navigation route through Toronto Inner Harbour:
-// W0: Jack Layton Ferry Terminal open-water slip (x=726, z=330)
-// W1: Clear open harbour water south of all mainland piers & buildings (x=710, z=520)
-// W2: Wide-open mid-harbour scenic cruise corridor (x=420, z=760)
-// W3: Approaching Toronto Islands archipelago (x=140, z=980)
-// W4: Centre Island Ferry Terminal slip on unified archipelago grid (x=0, z=1175)
+// Default Mainland <-> Centre Island route
 const FERRY_WAYPOINTS = [
   { x: 726, z: 330 },
   { x: 710, z: 520 },
@@ -3418,14 +3551,77 @@ const FERRY_WAYPOINTS = [
   { x: 0, z: 1175 }
 ];
 
+function getFerryRouteWaypoints(fromId, toId) {
+  if (fromId === 'airport_mainland' && toId === 'airport_island') {
+    return [
+      { x: -1060, z: 720 },
+      { x: -1060, z: 760 },
+      { x: -1060, z: 802 },
+      { x: -1060, z: 842 }
+    ];
+  }
+  if (fromId === 'airport_island' && toId === 'airport_mainland') {
+    return [
+      { x: -1060, z: 842 },
+      { x: -1060, z: 802 },
+      { x: -1060, z: 760 },
+      { x: -1060, z: 720 }
+    ];
+  }
+  const routesFromMainland = {
+    centre: [
+      { x: 726, z: 330 },
+      { x: 710, z: 520 },
+      { x: 420, z: 760 },
+      { x: 140, z: 980 },
+      { x: 0, z: 1175 }
+    ],
+    hanlans: [
+      { x: 726, z: 330 },
+      { x: 660, z: 540 },
+      { x: 160, z: 760 },
+      { x: -340, z: 920 },
+      { x: -720, z: 1062 }
+    ],
+    wards: [
+      { x: 726, z: 330 },
+      { x: 760, z: 520 },
+      { x: 910, z: 740 },
+      { x: 1055, z: 955 },
+      { x: 1140, z: 1148 }
+    ]
+  };
+  if (fromId === 'mainland' && routesFromMainland[toId]) {
+    return routesFromMainland[toId];
+  }
+  if (toId === 'mainland' && routesFromMainland[fromId]) {
+    return routesFromMainland[fromId].slice().reverse();
+  }
+  // Inter-island harbour ferry hop along the open Inner Harbour north of the island piers
+  const fromDock = FERRY_DOCKS.find(d => d.id === fromId) || FERRY_DOCKS[0];
+  const toDock = FERRY_DOCKS.find(d => d.id === toId) || FERRY_DOCKS[1];
+  const midX = (fromDock.slipX + toDock.slipX) / 2;
+  return [
+    { x: fromDock.slipX, z: fromDock.slipZ },
+    { x: fromDock.slipX * 0.7 + midX * 0.3, z: 980 },
+    { x: midX, z: 950 },
+    { x: toDock.slipX * 0.7 + midX * 0.3, z: 980 },
+    { x: toDock.slipX, z: toDock.slipZ }
+  ];
+}
+
 function evalFerrySpline(prog, dir) {
   const p = Math.max(0, Math.min(1, prog));
-  const waypoints = dir === 'to_island'
-    ? FERRY_WAYPOINTS
-    : FERRY_WAYPOINTS.slice().reverse();
+  let waypoints = ferryController.waypoints && ferryController.waypoints.length >= 2
+    ? ferryController.waypoints
+    : (dir === 'to_mainland' ? FERRY_WAYPOINTS.slice().reverse() : FERRY_WAYPOINTS);
 
-  const p_minus_1 = dir === 'to_island' ? { x: 726, z: 200 } : { x: 0, z: 1250 };
-  const p_plus_1 = dir === 'to_island' ? { x: 0, z: 1250 } : { x: 726, z: 200 };
+  const first = waypoints[0];
+  const second = waypoints[1];
+  const last = waypoints[waypoints.length - 1];
+  const prevLast = waypoints[waypoints.length - 2];
+  const p_minus_1 = { x: first.x - (second.x - first.x), z: first.z - (second.z - first.z) };
+  const p_plus_1 = { x: last.x + (last.x - prevLast.x), z: last.z + (last.z - prevLast.z) };
   const pts = [p_minus_1, ...waypoints, p_plus_1];
 
   const numSegs = waypoints.length - 1;
@@ -3453,12 +3649,43 @@ function evalFerrySpline(prog, dir) {
   return { x, z };
 }
 
-function startFerryRide(dir) {
+function startFerryRide(dir, explicitFromId) {
   if (ferryController.isMoving || !city || !city.islandFerry) return;
+  closeFerryPanel();
+
+  let fromId = explicitFromId || FERRY_DOCKS[currentFerryDockIndex()].id;
+  let toId = 'centre';
+  let isAirport = false;
+
+  if (dir === 'airport_to_island') {
+    fromId = 'airport_mainland';
+    toId = 'airport_island';
+    isAirport = true;
+  } else if (dir === 'airport_to_mainland') {
+    fromId = 'airport_island';
+    toId = 'airport_mainland';
+    isAirport = true;
+  } else if (dir === 'to_mainland') {
+    if (fromId === 'mainland') fromId = 'centre';
+    toId = 'mainland';
+  } else if (dir === 'to_hanlans') {
+    toId = 'hanlans';
+  } else if (dir === 'to_wards') {
+    toId = 'wards';
+  } else {
+    // 'to_island' or 'to_centre'
+    if (!explicitFromId) fromId = 'mainland';
+    toId = 'centre';
+  }
+
   ferryController.dir = dir;
+  ferryController.fromDock = fromId;
+  ferryController.toDock = toId;
+  ferryController.isAirportFerry = isAirport;
+  ferryController.waypoints = getFerryRouteWaypoints(fromId, toId);
   ferryController.isMoving = true;
   ferryController.progress = 0;
-  ferryController.duration = 8.5;
+  ferryController.duration = isAirport ? 4.5 : 8.5;
   state.onFerry = true;
   if (scene.fog) scene.fog.density = 0.00065;
   audio.playFerryHorn();
@@ -3473,12 +3700,18 @@ function startFerryRide(dir) {
   camera.rotation.y = initialHeading;
   camera.rotation.x = 0;
 
-  const msg = dir === 'to_island'
-    ? '🚢 TORONTO ISLAND FERRY: DEPARTING FOR CENTRE ISLAND...'
-    : '🚢 TORONTO ISLAND FERRY: DEPARTING FOR TORONTO MAINLAND...';
+  let msg = '🚢 TORONTO ISLAND FERRY: DEPARTING...';
+  if (isAirport) {
+    msg = toId === 'airport_island'
+      ? '✈️ BILLY BISHOP AIRPORT FERRY: CROSSING WESTERN GAP TO ISLAND AIRPORT (CYTZ)...'
+      : '🏙️ BILLY BISHOP AIRPORT FERRY: CROSSING WESTERN GAP TO MAINLAND BATHURST QUAY...';
+  } else {
+    const destObj = FERRY_DOCKS.find(d => d.id === toId);
+    msg = `🚢 TORONTO ISLAND FERRY: DEPARTING FOR ${destObj ? destObj.name.toUpperCase() : 'CENTRE ISLAND'}...`;
+  }
   showAnnouncement(msg, 3500);
 
-  const ferry = city.islandFerry.ferryMesh;
+  const ferry = isAirport ? city.islandFerry.airportFerryMesh : city.islandFerry.ferryMesh;
   if (ferry) {
     ferry.isPlayerFerry = true;
   }
@@ -3487,7 +3720,9 @@ function startFerryRide(dir) {
 
 function updateFerry(dt) {
   if (!ferryController.isMoving || !city || !city.islandFerry) return;
-  const ferry = city.islandFerry.ferryMesh;
+  const ferry = ferryController.isAirportFerry
+    ? (city.islandFerry.airportFerryMesh || city.islandFerry.ferryMesh)
+    : city.islandFerry.ferryMesh;
   if (!ferry) return;
 
   ferryController.progress += dt / ferryController.duration;
@@ -3507,12 +3742,13 @@ function updateFerry(dt) {
   ferry.position.set(fx, waterY + bob, fz);
   ferry.rotation.y = heading;
 
-  // Keep player on the forward observation sun deck
+  // Keep player on the forward observation deck
   // Notice: do NOT overwrite player.yaw or player.pitch so the player can freely look around in 360° at the skyline, islands & water!
-  const fwdDist = 6.0;
+  const fwdDist = ferryController.isAirportFerry ? 4.5 : 6.0;
+  const deckH = ferryController.isAirportFerry ? 2.1 : 6.75;
   const fwdX = fx + Math.sin(heading) * fwdDist;
   const fwdZ = fz + Math.cos(heading) * fwdDist;
-  player.pos.set(fwdX, waterY + 6.75 + EYE_HEIGHT + bob, fwdZ);
+  player.pos.set(fwdX, waterY + deckH + EYE_HEIGHT + bob, fwdZ);
   player.velocity.set(0, 0, 0);
   if (scene.fog) scene.fog.density = 0.00065;
 
@@ -3526,25 +3762,70 @@ function arriveFerry(dir) {
   state.onFerry = false;
   audio.playFerryArrival();
 
-  const ferry = city.islandFerry.ferryMesh;
   const waterY = (city && city.waterY !== undefined) ? city.waterY : FERRY_WATER_Y;
-  if (dir === 'to_island') {
+
+  if (ferryController.isAirportFerry) {
+    const aFerry = city.islandFerry.airportFerryMesh;
+    if (ferryController.toDock === 'airport_island') {
+      state.onIsland = true;
+      if (scene.fog) scene.fog.density = 0.00065;
+      const islFloor = (city && city.floorAt) ? city.floorAt(-1060, 870) : 0.55;
+      player.pos.set(-1060, islFloor + EYE_HEIGHT, 870);
+      player.yaw = 0; // facing south toward Billy Bishop Terminal & Porter Q400s
+      player.velocity.set(0, 0, 0);
+      player.isGrounded = true;
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = 0;
+      if (aFerry) {
+        aFerry.position.set(-1060, waterY, 842);
+        aFerry.rotation.y = 0;
+      }
+      showAnnouncement('✈️ WELCOME TO BILLY BISHOP TORONTO CITY AIRPORT (CYTZ)!\nExplore the Passenger Terminal, Runway 08/26 & Porter Dash-8 Q400 Aircraft!', 5000);
+      populateCentreIslandCitizens();
+    } else {
+      state.onIsland = false;
+      if (scene.fog) scene.fog.density = 0.0021;
+      const mainFloor = (city && city.floorAt) ? city.floorAt(-1060, 702) : 0.55;
+      player.pos.set(-1060, mainFloor + EYE_HEIGHT, 702);
+      player.yaw = Math.PI; // facing north toward Bathurst Quay & downtown
+      player.velocity.set(0, 0, 0);
+      player.isGrounded = true;
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = Math.PI;
+      if (aFerry) {
+        aFerry.position.set(-1060, waterY, 720);
+        aFerry.rotation.y = Math.PI;
+      }
+      showAnnouncement('🏙️ WELCOME BACK TO TORONTO MAINLAND • BATHURST QUAY TERMINAL', 4000);
+    }
+    return;
+  }
+
+  const ferry = city.islandFerry.ferryMesh;
+  const destDock = FERRY_DOCKS.find(d => d.id === ferryController.toDock) || (dir === 'to_mainland' ? FERRY_DOCKS[0] : FERRY_DOCKS[1]);
+
+  if (destDock.onIsland) {
     state.onIsland = true;
     if (scene.fog) scene.fog.density = 0.00065;
-    const islandFloor = (city && city.floorAt) ? city.floorAt(0, 1200) : 0.55;
-    player.pos.set(0, islandFloor + EYE_HEIGHT, 1200);
-    player.yaw = 0; // facing south down Avenue of the Island
+    const islandFloor = (city && city.floorAt) ? city.floorAt(destDock.boardX, destDock.boardZ) : 0.55;
+    player.pos.set(destDock.boardX, islandFloor + EYE_HEIGHT, destDock.boardZ);
+    player.yaw = destDock.yaw;
     player.velocity.set(0, 0, 0);
     player.isGrounded = true;
     camera.rotation.order = 'YXZ';
-    camera.rotation.y = 0;
+    camera.rotation.y = destDock.yaw;
 
     if (ferry) {
-      ferry.position.set(0, waterY, 1175);
+      ferry.position.set(destDock.slipX, waterY, destDock.slipZ);
       ferry.rotation.y = 0;
     }
 
-    showAnnouncement('🌳 WELCOME TO CENTRE ISLAND • TORONTO ISLAND PARK 🌸\nEnjoy the beaches, Centreville rides, Pizza Pizza & Hedge Maze!', 5000);
+    const welcomeMap = {
+      centre: '🌳 WELCOME TO CENTRE ISLAND • TORONTO ISLAND PARK 🌸\nEnjoy the beaches, Centreville rides, Pizza Pizza & Hedge Maze!',
+      hanlans: '✈️ WELCOME TO HANLAN\'S POINT • WEST TORONTO ISLAND 🏖️\nWalk west to Billy Bishop Airport & Porter Q400s or south to Hanlan\'s Beach!',
+      wards: '🏡 WELCOME TO WARD\'S ISLAND • EAST ISLAND VILLAGE 🌲\nExplore the unique forest cottages, woodland paths, Ward\'s Cafe & Boardwalk!'
+    };
+    showAnnouncement(welcomeMap[destDock.id] || welcomeMap.centre, 5000);
     populateCentreIslandCitizens();
   } else {
     state.onIsland = false;
@@ -3832,18 +4113,19 @@ function updateObservationDeck(dt) {
   if (state.inElevator || state.onFerry) {
     if (promptEl) promptEl.classList.add('hidden');
     closeElevatorPanel();
+    closeFerryPanel();
     return;
   }
 
   const feet = player.pos.y - EYE_HEIGHT;
 
-  // Toronto Island Ferry Docks (Jack Layton Terminal & Centre Island Dock)
+  // Toronto Island Ferry Docks (Jack Layton Terminal, Centre, Hanlan's, Ward's & Billy Bishop Airport Ferry)
   if (feet < 15) {
     const dMainDock = Math.hypot(player.pos.x - 712, player.pos.z - 318);
     const inMainDock = dMainDock < 22 || (player.pos.x >= 695 && player.pos.x <= 738 && player.pos.z >= 295 && player.pos.z <= 348);
     if (inMainDock) {
       activeDeckAction = 'ferry_to_island';
-      setDeckPrompt('[E]', 'BOARD TORONTO ISLAND FERRY (CENTRE ISLAND)');
+      setDeckPrompt('[E]', 'TORONTO ISLAND FERRIES • CHOOSE DOCK (CENTRE / HANLAN\'S / WARD\'S)');
       return;
     }
     const dArchDock = Math.hypot(player.pos.x - 0, player.pos.z - 1200);
@@ -3852,8 +4134,40 @@ function updateObservationDeck(dt) {
     const inIslandDock = inArchDock || dIslandDock < 22 || (player.pos.x >= 165 && player.pos.x <= 195 && player.pos.z >= 1060 && player.pos.z <= 1095);
     if (inIslandDock) {
       activeDeckAction = 'ferry_to_mainland';
-      setDeckPrompt('[E]', 'BOARD TORONTO ISLAND FERRY (MAINLAND TORONTO)');
+      setDeckPrompt('[E]', 'CENTRE ISLAND DOCK • CHOOSE DESTINATION DOCK');
       return;
+    }
+    const dHanlansDock = Math.hypot(player.pos.x - (-720), player.pos.z - 1090);
+    const inHanlansDock = dHanlansDock < 28 || (player.pos.x >= -745 && player.pos.x <= -695 && player.pos.z >= 1055 && player.pos.z <= 1125);
+    if (inHanlansDock) {
+      activeDeckAction = 'ferry_from_hanlans';
+      setDeckPrompt('[E]', 'HANLAN\'S POINT DOCK • CHOOSE DESTINATION DOCK');
+      return;
+    }
+    const dWardsDock = Math.hypot(player.pos.x - 1140, player.pos.z - 1180);
+    const inWardsDock = dWardsDock < 28 || (player.pos.x >= 1115 && player.pos.x <= 1165 && player.pos.z >= 1145 && player.pos.z <= 1215);
+    if (inWardsDock) {
+      activeDeckAction = 'ferry_from_wards';
+      setDeckPrompt('[E]', 'WARD\'S ISLAND DOCK • CHOOSE DESTINATION DOCK');
+      return;
+    }
+    // Billy Bishop Airport Ferry (Western Gap Channel: Bathurst Quay <-> Island Airport)
+    const dAirportMain = Math.hypot(player.pos.x - (-1060), player.pos.z - 702);
+    const inAirportMain = dAirportMain < 24 || (player.pos.x >= -1076 && player.pos.x <= -1044 && player.pos.z >= 668 && player.pos.z <= 718);
+    if (inAirportMain) {
+      activeDeckAction = 'airport_ferry_to_island';
+      setDeckPrompt('[E]', 'BOARD BILLY BISHOP AIRPORT FERRY (TO ISLAND AIRPORT TERMINAL)');
+      return;
+    }
+    const dAirportIsland = Math.hypot(player.pos.x - (-1060), player.pos.z - 870);
+    const inAirportIsland = dAirportIsland < 24 || (player.pos.x >= -1076 && player.pos.x <= -1044 && player.pos.z >= 848 && player.pos.z <= 900);
+    if (inAirportIsland) {
+      activeDeckAction = 'airport_ferry_to_mainland';
+      setDeckPrompt('[E]', 'BOARD BILLY BISHOP AIRPORT FERRY (TO MAINLAND BATHURST QUAY)');
+      return;
+    }
+    if (ferryPanel.open && dMainDock > 32 && dArchDock > 34 && dHanlansDock > 34 && dWardsDock > 34) {
+      closeFerryPanel();
     }
   }
 
@@ -3933,12 +4247,22 @@ function updateObservationDeck(dt) {
 
 function handleDeckAction() {
   if (!activeDeckAction) return false;
-  if (activeDeckAction === 'ferry_to_island') {
-    startFerryRide('to_island');
+  if (
+    activeDeckAction === 'ferry_to_island' ||
+    activeDeckAction === 'ferry_to_mainland' ||
+    activeDeckAction === 'ferry_from_hanlans' ||
+    activeDeckAction === 'ferry_from_wards'
+  ) {
+    if (ferryPanel.open) closeFerryPanel();
+    else openFerryPanel();
     return true;
   }
-  if (activeDeckAction === 'ferry_to_mainland') {
-    startFerryRide('to_mainland');
+  if (activeDeckAction === 'airport_ferry_to_island') {
+    startFerryRide('airport_to_island');
+    return true;
+  }
+  if (activeDeckAction === 'airport_ferry_to_mainland') {
+    startFerryRide('airport_to_mainland');
     return true;
   }
   if (activeDeckAction === 'elevator') {
@@ -4382,15 +4706,15 @@ document.addEventListener('pointerlockchange', () => {
   }
 
   // When pointer lock is lost in mouse-look mode (e.g. user pressed Esc), pause the game
-  // (unless the elevator panel is intentionally open for floor selection)
-  if (!state.isPointerLocked && state.inGame && !state.freeMouseMode && !state.isDead && !state.isPaused && !elevatorPanel.open) {
+  // (unless the elevator or ferry panel is intentionally open for destination selection)
+  if (!state.isPointerLocked && state.inGame && !state.freeMouseMode && !state.isDead && !state.isPaused && !elevatorPanel.open && !ferryPanel.open) {
     pauseGame();
   }
 });
 
 // Canvas Click & Mousedown: Executes attacks during gameplay with zero dropped inputs
 container.addEventListener('mousedown', (e) => {
-  if (!state.inGame || state.isPaused || state.isDead || elevatorPanel.open) return;
+  if (!state.inGame || state.isPaused || state.isDead || elevatorPanel.open || ferryPanel.open) return;
   if (e.button === 0) {
     // If near the active mission box, instantly crack it open!
     if (missionState.active && missionState.state === 'active' && missionState.boxObj) {
@@ -4405,7 +4729,7 @@ container.addEventListener('mousedown', (e) => {
 });
 
 container.addEventListener('click', (e) => {
-  if (!state.inGame || state.isPaused || state.isDead || elevatorPanel.open) return;
+  if (!state.inGame || state.isPaused || state.isDead || elevatorPanel.open || ferryPanel.open) return;
   if (state.telescopeActive) {
     if (!e.target.closest('.telescope-card') && !e.target.closest('.telescope-telemetry-top')) {
       cycleTelescopeZoom(1);
@@ -4427,7 +4751,7 @@ window.addEventListener('wheel', (e) => {
 
 // Mouse Movement: Rotates camera or swivels telescope
 document.addEventListener('mousemove', (e) => {
-  if (state.isDead || state.isPaused || elevatorPanel.open) return;
+  if (state.isDead || state.isPaused || elevatorPanel.open || ferryPanel.open) return;
   if (state.telescopeActive) {
     const zoomRatio = (camera.fov / 78);
     const sens = mouseSensitivity * zoomRatio * 0.9;
@@ -4458,7 +4782,7 @@ if (deckPromptEl) {
         startSkyShowdown();
       } else {
         handleDeckAction();
-        if (!state.freeMouseMode && container && container.requestPointerLock && !state.isPointerLocked) {
+        if (!state.freeMouseMode && !elevatorPanel.open && !ferryPanel.open && container && container.requestPointerLock && !state.isPointerLocked) {
           container.requestPointerLock();
         }
       }
@@ -4469,6 +4793,45 @@ if (deckPromptEl) {
 // Keyboard - use e.code exclusively to prevent Shift/caps desync
 window.addEventListener('keydown', (e) => {
   keys[e.code] = true;
+
+  // Toronto Island Ferry Dock Selector Keyboard Controls
+  if (ferryPanel.open) {
+    if (e.code.startsWith('Digit') || e.code.startsWith('Numpad')) {
+      const numStr = e.code.replace(/\D/g, '') || e.key;
+      const keyNum = parseInt(numStr, 10);
+      if (!isNaN(keyNum) && keyNum >= 1 && keyNum <= FERRY_DOCKS.length) {
+        e.preventDefault();
+        e.stopPropagation();
+        selectFerryDock(keyNum - 1);
+        return;
+      }
+    }
+    if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+      e.preventDefault();
+      e.stopPropagation();
+      moveFerryHighlight(-1);
+      return;
+    }
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+      e.preventDefault();
+      e.stopPropagation();
+      moveFerryHighlight(1);
+      return;
+    }
+    if (e.code === 'Enter' || e.code === 'Space') {
+      e.preventDefault();
+      e.stopPropagation();
+      selectFerryDock(ferryPanel.highlight);
+      return;
+    }
+    if (e.code === 'Escape' || e.code === 'KeyE') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeFerryPanel();
+      return;
+    }
+    return;
+  }
 
   // CN Tower Elevator Floor Selector Keyboard Controls
   if (elevatorPanel.open) {

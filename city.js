@@ -911,6 +911,8 @@
       if (z <= getShorelineZ(x) - p) return false;
       // Jack Layton Ferry Terminal pier & boarding slip extension into slip
       if (x >= 692 - p && x <= 738 + p && z >= 280 - p && z <= 348 + p) return false;
+      // Billy Bishop Airport Mainland Ferry Slip at Bathurst Quay (Western Gap)
+      if (x >= -1075 - p && x <= -1045 + p && z >= 665 - p && z <= 715 + p) return false;
       if (typeof window !== 'undefined' && window.buildTorontoIslands) {
         // Dedicated archipelago is active; open harbour water across south of Queens Quay
         return true;
@@ -1153,6 +1155,10 @@
       if ((x >= 166 && x <= 194 && z >= 1052 && z <= 1092) ||
           (x >= 692 && x <= 738 && z >= 295 && z <= 348)) {
         return 0.5;
+      }
+      // Billy Bishop Airport Mainland Ferry Slip at Bathurst Quay
+      if (x >= -1075 && x <= -1045 && z >= 665 && z <= 715) {
+        return 0.55;
       }
       // Beach boardwalk
       if (z >= 1376 && z <= 1384 && x >= -60 && x <= 420) {
@@ -9059,6 +9065,7 @@
     let islandFountainSpray = null;
     let lighthouseBeam = null;
     let airportBeacon = null;
+    let airportFerryMesh = null;
     {
       const cedarWaveMat = new THREE.MeshStandardMaterial({ color: 0x9a5b32, roughness: 0.72 });
       const railSteelMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.3 });
@@ -9561,6 +9568,97 @@
       cruisingFerry.position.set(726, WATER_Y, 330);
       cruisingFerry.rotation.y = 0.05;
       scene.add(cruisingFerry);
+
+      // 1b. Billy Bishop Airport Mainland Ferry Terminal (Bathurst Quay / Eireann Quay at x = -1060, z = 668..715)
+      // & Western Gap Airport Shuttle Ferry "MARILYN BELL I"
+      {
+        const bqGrp = new THREE.Group();
+        const bqx = -1060;
+        const pierDeck = new THREE.Mesh(
+          new THREE.BoxGeometry(30, 0.5, 48),
+          new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.78 })
+        );
+        pierDeck.position.set(bqx, 0.30, 691);
+        bqGrp.add(pierDeck);
+
+        // Timber/steel bumper pilings along the Bathurst Quay ferry slip
+        for (let pz = 674; pz <= 713; pz += 6.5) {
+          [-14.2, 14.2].forEach(px => {
+            const pile = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 3.2, 8), hullBlack);
+            pile.position.set(bqx + px, -0.4, pz);
+            bqGrp.add(pile);
+          });
+        }
+
+        // Mainland Airport Ferry Waiting Pavilion & Glass Canopy at (-1060, 672)
+        const pavRoof = new THREE.Mesh(
+          new THREE.BoxGeometry(22, 0.45, 12),
+          new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.3, metalness: 0.7 })
+        );
+        pavRoof.position.set(bqx, 4.8, 674);
+        bqGrp.add(pavRoof);
+        [-9.5, 9.5].forEach(px => [669, 679].forEach(pz => {
+          const col = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 4.8, 8), hullBlack);
+          col.position.set(bqx + px, 2.4, pz);
+          bqGrp.add(col);
+          addCircle(bqx + px, pz, 0.35);
+        }));
+
+        const bqSignN = signMesh(
+          ['BILLY BISHOP AIRPORT FERRY TERMINAL', 'BATHURST QUAY • WESTERN GAP SHUTTLE — PRESS [E] TO BOARD'],
+          16.5, 2.1,
+          { bg: '#0f172a', fg: '#38bdf8', borderColor: '#facc15', size: 46 }
+        );
+        bqSignN.position.set(bqx, 5.8, 667.8);
+        bqSignN.rotation.y = Math.PI;
+        bqGrp.add(bqSignN);
+
+        const bqSignS = signMesh(
+          ['BATHURST QUAY MAINLAND SLIP', 'WELCOME TO DOWNTOWN TORONTO • BILLY BISHOP SHUTTLE'],
+          16.5, 2.1,
+          { bg: '#0f172a', fg: '#f8fafc', borderColor: '#38bdf8', size: 46 }
+        );
+        bqSignS.position.set(bqx, 5.8, 680.2);
+        bqGrp.add(bqSignS);
+
+        scene.add(bqGrp);
+
+        // Build "MARILYN BELL I" — Double-Ended Roll-On/Roll-Off Western Gap Airport Ferry
+        const mb = new THREE.Group();
+        const mbHull = new THREE.Mesh(new THREE.BoxGeometry(10.5, 2.2, 28), hullBlue);
+        mbHull.position.y = 0.55;
+        mb.add(mbHull);
+        const mbDeck = new THREE.Mesh(new THREE.BoxGeometry(10.2, 0.4, 29), hullBlack);
+        mbDeck.position.y = 1.75;
+        mb.add(mbDeck);
+        // Twin side passenger cabins & elevated central bridge spanning across the deck
+        [-4.1, 4.1].forEach(sx => {
+          const sideCab = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.8, 20), hullWhite);
+          sideCab.position.set(sx, 3.2, 0);
+          mb.add(sideCab);
+          const sideWin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.0, 17), cabinLit);
+          sideWin.position.set(sx, 3.4, 0);
+          mb.add(sideWin);
+        });
+        const bridgeSpan = new THREE.Mesh(new THREE.BoxGeometry(10.4, 0.8, 7.5), hullWhite);
+        bridgeSpan.position.set(0, 5.0, 0);
+        mb.add(bridgeSpan);
+        const pilotHouse = new THREE.Mesh(new THREE.BoxGeometry(4.6, 2.2, 5.2), hullWhite);
+        pilotHouse.position.set(0, 6.4, 0);
+        mb.add(pilotHouse);
+        const pilotWin = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.9, 5.4), cabinLit);
+        pilotWin.position.set(0, 6.5, 0);
+        mb.add(pilotWin);
+        const mbSign = signMesh(['MARILYN BELL I', 'BILLY BISHOP AIRPORT FERRY'], 8.5, 1.0, { bg: '#0f172a', fg: '#38bdf8', borderColor: '#facc15', size: 54 });
+        mbSign.position.set(5.3, 5.0, 0);
+        mbSign.rotation.y = Math.PI / 2;
+        mb.add(mbSign);
+
+        airportFerryMesh = mb;
+        airportFerryMesh.position.set(-1060, WATER_Y, 725);
+        airportFerryMesh.rotation.y = 0;
+        scene.add(airportFerryMesh);
+      }
 
       // 2. Three-Masted Schooner Tall Ship "KAJAMA" moored at York Quay (x = 92, z = 636)
       {
@@ -11607,8 +11705,13 @@
       waterY: WATER_Y,
       islandFerry: {
         ferryMesh: cruisingFerry,
+        airportFerryMesh: airportFerryMesh,
         mainlandDock: { x: 726, y: 0.5, z: 330, yaw: 0.05, boardX: 712, boardZ: 318 },
-        islandDock: { x: 0, y: 0.55, z: 1175, yaw: 0, boardX: 0, boardZ: 1200 }
+        islandDock: { x: 0, y: 0.55, z: 1175, yaw: 0, boardX: 0, boardZ: 1200 },
+        hanlansDock: { x: -720, y: 0.55, z: 1062, yaw: 0, boardX: -720, boardZ: 1090 },
+        wardsDock: { x: 1140, y: 0.55, z: 1148, yaw: 0, boardX: 1140, boardZ: 1180 },
+        airportMainlandDock: { x: -1060, y: 0.55, z: 720, yaw: 0, boardX: -1060, boardZ: 702 },
+        airportIslandDock: { x: -1060, y: 0.55, z: 842, yaw: 0, boardX: -1060, boardZ: 870 }
       },
       islandLocations,
       centreIslandLandmarks: {
@@ -11635,12 +11738,13 @@
         centrePier: [0, 1730],
         olympicIsland: [-160, 1530],
         gibraltarLighthouse: [-480, 1520],
-        hanlansDock: [-720, 1110],
+        hanlansDock: [-720, 1090],
         hanlansBeach: [-886, 1300],
         airportRunway: [-1260, 1030],
-        airportTerminal: [-1060, 1000],
+        airportTerminal: [-1060, 948],
+        airportDock: [-1060, 870],
         algonquinIsland: [540, 1330],
-        wardsDock: [1140, 1195],
+        wardsDock: [1140, 1180],
         wardsBeach: [1210, 1320],
         wardsCafe: [1050, 1285],
         formalGarden: [0, 1580],

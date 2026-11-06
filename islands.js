@@ -233,10 +233,47 @@
       { name: 'Lighthouse Trail', w: 4, kind: 'gravel', pts: [[-420, Z(250)], [-470, Z(300)]] },
       { name: 'Lakeshore Avenue', w: 6, kind: 'paved', pts: [[-620, Z(440)], [-300, Z(455)], [-60, Z(452)], [0, Z(450)], [300, Z(440)]] },
       { name: 'The Boardwalk', w: 5, kind: 'boardwalk', pts: [[300, Z(440)], [600, Z(412)], [800, Z(362)], [1000, Z(292)], [1150, Z(222)], [1245, Z(130)]] },
-      { name: 'Ward\'s Lane', w: 3, kind: 'gravel', pts: [[900, Z(0)], [1140, Z(0)]] },
-      { name: 'Algonquin Lane', w: 3, kind: 'gravel', pts: [[420, Z(62)], [600, Z(62)]] }
+      { name: 'Ward\'s Lane', w: 3.5, kind: 'gravel', pts: [[885, Z(0)], [965, Z(4)], [1045, Z(-4)], [1140, Z(-12)]] },
+      { name: 'Ward\'s Forest Trail', w: 3.2, kind: 'gravel', pts: [[905, Z(0)], [918, Z(45)], [950, Z(92)], [982, Z(142)], [1038, Z(175)], [1108, Z(152)], [1145, Z(100)]] },
+      { name: 'Withrow Woodland Walk', w: 3.5, kind: 'gravel', pts: [[985, Z(-2)], [1050, Z(20)], [1050, Z(70)], [1092, Z(122)], [1150, Z(222)]] },
+      { name: 'Dryad Forest Path', w: 3.0, kind: 'gravel', pts: [[880, Z(100)], [950, Z(92)], [1050, Z(70)], [1118, Z(38)], [1150, Z(70)]] },
+      { name: 'Algonquin Lane', w: 3.5, kind: 'gravel', pts: [[415, Z(62)], [510, Z(58)], [615, Z(64)]] },
+      { name: 'Algonquin Woods Trail', w: 3.0, kind: 'gravel', pts: [[425, Z(62)], [480, Z(36)], [555, Z(38)], [630, Z(58)], [660, Z(102)], [585, Z(130)], [495, Z(122)], [425, Z(92)]] },
+      { name: 'Airport Ferry Walkway', w: 7.0, kind: 'paved', pts: [[-1060, Z(-345)], [-1060, Z(-245)], [-960, Z(-130)]] }
     ];
     const BOARDWALK = PATHS.find(p => p.kind === 'boardwalk');
+
+    // Individual woodland cottage coordinates along Algonquin & Ward's Island forest paths
+    const COTTAGES = [
+      // Algonquin Island cottages nestled along Algonquin Lane & Algonquin Woods Trail (10 unique cottages)
+      { x: 442, z: Z(44), rot: 0.12, name: '2 Algonquin Walk' },
+      { x: 478, z: Z(22), rot: -0.18, name: '8 Shawnee Trail' },
+      { x: 518, z: Z(42), rot: 0.08, name: '14 Algonquin Lane' },
+      { x: 558, z: Z(22), rot: 0.22, name: '19 Nottawa Path' },
+      { x: 598, z: Z(44), rot: -0.14, name: '24 Algonquin Walk' },
+      { x: 642, z: Z(44), rot: -0.35, name: '31 Seneca Point' },
+      { x: 452, z: Z(110), rot: 2.95, name: '5 Lagoon View' },
+      { x: 502, z: Z(138), rot: -2.85, name: '11 Cibola Woods' },
+      { x: 562, z: Z(144), rot: 3.05, name: '17 Willow Glade' },
+      { x: 622, z: Z(122), rot: 2.75, name: '27 Bridle Path' },
+      // Ward's Island cottages tucked along Ward's Lane, Withrow Walk & Ward's Forest Trail (16 unique cottages)
+      { x: 902, z: Z(-18), rot: 0.08, name: '3 Channel Ave' },
+      { x: 938, z: Z(-20), rot: -0.12, name: '9 Ward\'s Lane' },
+      { x: 974, z: Z(-18), rot: 0.15, name: '15 First Street' },
+      { x: 1012, z: Z(-22), rot: -0.08, name: '21 Second Street' },
+      { x: 1052, z: Z(-20), rot: 0.18, name: '27 Third Street' },
+      { x: 1092, z: Z(-22), rot: -0.16, name: '33 Fourth Street' },
+      { x: 896, z: Z(26), rot: 1.42, name: '6 Dryad Woods' },
+      { x: 936, z: Z(24), rot: 3.08, name: '12 Maple Grove' },
+      { x: 972, z: Z(28), rot: -2.96, name: '18 Withrow Mews' },
+      { x: 1014, z: Z(26), rot: 3.12, name: '24 Fern Hollow' },
+      { x: 1086, z: Z(22), rot: -2.82, name: '30 Birch Lane' },
+      { x: 932, z: Z(68), rot: 1.25, name: '14 Woodland Trail' },
+      { x: 972, z: Z(116), rot: 0.92, name: '20 Cottonwood Glade' },
+      { x: 1012, z: Z(156), rot: 0.45, name: '26 Lakeside Pine' },
+      { x: 1072, z: Z(144), rot: -0.55, name: '32 Boardwalk Bend' },
+      { x: 1122, z: Z(122), rot: -1.15, name: '38 East Beach Path' }
+    ];
 
     // Lawns, gardens, and clearings where trees are kept clear
     const CLEARINGS = [
@@ -251,12 +288,12 @@
       { r: [-65, 65, Z(435), Z(480)] }, // South Beach Pavilion, Restaurant & Bike Rental
       { c: [-780, Z(0), 85] }, // Hanlan's ball fields
       { c: [-480, Z(320), 42] }, // Gibraltar lighthouse sanctuary
-      { r: [412, 702, Z(22), Z(112)] }, // Algonquin cottages
-      { r: [892, 1142, Z(-48), Z(48)] }, // Ward's cottages
-      { c: [1050, Z(70), 32] }, // Ward's Cafe patio
-      { c: [0, Z(-5), 42] }, { c: [-720, Z(-110), 38] }, { c: [1140, Z(-20), 35] }, // Ferry docks
+      // Individual cozy garden clearings around each cottage so forest trees grow right between and around them!
+      ...COTTAGES.map(ct => ({ c: [ct.x, ct.z, 7.8] })),
+      { c: [1050, Z(70), 22] }, // Ward's Cafe patio
+      { c: [0, Z(-5), 42] }, { c: [-720, Z(-110), 38] }, { c: [1140, Z(-20), 28] }, // Ferry docks
       { c: [100, Z(330), 40] }, // Picnic meadow by Long Pond
-      { c: [560, Z(300), 52] }, // Ward's meadow
+      { c: [560, Z(300), 45] }, // Ward's south meadow
       { c: [-560, Z(80), 45] }, // Hanlan's picnic grounds
       { c: [-330, Z(150), 38] } // Gibraltar glade
     ];
@@ -280,12 +317,14 @@
       return null;
     }
 
-    // Forest density in [0, 1]: rich natural woods with glades
+    // Forest density in [0, 1]: rich natural woods with glades, plus lush cottage forest canopy on Algonquin & Ward's
     function forestDensity(x, z, L) {
       if (L < 3.5 || isAirport(x, z) || isSand(x, z, L)) return 0;
       if (inClearing(x, z)) return 0;
       const f = fbm(x / 150 + 3.1, z / 150 + 7.7);
-      return smooth(0.36, 0.58, f);
+      const base = smooth(0.36, 0.58, f);
+      if (x > 400 && z < Z(215)) return Math.max(base, 0.62); // lush woodland canopy around Algonquin & Ward's cottages
+      return base;
     }
 
     // ------------------------------------------------------------------------
@@ -567,8 +606,9 @@
     const PIERS = [
       { name: 'Centre Island Pier', r: [-6, 6, Z(470), Z(590)], y: 0.55 },
       { name: 'Centre Island Ferry Dock', r: [-16, 16, Z(-40), Z(12)], y: 0.55 },
-      { name: 'Hanlan\'s Point Ferry Dock', r: [-732, -708, Z(-150), Z(-100)], y: 0.55 },
-      { name: 'Ward\'s Island Ferry Dock', r: [1128, 1152, Z(-60), Z(-14)], y: 0.55 }
+      { name: 'Hanlan\'s Point Ferry Dock', r: [-734, -706, Z(-150), Z(-85)], y: 0.55 },
+      { name: 'Ward\'s Island Ferry Dock', r: [1126, 1154, Z(-60), Z(-5)], y: 0.55 },
+      { name: 'Billy Bishop Airport Ferry Dock', r: [-1075, -1045, Z(-352), Z(-302)], y: 0.55 }
     ];
 
     PIERS.forEach(p => {
@@ -899,7 +939,7 @@
       for (let k = 0; k < 900 && tables.length < 70; k++) {
         const c = CLEARINGS[Math.floor(rnd() * CLEARINGS.length)];
         if (!c.c || c.c[2] < 30) continue;
-        const a = rnd() * 6.283, d = rnd() * c.c[2] * 0.85;
+        const a = rnd() * 6.283, d = 5.0 + rnd() * Math.max(1, c.c[2] * 0.85 - 5.0);
         const x = c.c[0] + Math.cos(a) * d, z = c.c[1] + Math.sin(a) * d;
         if (nearBridge(x, z, 6.0) || nearTrainTrack(x, z, 5.0) || landField(x, z) < 4 || nearPath(x, z, 3) || isSand(x, z, 9)) continue;
         if (tables.some(t => Math.hypot(t[0] - x, t[1] - z) < 9)) continue;
@@ -2338,14 +2378,41 @@
 
     // ------------------------------------------------------------------------
     // Landmark: Billy Bishop Toronto City Airport (CYTZ)
+    // - Porter Airlines De Havilland Dash 8-400 (Q400) Turboprops on Runway & Gates
+    // - Curved-Roof Modern Passenger Terminal & ATC Tower
+    // - Billy Bishop Airport Ferry Slip across the Western Gap
     // ------------------------------------------------------------------------
     let radarDish = null;
+    let windsockCone = null;
+    const q400Propellers = [];
     {
       const apg = new THREE.Group();
-      // Runway 08/26: 520m asphalt strip
+      // Runway 08/26: 520m asphalt strip + Parallel Taxiway Alpha & Tarmac Apron
       const runway = new THREE.Mesh(new THREE.BoxGeometry(520, 0.1, 44), asphaltMat);
       runway.position.set(-1260, GROUND_Y + 0.05, Z(-170));
       apg.add(runway);
+
+      // Parallel taxiway & terminal apron
+      const taxiway = new THREE.Mesh(new THREE.BoxGeometry(440, 0.09, 20), asphaltMat);
+      taxiway.position.set(-1220, GROUND_Y + 0.04, Z(-206));
+      apg.add(taxiway);
+      const apron = new THREE.Mesh(new THREE.BoxGeometry(155, 0.09, 52), concreteMat);
+      apron.position.set(-1060, GROUND_Y + 0.04, Z(-215));
+      apg.add(apron);
+
+      // Yellow taxiway centerline & edge lines
+      const taxiLine = new THREE.Mesh(new THREE.BoxGeometry(430, 0.11, 0.45), yellowMarkMat);
+      taxiLine.position.set(-1220, GROUND_Y + 0.09, Z(-206));
+      apg.add(taxiLine);
+
+      [-1440, -1260, -1100, -1020].forEach(tx => {
+        const link = new THREE.Mesh(new THREE.BoxGeometry(14, 0.09, 26), asphaltMat);
+        link.position.set(tx, GROUND_Y + 0.045, Z(-188));
+        apg.add(link);
+        const linkLine = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.11, 26), yellowMarkMat);
+        linkLine.position.set(tx, GROUND_Y + 0.095, Z(-188));
+        apg.add(linkLine);
+      });
 
       for (let rx = -1490; rx <= -1030; rx += 36) {
         const dash = new THREE.Mesh(new THREE.BoxGeometry(20, 0.12, 1.2), whiteMarkMat);
@@ -2360,104 +2427,673 @@
         }
       });
 
-      // Terminal building & control tower
-      const ax = -1060, az = Z(-230);
-      const term = new THREE.Mesh(new THREE.BoxGeometry(72, 8.5, 36), concreteMat);
-      term.position.set(ax, 4.75, az);
-      apg.add(term);
-      const facade = new THREE.Mesh(new THREE.BoxGeometry(72.4, 4.5, 1.0), glassMat);
-      facade.position.set(ax, 5.0, az + 18.2);
-      apg.add(facade);
-      const apSign = makeSign(
-        ['BILLY BISHOP TORONTO CITY AIRPORT', 'ISLAND TERMINAL • WESTERN GAP'],
-        24, 2.4,
-        { bg: '#0f172a', fg: '#38bdf8', borderColor: '#0284c7' }
-      );
-      apSign.position.set(ax, 9.8, az + 18.6);
-      apg.add(apSign);
-      rectOb(ax - 36, ax + 36, az - 18, az + 18);
+      // Runway edge lights & PAPI approach lights
+      const rwyLightMat = new THREE.MeshBasicMaterial({ color: 0xfef08a, fog: false });
+      for (let rx = -1510; rx <= -1010; rx += 32) {
+        [-22.5, 22.5].forEach(rz => {
+          const rl = new THREE.Mesh(new THREE.SphereGeometry(0.22, 6, 6), rwyLightMat);
+          rl.position.set(rx, GROUND_Y + 0.35, Z(-170) + rz);
+          apg.add(rl);
+        });
+      }
 
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 3.2, 28, 12), concreteMat);
-      shaft.position.set(ax + 48, 14.5, az);
+      // Windsock near Runway 08/26 midpoint
+      const wsPole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 5.5, 8), metalMat);
+      wsPole.position.set(-1180, GROUND_Y + 2.75, Z(-140));
+      apg.add(wsPole);
+      windsockCone = new THREE.Group();
+      const wsMatO = new THREE.MeshBasicMaterial({ color: 0xf97316, fog: false });
+      const wsMatW = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false });
+      for (let wi = 0; wi < 5; wi++) {
+        const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.42 - wi * 0.05, 0.47 - wi * 0.05, 0.45, 10, 1, true), wi % 2 === 0 ? wsMatO : wsMatW);
+        seg.rotation.z = Math.PI / 2;
+        seg.position.x = 0.35 + wi * 0.44;
+        windsockCone.add(seg);
+      }
+      windsockCone.position.set(-1180, GROUND_Y + 5.3, Z(-140));
+      apg.add(windsockCone);
+
+      // Upgraded Billy Bishop Passenger Terminal (Nieuport / Porter Architecture)
+      const ax = -1060, az = Z(-252);
+      const termSilverMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.28, metalness: 0.72 });
+      const termNavyMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4, metalness: 0.4 });
+      const termCedarMat = new THREE.MeshStandardMaterial({ color: 0x9a5b32, roughness: 0.65 });
+      const termGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef3c7, fog: false });
+
+      // Main terminal plinth & warm-lit concourse core
+      const termBase = new THREE.Mesh(new THREE.BoxGeometry(88, 0.6, 38), stoneMat);
+      termBase.position.set(ax, GROUND_Y + 0.3, az);
+      apg.add(termBase);
+
+      const termCore = new THREE.Mesh(new THREE.BoxGeometry(82, 8.2, 32), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 }));
+      termCore.position.set(ax, GROUND_Y + 4.4, az);
+      apg.add(termCore);
+
+      // Glowing interior lounge windows visible through glass curtain wall
+      const loungeGlow = new THREE.Mesh(new THREE.BoxGeometry(78, 5.8, 28), termGlowMat);
+      loungeGlow.position.set(ax, GROUND_Y + 3.8, az);
+      apg.add(loungeGlow);
+
+      // Sweeping south & north floor-to-ceiling glass curtain walls
+      [16.2, -16.2].forEach(gz => {
+        const glassWall = new THREE.Mesh(new THREE.BoxGeometry(82.4, 7.6, 0.45), glassMat);
+        glassWall.position.set(ax, GROUND_Y + 4.4, az + gz);
+        apg.add(glassWall);
+        for (let mx = -40; mx <= 40; mx += 8) {
+          const mullion = new THREE.Mesh(new THREE.BoxGeometry(0.32, 8.2, 0.7), termNavyMat);
+          mullion.position.set(ax + mx, GROUND_Y + 4.4, az + gz);
+          apg.add(mullion);
+        }
+      });
+
+      // Three signature curved standing-seam metallic barrel-vault roof spans
+      [-26, 0, 26].forEach((vx, vi) => {
+        const vault = new THREE.Mesh(
+          new THREE.CylinderGeometry(14.5, 14.5, 42, 20, 1, false, -Math.PI * 0.34, Math.PI * 0.68),
+          termSilverMat
+        );
+        vault.rotation.x = Math.PI / 2;
+        vault.scale.set(1.0, 1.0, 0.36);
+        vault.position.set(ax + vx, GROUND_Y + 4.2 + (vi === 1 ? 1.1 : 0.3), az);
+        apg.add(vault);
+
+        const cedarSoffit = new THREE.Mesh(new THREE.BoxGeometry(27, 0.35, 40), termCedarMat);
+        cedarSoffit.position.set(ax + vx, GROUND_Y + 8.5 + (vi === 1 ? 0.8 : 0), az);
+        apg.add(cedarSoffit);
+      });
+
+      // Airside Gate Lounges & Covered Jet-Walkways extending south toward the parked Q400s
+      [-34, 34].forEach((gx, gi) => {
+        const gateLounge = new THREE.Mesh(new THREE.BoxGeometry(12, 4.6, 16), glassMat);
+        gateLounge.position.set(ax + gx, GROUND_Y + 2.6, az + 23);
+        apg.add(gateLounge);
+        const gateRoof = new THREE.Mesh(new THREE.BoxGeometry(13.2, 0.45, 17.2), termSilverMat);
+        gateRoof.position.set(ax + gx, GROUND_Y + 5.0, az + 23);
+        apg.add(gateRoof);
+        const gateSign = makeSign([`GATE ${gi + 1} • PORTER`, gi === 0 ? 'OTTAWA • MONTREAL • HALIFAX' : 'NEW YORK • BOSTON • CHICAGO'], 8.5, 1.3, { bg: '#0f172a', fg: '#38bdf8', borderColor: '#facc15' });
+        gateSign.position.set(ax + gx, GROUND_Y + 5.9, az + 31.2);
+        apg.add(gateSign);
+      });
+
+      const apSignSouth = makeSign(
+        ['BILLY BISHOP TORONTO CITY AIRPORT (CYTZ)', 'PORTER AIRLINES HUB • ISLAND PASSENGER TERMINAL'],
+        28, 2.8,
+        { bg: '#0f172a', fg: '#f8fafc', borderColor: '#38bdf8', subFg: '#7dd3fc' }
+      );
+      apSignSouth.position.set(ax, GROUND_Y + 11.4, az + 19.8);
+      apg.add(apSignSouth);
+
+      const apSignNorth = makeSign(
+        ['BILLY BISHOP TORONTO CITY AIRPORT', 'WELCOME TO TORONTO ISLANDS • WESTERN GAP TERMINAL'],
+        26, 2.6,
+        { bg: '#0f172a', fg: '#38bdf8', borderColor: '#facc15' }
+      );
+      apSignNorth.position.set(ax, GROUND_Y + 11.2, az - 19.8);
+      apSignNorth.rotation.y = Math.PI;
+      apg.add(apSignNorth);
+
+      rectOb(ax - 41, ax + 41, az - 16, az + 16);
+
+      // Covered Glass & Steel Ferry Connector Walkway from Terminal north to Western Gap Ferry Slip
+      const walkCanopy = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.35, 52), termSilverMat);
+      walkCanopy.position.set(ax, GROUND_Y + 4.4, Z(-295));
+      apg.add(walkCanopy);
+      for (let wz = Z(-318); wz <= Z(-272); wz += 11) {
+        [-4.4, 4.4].forEach(wx => {
+          const wp = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 4.4, 8), termNavyMat);
+          wp.position.set(ax + wx, GROUND_Y + 2.2, wz);
+          apg.add(wp);
+        });
+      }
+
+      // Billy Bishop Airport Western Gap Ferry Slip Portal & Signage at (ax, Z(-326))
+      const slipArchL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 5.2, 0.6), termNavyMat);
+      slipArchL.position.set(ax - 7.5, GROUND_Y + 2.6, Z(-324));
+      apg.add(slipArchL);
+      const slipArchR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 5.2, 0.6), termNavyMat);
+      slipArchR.position.set(ax + 7.5, GROUND_Y + 2.6, Z(-324));
+      apg.add(slipArchR);
+      const slipBeam = new THREE.Mesh(new THREE.BoxGeometry(16.4, 0.7, 0.9), termSilverMat);
+      slipBeam.position.set(ax, GROUND_Y + 5.3, Z(-324));
+      apg.add(slipBeam);
+
+      const ferrySlipSignS = makeSign(
+        ['BILLY BISHOP AIRPORT FERRY', 'TO MAINLAND BATHURST QUAY — PRESS [E] TO BOARD'],
+        15.5, 2.2,
+        { bg: '#0f172a', fg: '#38bdf8', borderColor: '#facc15', subFg: '#fef08a' }
+      );
+      ferrySlipSignS.position.set(ax, GROUND_Y + 6.5, Z(-323.4));
+      apg.add(ferrySlipSignS);
+
+      const ferrySlipSignN = makeSign(
+        ['BILLY BISHOP AIRPORT ISLAND SLIP', 'WESTERN GAP FERRY • WELCOME TO CYTZ'],
+        15.5, 2.2,
+        { bg: '#0f172a', fg: '#f8fafc', borderColor: '#38bdf8' }
+      );
+      ferrySlipSignN.position.set(ax, GROUND_Y + 6.5, Z(-324.6));
+      ferrySlipSignN.rotation.y = Math.PI;
+      apg.add(ferrySlipSignN);
+
+      // Upgraded Air Traffic Control Tower at (ax + 54, az)
+      const tx = ax + 54, tz = az;
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.6, 28, 16), concreteMat);
+      shaft.position.set(tx, GROUND_Y + 14.0, tz);
       apg.add(shaft);
-      const cab = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 3.6, 4.5, 12), glassMat);
-      cab.position.set(ax + 48, 29.5, az);
+      const catwalk = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 4.8, 0.8, 16), termNavyMat);
+      catwalk.position.set(tx, GROUND_Y + 27.6, tz);
+      apg.add(catwalk);
+      const cab = new THREE.Mesh(new THREE.CylinderGeometry(4.8, 3.9, 4.6, 12), glassMat);
+      cab.position.set(tx, GROUND_Y + 30.2, tz);
       apg.add(cab);
-      circOb(ax + 48, az, 3.3);
+      const cabRoof = new THREE.Mesh(new THREE.CylinderGeometry(5.1, 5.1, 0.6, 12), termSilverMat);
+      cabRoof.position.set(tx, GROUND_Y + 32.8, tz);
+      apg.add(cabRoof);
+      circOb(tx, tz, 3.6);
 
       radarDish = new THREE.Group();
-      radarDish.add(new THREE.Mesh(new THREE.BoxGeometry(3.8, 1.2, 0.4), metalMat));
-      radarDish.position.set(ax + 48, 32.5, az);
+      radarDish.add(new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.3, 0.45), metalMat));
+      radarDish.position.set(tx, GROUND_Y + 34.4, tz);
       apg.add(radarDish);
 
-      // Dash-8 aircraft parked at gates
-      const plane = (px, pz, rotY) => {
+      // Porter Airlines Tail Emblem Texture (Midnight Navy Fin with Iconic White Badge & Masked Raccoon Motif)
+      function makePorterTailTexture() {
+        const can = document.createElement('canvas');
+        can.width = 256;
+        can.height = 256;
+        const g = can.getContext('2d');
+        if (g) {
+          g.fillStyle = '#0f2557';
+          g.fillRect(0, 0, 256, 256);
+          // Crisp white circular badge
+          g.fillStyle = '#f8fafc';
+          g.beginPath();
+          g.arc(128, 128, 86, 0, Math.PI * 2);
+          g.fill();
+          g.strokeStyle = '#94a3b8';
+          g.lineWidth = 5;
+          g.stroke();
+          // Porter Raccoon silhouette (ears, head, navy bandit mask, white snout, P monogram)
+          g.fillStyle = '#0f2557';
+          g.beginPath();
+          g.arc(92, 78, 22, 0, Math.PI * 2);
+          g.arc(164, 78, 22, 0, Math.PI * 2);
+          g.fill();
+          g.beginPath();
+          g.arc(128, 126, 52, 0, Math.PI * 2);
+          g.fill();
+          // White brow & cheeks
+          g.fillStyle = '#f8fafc';
+          g.beginPath();
+          g.ellipse(104, 118, 20, 12, -0.15, 0, Math.PI * 2);
+          g.ellipse(152, 118, 20, 12, 0.15, 0, Math.PI * 2);
+          g.fill();
+          // Dark bandit eye mask
+          g.fillStyle = '#091533';
+          g.beginPath();
+          g.ellipse(104, 118, 13, 8, -0.15, 0, Math.PI * 2);
+          g.ellipse(152, 118, 13, 8, 0.15, 0, Math.PI * 2);
+          g.fill();
+          // Bright eyes
+          g.fillStyle = '#ffffff';
+          g.beginPath();
+          g.arc(106, 117, 3.5, 0, Math.PI * 2);
+          g.arc(150, 117, 3.5, 0, Math.PI * 2);
+          g.fill();
+          // White muzzle & dark nose
+          g.fillStyle = '#f8fafc';
+          g.beginPath();
+          g.ellipse(128, 146, 22, 15, 0, 0, Math.PI * 2);
+          g.fill();
+          g.fillStyle = '#0f2557';
+          g.beginPath();
+          g.arc(128, 142, 6, 0, Math.PI * 2);
+          g.fill();
+          g.font = 'bold 28px Georgia, serif';
+          g.fillStyle = '#0f2557';
+          g.textAlign = 'center';
+          g.fillText('porter', 128, 194);
+        }
+        return new THREE.CanvasTexture(can);
+      }
+
+      const porterTailTex = makePorterTailTexture();
+      const porterWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.22, metalness: 0.18 });
+      const porterNavyMat = new THREE.MeshStandardMaterial({ color: 0x0f2557, roughness: 0.32, metalness: 0.28 });
+      const porterGoldMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.35, metalness: 0.65 });
+      const radomeMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.35 });
+      const cockpitGlassMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, roughness: 0.08, metalness: 0.85 });
+      const cabinWinMat = new THREE.MeshBasicMaterial({ color: 0xbae6fd, fog: false });
+      const tireMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.88 });
+      const propBladeMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.5 });
+
+      // Detailed Porter Airlines De Havilland Canada Dash 8-400 (Q400) Builder
+      function buildPorterDash8Q400(px, pz, rotY, opts) {
+        const o = opts || {};
         const pl = new THREE.Group();
-        const fuse = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 26, 12), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 }));
+
+        // 1. Stretched Q400 Pressurized Fuselage (local -Z is forward nose, +Z is tail)
+        const fuseLen = 25.0, fuseR = 1.62;
+        const fuse = new THREE.Mesh(new THREE.CylinderGeometry(fuseR, fuseR, fuseLen, 20), porterWhiteMat);
         fuse.rotation.x = Math.PI / 2;
         pl.add(fuse);
-        const navy = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.4 });
-        const wings = new THREE.Mesh(new THREE.BoxGeometry(28, 0.3, 3.5), navy);
-        wings.position.set(0, 0.8, -2);
-        pl.add(wings);
-        const fin = new THREE.Mesh(new THREE.BoxGeometry(0.3, 4.5, 3.0), navy);
-        fin.position.set(0, 3.2, 11);
-        pl.add(fin);
-        const tail = new THREE.Mesh(new THREE.BoxGeometry(8, 0.25, 2.0), navy);
-        tail.position.set(0, 5.4, 11);
-        pl.add(tail);
-        pl.position.set(px, 2.2, pz);
+
+        // Porter navy-blue lower belly & cheatline stripe + gold accent pin-stripe
+        const bellyStripe = new THREE.Mesh(new THREE.BoxGeometry(fuseR * 2.02, 0.55, fuseLen * 0.96), porterNavyMat);
+        bellyStripe.position.set(0, -0.45, 0);
+        pl.add(bellyStripe);
+        const goldStripe = new THREE.Mesh(new THREE.BoxGeometry(fuseR * 2.04, 0.10, fuseLen * 0.96), porterGoldMat);
+        goldStripe.position.set(0, -0.12, 0);
+        pl.add(goldStripe);
+
+        // Aerodynamic Nose Cone & Weather Radar Radome (-Z forward)
+        const noseCone = new THREE.Mesh(new THREE.CylinderGeometry(0.65, fuseR, 4.2, 20), porterWhiteMat);
+        noseCone.rotation.x = -Math.PI / 2;
+        noseCone.position.set(0, -0.12, -fuseLen / 2 - 2.1);
+        pl.add(noseCone);
+
+        const radome = new THREE.Mesh(new THREE.SphereGeometry(0.66, 16, 12), radomeMat);
+        radome.scale.set(1.0, 0.88, 1.55);
+        radome.position.set(0, -0.18, -fuseLen / 2 - 4.2);
+        pl.add(radome);
+
+        // Angled Cockpit Flight Deck Windshield
+        const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.72, 1.85), cockpitGlassMat);
+        windshield.position.set(0, 0.62, -fuseLen / 2 - 1.15);
+        windshield.rotation.x = 0.35;
+        pl.add(windshield);
+
+        // Tapered Rear Tail Cone (+Z aft)
+        const tailCone = new THREE.Mesh(new THREE.CylinderGeometry(0.45, fuseR, 5.4, 20), porterNavyMat);
+        tailCone.rotation.x = Math.PI / 2;
+        tailCone.position.set(0, 0.22, fuseLen / 2 + 2.7);
+        pl.add(tailCone);
+
+        // 28 Illuminated Oval Cabin Windows on Port & Starboard Sides + "porter" Fuselage Titles
+        for (let wi = -9.5; wi <= 9.0; wi += 0.95) {
+          [-fuseR - 0.02, fuseR + 0.02].forEach(wx => {
+            const win = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.34, 0.24), cabinWinMat);
+            win.position.set(wx, 0.36, wi);
+            pl.add(win);
+          });
+        }
+
+        const porterBrandL = makeSign(['porter', 'DE HAVILLAND Q400 • C-GLQP'], 7.2, 0.95, { bg: '#f8fafc', fg: '#0f2557', borderColor: '#f8fafc', subFg: '#64748b', titleSize: 56, subSize: 22 });
+        porterBrandL.rotation.y = -Math.PI / 2;
+        porterBrandL.position.set(-fuseR - 0.04, 0.85, -3.5);
+        pl.add(porterBrandL);
+
+        const porterBrandR = makeSign(['porter', 'DE HAVILLAND Q400 • C-GLQP'], 7.2, 0.95, { bg: '#f8fafc', fg: '#0f2557', borderColor: '#f8fafc', subFg: '#64748b', titleSize: 56, subSize: 22 });
+        porterBrandR.rotation.y = Math.PI / 2;
+        porterBrandR.position.set(fuseR + 0.04, 0.85, -3.5);
+        pl.add(porterBrandR);
+
+        // 2. High-Mounted Swept Wing & Aerodynamic Wingbox Fairing (Signature Dash-8 High Wing!)
+        const wingBox = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.65, 5.8), porterWhiteMat);
+        wingBox.position.set(0, fuseR - 0.1, -0.5);
+        pl.add(wingBox);
+
+        const mainWing = new THREE.Mesh(new THREE.BoxGeometry(28.4, 0.28, 3.1), porterWhiteMat);
+        mainWing.position.set(0, fuseR + 0.08, -0.5);
+        pl.add(mainWing);
+
+        // Navy-blue wingtips & Red/Green navigation strobes
+        [-14.2, 14.2].forEach((wx, side) => {
+          const tip = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.30, 2.8), porterNavyMat);
+          tip.position.set(wx, fuseR + 0.10, -0.5);
+          pl.add(tip);
+          const strobe = new THREE.Mesh(
+            new THREE.SphereGeometry(0.18, 8, 8),
+            new THREE.MeshBasicMaterial({ color: side === 0 ? 0xef4444 : 0x22c55e, fog: false })
+          );
+          strobe.position.set(wx + (side === 0 ? -0.7 : 0.7), fuseR + 0.15, -0.5);
+          pl.add(strobe);
+        });
+
+        // 3. Twin Pratt & Whitney PW150A Turboprop Engine Nacelles & Animated 6-Blade Dowty Propellers
+        [-5.2, 5.2].forEach(ex => {
+          const nacelle = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.62, 6.4, 16), porterNavyMat);
+          nacelle.rotation.x = Math.PI / 2;
+          nacelle.position.set(ex, fuseR - 0.45, -1.6);
+          pl.add(nacelle);
+
+          // Silver turbine intake ring & exhaust nozzle
+          const intake = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.68, 0.8, 16), metalMat);
+          intake.rotation.x = Math.PI / 2;
+          intake.position.set(ex, fuseR - 0.45, -4.9);
+          pl.add(intake);
+
+          // Rotating 6-blade composite propeller assembly + polished spinner cone
+          const propHub = new THREE.Group();
+          propHub.position.set(ex, fuseR - 0.45, -5.45);
+          const spinner = new THREE.Mesh(new THREE.ConeGeometry(0.46, 1.15, 16), metalMat);
+          spinner.rotation.x = -Math.PI / 2;
+          spinner.position.z = -0.35;
+          propHub.add(spinner);
+
+          for (let bi = 0; bi < 6; bi++) {
+            const ang = (bi / 6) * Math.PI * 2;
+            const bladeGrp = new THREE.Group();
+            bladeGrp.rotation.z = ang;
+            const blade = new THREE.Mesh(new THREE.BoxGeometry(0.24, 2.05, 0.05), propBladeMat);
+            blade.position.y = 1.1;
+            blade.rotation.y = 0.35; // blade pitch
+            bladeGrp.add(blade);
+            const tipStripe = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.22, 0.06), yellowMarkMat);
+            tipStripe.position.y = 2.0;
+            tipStripe.rotation.y = 0.35;
+            bladeGrp.add(tipStripe);
+            propHub.add(bladeGrp);
+          }
+
+          // Subtle motion blur disc when spinning fast
+          if (o.spinSpeed && o.spinSpeed > 4) {
+            const disc = new THREE.Mesh(
+              new THREE.CircleGeometry(2.1, 24),
+              new THREE.MeshBasicMaterial({ color: 0xcbd5e1, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false })
+            );
+            propHub.add(disc);
+          }
+
+          pl.add(propHub);
+          q400Propellers.push({ hub: propHub, speed: o.spinSpeed !== undefined ? o.spinSpeed : 6.0 });
+
+          // Long Main Landing Gear Strut & Dual Tires descending from each nacelle
+          const gearStrut = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 2.55, 8), metalMat);
+          gearStrut.position.set(ex, -0.15, -0.8);
+          pl.add(gearStrut);
+          [-0.28, 0.28].forEach(wo => {
+            const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.24, 14), tireMat);
+            wheel.rotation.z = Math.PI / 2;
+            wheel.position.set(ex + wo, -1.42, -0.8);
+            pl.add(wheel);
+          });
+        });
+
+        // 4. Nose Landing Gear + Taxi/Takeoff LED Headlight
+        const noseStrut = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.85, 8), metalMat);
+        noseStrut.position.set(0, -0.95, -fuseLen / 2 - 0.8);
+        pl.add(noseStrut);
+        [-0.20, 0.20].forEach(wo => {
+          const nWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.18, 12), tireMat);
+          nWheel.rotation.z = Math.PI / 2;
+          nWheel.position.set(wo, -1.54, -fuseLen / 2 - 0.8);
+          pl.add(nWheel);
+        });
+        if (o.headlight) {
+          const beamLight = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }));
+          beamLight.position.set(0, -0.7, -fuseLen / 2 - 0.95);
+          pl.add(beamLight);
+        }
+
+        // 5. Tall Iconic T-Tail Vertical Stabilizer with Porter Raccoon Badge & Horizontal Tailplane
+        const vFin = new THREE.Mesh(new THREE.BoxGeometry(0.34, 6.2, 4.4), porterNavyMat);
+        vFin.position.set(0, 3.6, fuseLen / 2 + 2.8);
+        vFin.rotation.x = -0.22; // swept back fin
+        pl.add(vFin);
+
+        // Emblazon Porter Raccoon Badge on both sides of the vertical tail fin
+        const badgeMat = new THREE.MeshBasicMaterial({ map: porterTailTex, side: THREE.DoubleSide });
+        [-0.19, 0.19].forEach((bx, bi) => {
+          const badge = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2), badgeMat);
+          badge.position.set(bx, 3.9, fuseLen / 2 + 2.9);
+          badge.rotation.y = bi === 0 ? -Math.PI / 2 : Math.PI / 2;
+          pl.add(badge);
+        });
+
+        // High T-Tail Horizontal Stabilizer Bullet Fairing & Tailplane
+        const bullet = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 3.8, 12), porterNavyMat);
+        bullet.rotation.x = Math.PI / 2;
+        bullet.position.set(0, 6.65, fuseLen / 2 + 3.4);
+        pl.add(bullet);
+
+        const hTail = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.22, 2.2), porterWhiteMat);
+        hTail.position.set(0, 6.65, fuseLen / 2 + 3.5);
+        pl.add(hTail);
+
+        // Red anti-collision beacon atop the T-tail
+        const tailBeacon = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xef4444, fog: false }));
+        tailBeacon.position.set(0, 6.95, fuseLen / 2 + 3.5);
+        pl.add(tailBeacon);
+
+        pl.position.set(px, GROUND_Y + 1.90, pz);
         pl.rotation.y = rotY;
         apg.add(pl);
-        circOb(px, pz, 9);
-      };
-      plane(ax - 28, az + 45, 0.3);
-      plane(ax + 24, az + 55, -0.2);
+        circOb(px, pz, 9.5);
+        return pl;
+      }
+
+      // 1. Active Runway 08 Takeoff Aircraft: lined up on Runway 08 at (-1360, Z(-170)) facing East (-Math.PI/2 so -Z nose points +X!)
+      buildPorterDash8Q400(-1360, Z(-170), -Math.PI / 2, { spinSpeed: 22.0, headlight: true });
+      // 2. Runway 26 Holding / Taxiing Q400 at East Taxiway (-1160, Z(-206)) facing West (+Math.PI/2)
+      buildPorterDash8Q400(-1160, Z(-206), Math.PI / 2, { spinSpeed: 12.0, headlight: true });
+      // 3 & 4. Two Gate-Parked Porter Q400 Turboprops at Terminal Gates 1 & 2
+      buildPorterDash8Q400(ax - 34, az + 50, 0.12, { spinSpeed: 2.8, headlight: false });
+      buildPorterDash8Q400(ax + 34, az + 50, -0.12, { spinSpeed: 0.0, headlight: false });
 
       islandsGroup.add(apg);
     }
 
     // ------------------------------------------------------------------------
-    // Landmark: Algonquin and Ward's Island Summer Cottages, Ward's Cafe
+    // Landmark: Algonquin and Ward's Island Cute Unique Cottages in the Woods,
+    // Ward's Island Cafe & Ward's Island Ferry Dock Pavilion
     // ------------------------------------------------------------------------
     {
       const cottGrp = new THREE.Group();
-      const pastel = [0xbfdbfe, 0xbbf7d0, 0xfef08a, 0xfbcfe8, 0xe9d5ff, 0xfed7aa];
 
-      function addCottage(cx, cz, rotY, col) {
+      // 12 Curated Heritage Island Cottage Palettes (Siding, Roof Shingles, Shutters/Door)
+      const COTTAGE_STYLES = [
+        { siding: 0x93c5fd, roof: 0x334155, trim: 0xf8fafc, door: 0xb91c1c, shutter: 0x1e3a8a }, // Robin's Egg Blue & Slate
+        { siding: 0xa7f3d0, roof: 0x3f2e21, trim: 0xffffff, door: 0x92400e, shutter: 0x065f46 }, // Sage Mint & Cedar Shake
+        { siding: 0xfef08a, roof: 0x1e3a2f, trim: 0xffffff, door: 0x1d4ed8, shutter: 0x14532d }, // Buttercup Yellow & Forest Green
+        { siding: 0xfbcfe8, roof: 0x475569, trim: 0xf8fafc, door: 0x831843, shutter: 0x334155 }, // Rose Cottage & Charcoal
+        { siding: 0xddd6fe, roof: 0x312e81, trim: 0xffffff, door: 0x6d28d9, shutter: 0x1e1b4b }, // Lavender Mist & Indigo
+        { siding: 0xfed7aa, roof: 0x7c2d12, trim: 0xfffbeb, door: 0x15803d, shutter: 0x431407 }, // Warm Apricot & Terracotta
+        { siding: 0xf8fafc, roof: 0x1e3a8a, trim: 0xe2e8f0, door: 0xdc2626, shutter: 0x1e40af }, // Crisp Coastal White & Navy
+        { siding: 0xfca5a5, roof: 0x27272a, trim: 0xffffff, door: 0x1e293b, shutter: 0x7f1d1d }, // Heritage Barn Coral & Zinc
+        { siding: 0xbae6fd, roof: 0x451a03, trim: 0xffffff, door: 0xd97706, shutter: 0x0c4a6e }, // Harbour Sky & Warm Brown
+        { siding: 0xd9f99d, roof: 0x365314, trim: 0xf8fafc, door: 0xb45309, shutter: 0x1a2e05 }, // Meadow Fern & Moss Shingle
+        { siding: 0xfde68a, roof: 0x7f1d1d, trim: 0xffffff, door: 0x047857, shutter: 0x78350f }, // Sunflower Cream & Burgundy
+        { siding: 0xc7d2fe, roof: 0x374151, trim: 0xf8fafc, door: 0xbe123c, shutter: 0x312e81 }  // Periwinkle & Pewter
+      ];
+
+      const warmWinGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a, fog: false });
+      const chimneyBrickMat = new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.85 });
+      const flowerColors = [0xef4444, 0xec4899, 0xfacc15, 0xa855f7, 0x3b82f6];
+
+      function addUniqueCottage(cDef, idx) {
+        const st = COTTAGE_STYLES[idx % COTTAGE_STYLES.length];
         const c = new THREE.Group();
-        const bldg = new THREE.Mesh(new THREE.BoxGeometry(8.5, 3.4, 7.0), new THREE.MeshStandardMaterial({ color: col, roughness: 0.7 }));
-        bldg.position.y = 1.7;
-        c.add(bldg);
-        const roof = new THREE.Mesh(new THREE.ConeGeometry(6.6, 2.6, 4), darkWoodMat);
-        roof.position.y = 4.4;
-        roof.rotation.y = Math.PI / 4;
-        c.add(roof);
-        const porch = new THREE.Mesh(new THREE.BoxGeometry(7.5, 0.3, 2.2), woodMat);
-        porch.position.set(0, 0.2, 4.2);
-        c.add(porch);
-        const fence = new THREE.Mesh(new THREE.BoxGeometry(12, 0.8, 0.1), new THREE.MeshStandardMaterial({ color: 0xf5f5f0 }));
-        fence.position.set(0, 0.4, 7.5);
-        c.add(fence);
-        c.position.set(cx, GROUND_Y, cz);
-        c.rotation.y = rotY;
+
+        // Slightly unique dimensions for each cottage
+        const w = 7.2 + (idx % 4) * 0.55;
+        const d = 6.2 + ((idx * 3) % 3) * 0.45;
+        const h = 3.2 + (idx % 3) * 0.25;
+        const roofH = 2.2 + (idx % 2) * 0.35;
+
+        const sidingMat = new THREE.MeshStandardMaterial({ color: st.siding, roughness: 0.65 });
+        const roofMat = new THREE.MeshStandardMaterial({ color: st.roof, roughness: 0.78 });
+        const trimMat = new THREE.MeshStandardMaterial({ color: st.trim, roughness: 0.5 });
+        const doorMat = new THREE.MeshStandardMaterial({ color: st.door, roughness: 0.55 });
+        const shutterMat = new THREE.MeshStandardMaterial({ color: st.shutter, roughness: 0.6 });
+
+        // 1. Stone foundation plinth & Main Clapboard Body
+        const found = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.38, d + 0.3), stoneMat);
+        found.position.y = 0.19;
+        c.add(found);
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), sidingMat);
+        body.position.y = 0.38 + h / 2;
+        c.add(body);
+
+        // Crisp white corner trim boards & fascia
+        [-w / 2, w / 2].forEach(tx => {
+          [-d / 2, d / 2].forEach(tz => {
+            const corner = new THREE.Mesh(new THREE.BoxGeometry(0.18, h + 0.05, 0.18), trimMat);
+            corner.position.set(tx, 0.38 + h / 2, tz);
+            c.add(corner);
+          });
+        });
+
+        // Optional side bay-window / sunroom wing on every 3rd cottage
+        if (idx % 3 === 0) {
+          const sideSign = (idx % 6 === 0) ? 1 : -1;
+          const bay = new THREE.Mesh(new THREE.BoxGeometry(1.6, h * 0.78, d * 0.52), sidingMat);
+          bay.position.set(sideSign * (w / 2 + 0.7), 0.38 + h * 0.39, 0);
+          c.add(bay);
+          const bayRoof = new THREE.Mesh(new THREE.ConeGeometry(1.65, 1.1, 4), roofMat);
+          bayRoof.rotation.y = Math.PI / 4;
+          bayRoof.position.set(sideSign * (w / 2 + 0.7), 0.38 + h * 0.78 + 0.5, 0);
+          c.add(bayRoof);
+          const bayWin = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.1, d * 0.36), warmWinGlowMat);
+          bayWin.position.set(sideSign * (w / 2 + 1.48), 0.38 + h * 0.42, 0);
+          c.add(bayWin);
+        }
+
+        // 2. Pitched Gabled Roof (Two sloped roof planes + ridge beam + front/back gable triangles)
+        const slopeLen = Math.hypot(w / 2 + 0.55, roofH);
+        const slopeAng = Math.atan2(roofH, w / 2 + 0.55);
+        [-1, 1].forEach(sd => {
+          const rPane = new THREE.Mesh(new THREE.BoxGeometry(slopeLen, 0.18, d + 0.9), roofMat);
+          rPane.position.set(sd * (w / 4 + 0.22), 0.38 + h + roofH / 2 - 0.05, 0);
+          rPane.rotation.z = -sd * slopeAng;
+          c.add(rPane);
+        });
+        const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.24, d + 0.96), trimMat);
+        ridge.position.set(0, 0.38 + h + roofH - 0.02, 0);
+        c.add(ridge);
+
+        // Gable wall infill & round attic louver vent
+        const gableBox = new THREE.Mesh(new THREE.BoxGeometry(w * 0.56, roofH * 0.62, d - 0.1), sidingMat);
+        gableBox.position.set(0, 0.38 + h + roofH * 0.31, 0);
+        c.add(gableBox);
+
+        // 3. Cute Attic Dormer Window on front roof slope (every 2nd cottage)
+        if (idx % 2 === 0) {
+          const dorm = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.25, 1.8), sidingMat);
+          dorm.position.set(0, 0.38 + h + roofH * 0.48, d * 0.25);
+          c.add(dorm);
+          const dormRoof = new THREE.Mesh(new THREE.ConeGeometry(1.4, 0.85, 4), roofMat);
+          dormRoof.rotation.y = Math.PI / 4;
+          dormRoof.position.set(0, 0.38 + h + roofH * 0.48 + 0.95, d * 0.25);
+          c.add(dormRoof);
+          const dormWin = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.72, 0.1), warmWinGlowMat);
+          dormWin.position.set(0, 0.38 + h + roofH * 0.48, d * 0.25 + 0.91);
+          c.add(dormWin);
+        }
+
+        // 4. Red Brick Chimney with Chimney Pot
+        if (idx % 4 !== 3) {
+          const chSide = (idx % 2 === 0) ? -1 : 1;
+          const chim = new THREE.Mesh(new THREE.BoxGeometry(0.75, roofH + 1.4, 0.75), chimneyBrickMat);
+          chim.position.set(chSide * (w * 0.32), 0.38 + h + roofH * 0.55, -d * 0.18);
+          c.add(chim);
+          const chimCap = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.18, 0.92), stoneMat);
+          chimCap.position.set(chSide * (w * 0.32), 0.38 + h + roofH * 1.25, -d * 0.18);
+          c.add(chimCap);
+        }
+
+        // 5. Covered Timber Front Porch with Steps, Posts & Railing (+Z is front)
+        const porchD = 2.1, porchW = w - 0.4;
+        const porchDeck = new THREE.Mesh(new THREE.BoxGeometry(porchW, 0.36, porchD), woodMat);
+        porchDeck.position.set(0, 0.20, d / 2 + porchD / 2);
+        c.add(porchDeck);
+
+        // Two front steps leading to garden path
+        const step1 = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.18, 0.45), woodMat);
+        step1.position.set(0, 0.11, d / 2 + porchD + 0.22);
+        c.add(step1);
+
+        // Sloped porch canopy roof & 4 turned white timber porch posts
+        const porchRoof = new THREE.Mesh(new THREE.BoxGeometry(porchW + 0.4, 0.16, porchD + 0.35), roofMat);
+        porchRoof.position.set(0, 2.75, d / 2 + porchD / 2);
+        porchRoof.rotation.x = 0.16;
+        c.add(porchRoof);
+
+        [-porchW / 2 + 0.2, -1.0, 1.0, porchW / 2 - 0.2].forEach(px => {
+          const pPost = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.10, 2.45, 8), trimMat);
+          pPost.position.set(px, 1.50, d / 2 + porchD - 0.15);
+          c.add(pPost);
+        });
+
+        // Porch railings Left & Right of center steps
+        [-1, 1].forEach(rs => {
+          const rLen = porchW / 2 - 1.1;
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(rLen, 0.72, 0.10), trimMat);
+          rail.position.set(rs * (1.0 + rLen / 2), 0.72, d / 2 + porchD - 0.15);
+          c.add(rail);
+        });
+
+        // 6. Painted Front Door, Warm Lantern Sconce, Windows, Shutters & Flower Boxes
+        const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(1.18, 2.22, 0.12), trimMat);
+        doorFrame.position.set(0, 1.48, d / 2 + 0.02);
+        c.add(doorFrame);
+        const door = new THREE.Mesh(new THREE.BoxGeometry(0.98, 2.08, 0.16), doorMat);
+        door.position.set(0, 1.44, d / 2 + 0.03);
+        c.add(door);
+
+        const sconce = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), lampGlowMat);
+        sconce.position.set(0.78, 2.15, d / 2 + 0.18);
+        c.add(sconce);
+
+        // Front & side windows with shutters and blooming flower boxes
+        [-w * 0.30, w * 0.30].forEach((wx, wi) => {
+          const wFrame = new THREE.Mesh(new THREE.BoxGeometry(1.22, 1.32, 0.12), trimMat);
+          wFrame.position.set(wx, 1.78, d / 2 + 0.02);
+          c.add(wFrame);
+          const wGlass = new THREE.Mesh(new THREE.BoxGeometry(1.02, 1.12, 0.15), warmWinGlowMat);
+          wGlass.position.set(wx, 1.78, d / 2 + 0.03);
+          c.add(wGlass);
+
+          // Louvered painted shutters
+          [-0.74, 0.74].forEach(sx => {
+            const shut = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.28, 0.08), shutterMat);
+            shut.position.set(wx + sx, 1.78, d / 2 + 0.05);
+            c.add(shut);
+          });
+
+          // Under-window cedar flower box with colorful blooms
+          const fBox = new THREE.Mesh(new THREE.BoxGeometry(1.26, 0.24, 0.28), darkWoodMat);
+          fBox.position.set(wx, 1.02, d / 2 + 0.16);
+          c.add(fBox);
+          for (let fi = -0.42; fi <= 0.42; fi += 0.28) {
+            const bloom = new THREE.Mesh(
+              new THREE.SphereGeometry(0.15, 6, 6),
+              new THREE.MeshBasicMaterial({ color: flowerColors[(idx + wi + Math.round((fi + 1) * 3)) % flowerColors.length] })
+            );
+            bloom.position.set(wx + fi, 1.20, d / 2 + 0.18);
+            c.add(bloom);
+          }
+        });
+
+        // 7. Cute White Picket Fence with Open Garden Gate
+        [-1, 1].forEach(fs => {
+          const fSeg = new THREE.Mesh(new THREE.BoxGeometry(w * 0.42, 0.78, 0.10), trimMat);
+          fSeg.position.set(fs * (w * 0.30 + 0.55), 0.39, d / 2 + porchD + 1.8);
+          c.add(fSeg);
+          const fPost = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.95, 0.18), trimMat);
+          fPost.position.set(fs * 0.85, 0.47, d / 2 + porchD + 1.8);
+          c.add(fPost);
+        });
+
+        const cy = Math.max(GROUND_Y, terrainH(cDef.x, cDef.z));
+        c.position.set(cDef.x, cy, cDef.z);
+        c.rotation.y = cDef.rot;
         cottGrp.add(c);
-        circOb(cx, cz, 5.2);
+        circOb(cDef.x, cDef.z, Math.max(w, d) * 0.52);
       }
 
-      for (let i = 0; i < 8; i++) {
-        addCottage(440 + (i % 4) * 36, Z(40) + Math.floor(i / 4) * 44, (i % 3) * 0.4, pastel[i % 6]);
-      }
-      for (let i = 0; i < 12; i++) {
-        addCottage(920 + (i % 6) * 38, Z(-20) + Math.floor(i / 6) * 40, (i % 2) * 0.35, pastel[(i + 2) % 6]);
-      }
+      COTTAGES.forEach((cDef, idx) => addUniqueCottage(cDef, idx));
 
-      // Ward's Island Cafe & garden patio
+      // Ward's Island Cafe & Garden Patio at (1050, Z(70))
       const cafe = new THREE.Mesh(new THREE.BoxGeometry(18, 4.2, 12), new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.6 }));
       cafe.position.set(1050, 2.65, Z(70));
       cottGrp.add(cafe);
+      const cafeRoof = new THREE.Mesh(new THREE.ConeGeometry(13.5, 2.6, 4), new THREE.MeshStandardMaterial({ color: 0x065f46, roughness: 0.7 }));
+      cafeRoof.rotation.y = Math.PI / 4;
+      cafeRoof.position.set(1050, 6.0, Z(70));
+      cottGrp.add(cafeRoof);
       const cafeSign = makeSign(
-        ['WARD\'S ISLAND CAFE', 'GARDEN PATIO • BAKERY'],
+        ['WARD\'S ISLAND CAFE', 'GARDEN PATIO • ARTISAN BAKERY • WOOD-FIRED PIZZA'],
         14, 2.0,
         { bg: '#047857', fg: '#fef08a', borderColor: '#10b981' }
       );
@@ -2465,6 +3101,38 @@
       cafeSign.rotation.y = Math.PI;
       cottGrp.add(cafeSign);
       rectOb(1041, 1059, Z(64), Z(76));
+
+      // Ward's Island Ferry Dock Terminal Pavilion & Sign at (1140, Z(-18))
+      const wx = 1140, wz = Z(-18);
+      const wCanopy = new THREE.Mesh(new THREE.BoxGeometry(18, 0.55, 11), darkWoodMat);
+      wCanopy.position.set(wx, 4.2, wz);
+      cottGrp.add(wCanopy);
+      const wRoof = new THREE.Mesh(new THREE.ConeGeometry(11.5, 2.4, 4), new THREE.MeshStandardMaterial({ color: 0x1e3a2f, roughness: 0.7 }));
+      wRoof.rotation.y = Math.PI / 4;
+      wRoof.scale.set(1.25, 1, 0.8);
+      wRoof.position.set(wx, 5.6, wz);
+      cottGrp.add(wRoof);
+      [-7.5, 7.5].forEach(px => [-4.2, 4.2].forEach(pz => {
+        const p = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 4.2, 8), darkWoodMat);
+        p.position.set(wx + px, 2.1, wz + pz);
+        cottGrp.add(p);
+        circOb(wx + px, wz + pz, 0.35);
+      }));
+      const wSignS = makeSign(
+        ['WARD\'S ISLAND FERRY DOCK', 'CLICK DESTINATION • MAINLAND / CENTRE / HANLAN\'S [E]'],
+        16, 2.2,
+        { bg: '#064e3b', fg: '#fef08a', borderColor: '#10b981' }
+      );
+      wSignS.position.set(wx, 5.0, wz + 5.7);
+      cottGrp.add(wSignS);
+      const wSignN = makeSign(
+        ['WARD\'S ISLAND TERMINAL', 'EAST ISLAND VILLAGE & COTTAGES'],
+        15, 2.0,
+        { bg: '#1e3a8a', fg: '#bae6fd', borderColor: '#0284c7' }
+      );
+      wSignN.position.set(wx, 5.0, wz - 5.7);
+      wSignN.rotation.y = Math.PI;
+      cottGrp.add(wSignN);
 
       islandsGroup.add(cottGrp);
     }
@@ -3214,6 +3882,10 @@
       if (fountainSpray) fountainSpray.scale.y = 0.95 + Math.sin(tTime * 4.5) * 0.12;
       if (lighthouseBeacon) lighthouseBeacon.rotation.y += dt * 1.8;
       if (radarDish) radarDish.rotation.y += dt * 3.2;
+      if (windsockCone) windsockCone.rotation.y = Math.sin(tTime * 1.8) * 0.25;
+      q400Propellers.forEach(p => {
+        if (p.hub && p.speed) p.hub.rotation.z += dt * p.speed;
+      });
 
       // Miniature Steam Train moving smoothly along track loop
       if (miniTrain) {
@@ -3417,12 +4089,13 @@
         centrePier: [0, Z(530)],
         olympicIsland: [-160, Z(330)],
         gibraltarLighthouse: [-480, Z(320)],
-        hanlansDock: [-720, Z(-90)],
+        hanlansDock: [-720, Z(-110)],
         hanlansBeach: [-886, Z(100)],
         airportRunway: [-1260, Z(-170)],
-        airportTerminal: [-1060, Z(-200)],
+        airportTerminal: [-1060, Z(-252)],
+        airportDock: [-1060, Z(-330)],
         algonquinIsland: [540, Z(130)],
-        wardsDock: [1140, Z(-5)],
+        wardsDock: [1140, Z(-20)],
         wardsBeach: [1210, Z(120)],
         wardsCafe: [1050, Z(85)],
         formalGarden: [0, Z(380)],
@@ -3433,6 +4106,9 @@
         willows: trees.willow.length,
         pines: trees.pine.length,
         shrubs: shrubs.length,
+        cottageWoodsTrees: trees.round.filter(t => t.x > 400).length + trees.willow.filter(t => t.x > 400).length + trees.pine.filter(t => t.x > 400).length,
+        uniqueCottages: COTTAGES.length,
+        q400Aircraft: 4,
         renderedOsmTowers: renderedOsmTowers
       }
     };

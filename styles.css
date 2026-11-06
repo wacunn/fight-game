@@ -1870,14 +1870,15 @@ body.telescope-mode #crosshair-wrapper {
   display: none !important;
 }
 
-/* CN Tower elevator floor-select panel */
-#elevator-panel {
+/* CN Tower elevator floor-select panel & Toronto Island Ferry dock-select panel */
+#elevator-panel,
+#ferry-panel {
   position: absolute;
   right: 28px;
   top: 50%;
   transform: translateY(-50%);
   z-index: 150;
-  width: 300px;
+  width: 320px;
   padding: 14px 14px 10px;
   background: rgba(15, 23, 42, 0.94);
   border: 1.5px solid #38bdf8;
@@ -1886,16 +1887,21 @@ body.telescope-mode #crosshair-wrapper {
   color: #f8fafc;
   pointer-events: auto;
 }
-#elevator-panel.hidden { display: none; }
-#elevator-panel .elev-panel-head {
+#elevator-panel.hidden,
+#ferry-panel.hidden { display: none !important; }
+#elevator-panel .elev-panel-head,
+#ferry-panel .elev-panel-head {
   display: flex; justify-content: space-between; align-items: baseline;
   margin-bottom: 10px;
 }
-#elevator-panel .elev-panel-title {
+#elevator-panel .elev-panel-title,
+#ferry-panel .elev-panel-title {
   font-family: 'Teko', sans-serif; font-size: 22px; font-weight: 700; color: #38bdf8; line-height: 1;
 }
-#elevator-panel .elev-panel-hint { font-size: 11px; color: #94a3b8; }
-#elevator-floor-list { display: flex; flex-direction: column; gap: 6px; }
+#elevator-panel .elev-panel-hint,
+#ferry-panel .elev-panel-hint { font-size: 11px; color: #94a3b8; }
+#elevator-floor-list,
+#ferry-dock-list { display: flex; flex-direction: column; gap: 6px; }
 .elev-floor-btn {
   display: flex; align-items: center; gap: 12px;
   width: 100%; padding: 8px 10px;
@@ -1920,9 +1926,11 @@ body.telescope-mode #crosshair-wrapper {
 .elev-floor-label { font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 1px; }
 .elev-floor-name { font-size: 14px; font-weight: 700; }
 .elev-floor-sub { font-size: 11px; color: #cbd5e1; }
-#elevator-panel .elev-panel-foot { margin-top: 10px; font-size: 11px; color: #94a3b8; text-align: center; }
+#elevator-panel .elev-panel-foot,
+#ferry-panel .elev-panel-foot { margin-top: 10px; font-size: 11px; color: #94a3b8; text-align: center; }
 @media (max-width: 700px) {
-  #elevator-panel { right: 50%; transform: translate(50%, -50%); width: min(300px, 90vw); }
+  #elevator-panel,
+  #ferry-panel { right: 50%; transform: translate(50%, -50%); width: min(320px, 90vw); }
 }
 
 /* ==========================================================================
